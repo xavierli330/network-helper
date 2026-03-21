@@ -69,6 +69,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newTraceCmd())
 	root.AddCommand(newCheckCmd())
 	root.AddCommand(newNoteCmd())
+	root.AddCommand(newSearchCmd())
 
 	return root
 }
