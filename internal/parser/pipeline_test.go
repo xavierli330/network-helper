@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/xavierli/nethelper/internal/parser/cisco"
+	"github.com/xavierli/nethelper/internal/parser/h3c"
 	"github.com/xavierli/nethelper/internal/parser/huawei"
 	"github.com/xavierli/nethelper/internal/store"
 )
@@ -232,5 +233,138 @@ func TestPipelineIngest_IOSXRPrompt(t *testing.T) {
 	}
 	if dev.Hostname != "GZ-YS-0101-ASR9912-01" {
 		t.Errorf("hostname: got %s, want GZ-YS-0101-ASR9912-01", dev.Hostname)
+	}
+}
+
+// TestReclassifyH3C verifies that blocks initially assigned vendor="huawei" are
+// flipped to "h3c" when a Comware-7 signature appears in their config output.
+func TestReclassifyH3C(t *testing.T) {
+	registry := NewRegistry()
+	registry.Register(huawei.New())
+	registry.Register(h3c.New())
+
+	// Construct blocks as Split would produce them: vendor=huawei (first match),
+	// but the config output contains the H3C "version 7." signature.
+	blocks := []CommandBlock{
+		{
+			Hostname: "H3C-Core",
+			Vendor:   "huawei",
+			Command:  "display current-configuration",
+			Output:   "version 7.1.070\n#\nsysname H3C-Core\n",
+		},
+		{
+			Hostname: "H3C-Core",
+			Vendor:   "huawei",
+			Command:  "display interface brief",
+			Output:   "Brief information on interfaces in route mode:\n",
+		},
+	}
+
+	reclassifyH3C(blocks, registry)
+
+	for _, b := range blocks {
+		if b.Vendor != "h3c" {
+			t.Errorf("block %q: expected vendor=h3c, got %s", b.Command, b.Vendor)
+		}
+	}
+}
+
+// TestReclassifyH3C_MDCMarker verifies reclassification also fires on "mdc admin id".
+func TestReclassifyH3C_MDCMarker(t *testing.T) {
+	registry := NewRegistry()
+	registry.Register(huawei.New())
+	registry.Register(h3c.New())
+
+	blocks := []CommandBlock{
+		{
+			Hostname: "H3C-MDC",
+			Vendor:   "huawei",
+			Command:  "display current-configuration",
+			Output:   "#\nmdc admin id 1\nsysname H3C-MDC\n",
+		},
+	}
+
+	reclassifyH3C(blocks, registry)
+
+	if blocks[0].Vendor != "h3c" {
+		t.Errorf("expected vendor=h3c after MDC marker, got %s", blocks[0].Vendor)
+	}
+}
+
+// TestReclassifyH3C_NoChange verifies that genuine Huawei blocks are not touched.
+func TestReclassifyH3C_NoChange(t *testing.T) {
+	registry := NewRegistry()
+	registry.Register(huawei.New())
+	registry.Register(h3c.New())
+
+	blocks := []CommandBlock{
+		{
+			Hostname: "Huawei-CE",
+			Vendor:   "huawei",
+			Command:  "display current-configuration",
+			Output:   "version V200R021C10SPC600\nsysname Huawei-CE\n",
+		},
+	}
+
+	reclassifyH3C(blocks, registry)
+
+	if blocks[0].Vendor != "huawei" {
+		t.Errorf("expected vendor=huawei (unchanged), got %s", blocks[0].Vendor)
+	}
+}
+
+// TestPipelineIngest_H3CDisambiguation is a full pipeline integration test that
+// ingests H3C content (with a "version 7." header) and verifies the stored
+// device has vendor="h3c", not "huawei".
+func TestPipelineIngest_H3CDisambiguation(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	db, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
+
+	// Register huawei FIRST (same order as production root.go); h3c second.
+	registry := NewRegistry()
+	registry.Register(huawei.New())
+	registry.Register(h3c.New())
+	pipeline := NewPipeline(db, registry)
+
+	// The log uses <hostname> prompts, so Split will assign vendor=huawei.
+	// The config block contains "version 7." which must trigger reclassification.
+	content := "<H3C-Core01>display current-configuration\n" +
+		"version 7.1.070\n" +
+		"#\n" +
+		"sysname H3C-Core01\n" +
+		"<H3C-Core01>display interface brief\n" +
+		"Brief information on interfaces in route mode:\n" +
+		"Link: ADM - administratively down; Stby - standby\n" +
+		"Protocol: (s) - spoofing\n" +
+		"Interface            Link Protocol Primary IP      Description\n" +
+		"GE1/0/1              UP   UP       10.0.0.1\n"
+
+	result, err := pipeline.Ingest("h3c-log.txt", content)
+	if err != nil {
+		t.Fatalf("ingest error: %v", err)
+	}
+	if result.DevicesFound != 1 {
+		t.Errorf("DevicesFound: got %d, want 1", result.DevicesFound)
+	}
+
+	dev, err := db.GetDevice("h3c-core01")
+	if err != nil {
+		t.Fatalf("device not found: %v", err)
+	}
+	if dev.Vendor != "h3c" {
+		t.Errorf("vendor: got %q, want h3c — reclassification did not fire", dev.Vendor)
+	}
+	if dev.Hostname != "H3C-Core01" {
+		t.Errorf("hostname: got %q, want H3C-Core01", dev.Hostname)
+	}
+
+	// The interface block should have been parsed with the H3C parser and stored.
+	ifaces, _ := db.GetInterfaces("h3c-core01")
+	if len(ifaces) != 1 {
+		t.Errorf("interfaces: got %d, want 1", len(ifaces))
 	}
 }

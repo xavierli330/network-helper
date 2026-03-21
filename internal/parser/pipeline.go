@@ -38,25 +38,37 @@ func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 		return result, nil
 	}
 
-	// Group blocks by hostname.
+	// Step 1: Initial ClassifyCommand pass using the vendor assigned by Split.
+	for i := range blocks {
+		b := &blocks[i]
+		if strings.HasSuffix(strings.TrimRight(b.Command, " \t"), "?") {
+			continue // skip help queries; counted below
+		}
+		if vp, ok := p.registry.Get(b.Vendor); ok {
+			b.CmdType = vp.ClassifyCommand(b.Command)
+		} else {
+			b.CmdType = model.CmdUnknown
+		}
+	}
+
+	// Step 2: Post-split reclassification — detect H3C devices misclassified as
+	// Huawei (both share the <hostname> prompt format). Re-classifies commands
+	// for any reclassified blocks using the H3C parser.
+	reclassifyH3C(blocks, p.registry)
+
+	// Step 3: Build per-device groups from the (possibly corrected) blocks.
 	type deviceBlocks struct {
 		hostname string
 		vendor   string
 		blocks   []CommandBlock
 	}
 	deviceMap := make(map[string]*deviceBlocks)
-
 	for i := range blocks {
 		b := &blocks[i]
 		// Skip help queries — commands ending with '?' produce CLI help text, not useful data.
 		if strings.HasSuffix(strings.TrimRight(b.Command, " \t"), "?") {
 			result.BlocksSkipped++
 			continue
-		}
-		if vp, ok := p.registry.Get(b.Vendor); ok {
-			b.CmdType = vp.ClassifyCommand(b.Command)
-		} else {
-			b.CmdType = model.CmdUnknown
 		}
 		key := strings.ToLower(b.Hostname)
 		if _, exists := deviceMap[key]; !exists {
@@ -252,5 +264,43 @@ func cmdTypeToScratchCategory(cmdType model.CommandType) string {
 		return "label"
 	default:
 		return "raw"
+	}
+}
+
+// reclassifyH3C detects H3C devices that were initially assigned vendor="huawei"
+// because both platforms share the <hostname> prompt format, and Huawei is
+// registered first. It scans config output for H3C-specific signatures:
+//   - "version 7." prefix  (H3C Comware 7 header)
+//   - "mdc admin id"       (H3C MDC marker)
+//
+// When a signature is found in any block for a hostname, every block belonging
+// to that hostname is flipped to vendor="h3c" and its CmdType is re-classified
+// using the H3C parser.
+func reclassifyH3C(blocks []CommandBlock, reg *Registry) {
+	h3cHostnames := map[string]bool{}
+	for _, b := range blocks {
+		if b.Vendor != "huawei" {
+			continue
+		}
+		lines := strings.SplitN(b.Output, "\n", 10)
+		for _, l := range lines {
+			lower := strings.ToLower(strings.TrimSpace(l))
+			if strings.HasPrefix(lower, "version 7.") || strings.HasPrefix(lower, "mdc admin id") {
+				h3cHostnames[strings.ToLower(b.Hostname)] = true
+				break
+			}
+		}
+	}
+	if len(h3cHostnames) == 0 {
+		return
+	}
+	h3cParser, ok := reg.Get("h3c")
+	for i := range blocks {
+		if h3cHostnames[strings.ToLower(blocks[i].Hostname)] {
+			blocks[i].Vendor = "h3c"
+			if ok {
+				blocks[i].CmdType = h3cParser.ClassifyCommand(blocks[i].Command)
+			}
+		}
 	}
 }
