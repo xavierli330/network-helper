@@ -48,6 +48,11 @@ func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 
 	for i := range blocks {
 		b := &blocks[i]
+		// Skip help queries — commands ending with '?' produce CLI help text, not useful data.
+		if strings.HasSuffix(strings.TrimRight(b.Command, " \t"), "?") {
+			result.BlocksSkipped++
+			continue
+		}
 		if vp, ok := p.registry.Get(b.Vendor); ok {
 			b.CmdType = vp.ClassifyCommand(b.Command)
 		} else {

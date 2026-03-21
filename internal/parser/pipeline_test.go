@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xavierli/nethelper/internal/parser/cisco"
 	"github.com/xavierli/nethelper/internal/parser/huawei"
 	"github.com/xavierli/nethelper/internal/store"
 )
@@ -159,5 +160,77 @@ func TestPipelineIngest_CapturedAtFallback(t *testing.T) {
 		t.Error("snapshot CapturedAt should not be zero (db default should apply)")
 	} else if snap.CapturedAt.Before(before) || snap.CapturedAt.After(after) {
 		t.Errorf("snapshot CapturedAt %v is not within expected range [%v, %v]", snap.CapturedAt, before, after)
+	}
+}
+
+// TestPipelineIngest_SkipHelpQueries verifies that command blocks whose command
+// ends with '?' (IOS help queries) are counted as skipped and not stored.
+func TestPipelineIngest_SkipHelpQueries(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	db, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
+
+	registry := NewRegistry()
+	registry.Register(cisco.New())
+	pipeline := NewPipeline(db, registry)
+
+	// Two help queries + one real command.
+	content := "Router-PE01#show running-config ?\n" +
+		"  <cr>   show full config\n" +
+		"Router-PE01#show running-config | ?\n" +
+		"  include  Include lines that match\n" +
+		"Router-PE01#show interfaces GigabitEthernet0/0\n" +
+		"GigabitEthernet0/0 is up, line protocol is up\n"
+
+	result, err := pipeline.Ingest("cisco-log.txt", content)
+	if err != nil {
+		t.Fatalf("ingest error: %v", err)
+	}
+	if result.BlocksSkipped != 2 {
+		t.Errorf("BlocksSkipped: got %d, want 2", result.BlocksSkipped)
+	}
+	if result.BlocksParsed != 1 {
+		t.Errorf("BlocksParsed: got %d, want 1", result.BlocksParsed)
+	}
+}
+
+// TestPipelineIngest_IOSXRPrompt verifies that IOS-XR style prompts are correctly
+// recognised by the Cisco parser and produce a stored device.
+func TestPipelineIngest_IOSXRPrompt(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	db, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
+
+	registry := NewRegistry()
+	registry.Register(cisco.New())
+	pipeline := NewPipeline(db, registry)
+
+	content := "RP/0/RP0/CPU0:GZ-YS-0101-ASR9912-01#show interfaces brief\n" +
+		"Interface                     Intf        IP-Address      Status          Protocol\n" +
+		"GigabitEthernet0/0/0/0        up          10.0.0.1/24     Up              Up\n"
+
+	result, err := pipeline.Ingest("xr-log.txt", content)
+	if err != nil {
+		t.Fatalf("ingest error: %v", err)
+	}
+	if result.DevicesFound != 1 {
+		t.Errorf("DevicesFound: got %d, want 1", result.DevicesFound)
+	}
+
+	dev, err := db.GetDevice("gz-ys-0101-asr9912-01")
+	if err != nil {
+		t.Fatalf("device not found: %v", err)
+	}
+	if dev.Vendor != "cisco" {
+		t.Errorf("vendor: got %s, want cisco", dev.Vendor)
+	}
+	if dev.Hostname != "GZ-YS-0101-ASR9912-01" {
+		t.Errorf("hostname: got %s, want GZ-YS-0101-ASR9912-01", dev.Hostname)
 	}
 }
