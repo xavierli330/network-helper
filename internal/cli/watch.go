@@ -32,6 +32,12 @@ func newWatchIngestCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("read file: %w", err)
 			}
+
+			result, err := pipeline.Ingest(filePath, string(data))
+			if err != nil {
+				return fmt.Errorf("ingest: %w", err)
+			}
+
 			ing := model.LogIngestion{
 				FilePath:    filePath,
 				LastOffset:  int64(len(data)),
@@ -40,8 +46,10 @@ func newWatchIngestCmd() *cobra.Command {
 			if err := db.UpsertIngestion(ing); err != nil {
 				return fmt.Errorf("record ingestion: %w", err)
 			}
+
 			fmt.Printf("Ingested %s (%d bytes)\n", filePath, len(data))
-			fmt.Println("Note: parsing not yet implemented (Plan 2). Raw file recorded.")
+			fmt.Printf("  Devices: %d, Blocks parsed: %d, Failed: %d, Skipped: %d\n",
+				result.DevicesFound, result.BlocksParsed, result.BlocksFailed, result.BlocksSkipped)
 			return nil
 		},
 	}

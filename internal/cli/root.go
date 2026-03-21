@@ -6,14 +6,17 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xavierli/nethelper/internal/config"
+	"github.com/xavierli/nethelper/internal/parser"
+	"github.com/xavierli/nethelper/internal/parser/huawei"
 	"github.com/xavierli/nethelper/internal/store"
 )
 
 var (
-	cfgFile string
-	dbPath  string
-	cfg     *config.Config
-	db      *store.DB
+	cfgFile  string
+	dbPath   string
+	cfg      *config.Config
+	db       *store.DB
+	pipeline *parser.Pipeline
 )
 
 func NewRootCmd() *cobra.Command {
@@ -37,6 +40,11 @@ func NewRootCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
+
+			registry := parser.NewRegistry()
+			registry.Register(huawei.New())
+			pipeline = parser.NewPipeline(db, registry)
+
 			return nil
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
