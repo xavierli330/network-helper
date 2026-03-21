@@ -3,6 +3,7 @@ module github.com/xavierli/nethelper
 go 1.24.0
 
 require (
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ncruces/go-sqlite3 v0.32.0 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
