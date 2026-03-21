@@ -68,6 +68,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newWatchCmd())
 	root.AddCommand(newTraceCmd())
 	root.AddCommand(newCheckCmd())
+	root.AddCommand(newNoteCmd())
 
 	return root
 }
