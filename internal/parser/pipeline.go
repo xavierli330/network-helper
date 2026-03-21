@@ -152,7 +152,7 @@ func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 				continue
 			}
 
-			if err := p.storeResult(deviceID, snapID, parseResult, b.CapturedAt); err != nil {
+			if err := p.storeResult(deviceID, snapID, parseResult, b.CapturedAt, b.Vendor); err != nil {
 				slog.Error("store result failed", "cmd", b.Command, "error", err)
 				result.BlocksFailed++
 				continue
@@ -163,7 +163,7 @@ func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 	return result, nil
 }
 
-func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult, capturedAt time.Time) error {
+func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult, capturedAt time.Time, vendor string) error {
 	for i := range pr.Interfaces {
 		iface := &pr.Interfaces[i]
 		iface.DeviceID = deviceID
@@ -255,6 +255,21 @@ func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult
 		}
 		if _, err := p.db.InsertConfigSnapshot(cs); err != nil {
 			return err
+		}
+
+		// Extract interfaces from config text and store them.
+		// This ensures structured interface data is available even when
+		// users only capture running-config without explicit interface commands.
+		ifaces := ExtractInterfacesFromConfig(pr.ConfigText, vendor)
+		for i := range ifaces {
+			ifaces[i].DeviceID = deviceID
+			if ifaces[i].ID == "" {
+				ifaces[i].ID = deviceID + ":" + ifaces[i].Name
+			}
+			ifaces[i].LastUpdated = time.Now()
+			if err := p.db.UpsertInterface(ifaces[i]); err != nil {
+				return err
+			}
 		}
 	}
 
