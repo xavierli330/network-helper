@@ -328,7 +328,10 @@ func reclassifyH3C(blocks []CommandBlock, reg *Registry) {
 var trailingPromptRe = regexp.MustCompile(`(?m)^(\s*<[A-Za-z][^>]+>\s*$|` +
 	`\s*\[[A-Za-z][^\]]+\]\s*$|` +
 	`\s*RP/\d+/[A-Z0-9]+/CPU\d+:[^\s#]+#\s*$|` +
-	`\s*[a-zA-Z][a-zA-Z0-9._-]*@[A-Za-z][A-Za-z0-9._-]*[>#]\s*$)`)
+	`\s*[a-zA-Z][a-zA-Z0-9._-]*@[A-Za-z][A-Za-z0-9._-]*[>#]\s*$|` +
+	`\s*\{master[^}]*\}\s*$|` +
+	`\s*\{backup[^}]*\}\s*$|` +
+	`\s*\{(primary|secondary|linecard):[^\}]*\}\s*$)`)
 
 // ciscoPreambleRe matches Cisco IOS-XR "show running-config" preamble lines.
 var ciscoPreambleRe = regexp.MustCompile(`(?m)^(.*Building configuration\.\.\.\s*\n|` +
@@ -359,7 +362,7 @@ var (
 	huaweiVersionRe  = regexp.MustCompile(`!Software Version (V\S+)`)
 	ciscoVersionRe   = regexp.MustCompile(`(?i)IOS XR.*?(?:Version|Release)\s+(\S+)`)
 	ciscoVersionRe2  = regexp.MustCompile(`(?m)^!! IOS XR Configuration (\S+)`)
-	h3cVersionRe     = regexp.MustCompile(`(?m)^\s*version\s+(7\.\S+)`)
+	h3cVersionRe     = regexp.MustCompile(`(?m)^\s*version\s+(7\.[0-9A-Za-z.]+)`)
 	juniperVersionRe = regexp.MustCompile(`(?m)^\s*version\s+(\d+\.\d+\S*);\s*$`)
 )
 
