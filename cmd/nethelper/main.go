@@ -1,11 +1,7 @@
 package main
 
-import (
-	"fmt"
-	"os"
-)
+import "github.com/xavierli/nethelper/internal/cli"
 
 func main() {
-	fmt.Println("nethelper v0.1.0")
-	os.Exit(0)
+	cli.Execute()
 }
