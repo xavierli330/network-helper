@@ -1,0 +1,97 @@
+# nethelper 配置文件模板
+# 位置: ~/.nethelper/config.yaml
+# 所有字段都是可选的，不配置则使用默认值
+
+# ============================================================================
+# 数据存储
+# ============================================================================
+
+# 数据目录（默认: ~/.nethelper）
+# data_dir: /home/yourname/.nethelper
+
+# SQLite 数据库路径（默认: <data_dir>/nethelper.db）
+# db_path: /home/yourname/.nethelper/nethelper.db
+
+# ============================================================================
+# 日志监控目录
+# ============================================================================
+# nethelper watch start 会监控这些目录中的日志文件变化
+# 也可以通过 --dir 参数临时指定
+
+watch_dirs:
+  - ~/network-logs
+  # - ~/securecrt-logs
+  # - /var/log/network
+
+# ============================================================================
+# LLM 大语言模型配置
+# ============================================================================
+# LLM 是可选的增强功能。不配置也不影响核心功能（查询、解析、搜索等）。
+# 所有 provider 都使用 OpenAI 兼容的 API 格式。
+
+llm:
+  # 默认使用哪个 provider（必须是 providers 中定义的名称）
+  default: ollama
+
+  # 定义可用的 provider
+  providers:
+
+    # --- Ollama（本地运行，免费，推荐入门） ---
+    ollama:
+      base_url: http://localhost:11434
+      model: qwen2.5:14b
+      # api_key 留空即可，Ollama 不需要
+
+    # --- OpenAI ---
+    # openai:
+    #   api_key: sk-proj-xxxxxxxxxxxx
+    #   model: gpt-4o-mini
+    #   # base_url 留空则默认 https://api.openai.com/v1
+
+    # --- Anthropic（通过 OpenAI 兼容代理） ---
+    # anthropic:
+    #   api_key: sk-ant-xxxxxxxxxxxx
+    #   model: claude-sonnet-4-20250514
+    #   base_url: https://api.anthropic.com/v1  # 需要兼容层
+
+    # --- DeepSeek ---
+    # deepseek:
+    #   api_key: sk-xxxxxxxxxxxx
+    #   model: deepseek-chat
+    #   base_url: https://api.deepseek.com/v1
+
+    # --- 通义千问（阿里云） ---
+    # qwen:
+    #   api_key: sk-xxxxxxxxxxxx
+    #   model: qwen-plus
+    #   base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+
+    # --- 自建/私有部署的 OpenAI 兼容服务 ---
+    # custom:
+    #   api_key: your-key
+    #   model: your-model
+    #   base_url: https://your-server.com/v1
+
+  # 按能力路由到不同 provider（可选，不配置则全部走 default）
+  # 适合：用便宜模型做提取，用好模型做分析
+  # routing:
+  #   extract: ollama       # 排障日志 → 结构化经验提取
+  #   analyze: openai       # 排障分析和建议
+  #   explain: ollama       # 配置/输出解读
+  #   parse: ollama         # 解析器兜底（L2.5层）
+
+# ============================================================================
+# Embedding 向量嵌入配置（预留，当前版本尚未启用 sqlite-vec）
+# ============================================================================
+# 用于语义搜索，让"接口丢包"能匹配到"CRC error 导致 drop"这样的笔记
+# 当前版本使用 FTS5 关键词搜索，向量搜索将在后续版本启用
+
+# embedding:
+#   provider: ollama
+#   providers:
+#     ollama:
+#       base_url: http://localhost:11434
+#       model: nomic-embed-text
+#     openai:
+#       api_key: sk-proj-xxxxxxxxxxxx
+#       model: text-embedding-3-small
