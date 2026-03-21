@@ -3,6 +3,8 @@ package parser
 import (
 	"regexp"
 	"strings"
+	"time"
+
 	"github.com/xavierli/nethelper/internal/model"
 )
 
@@ -10,9 +12,33 @@ import (
 // "2026-03-21-13-11-26: " or "2026-03-21 13:11:26 " or "Mar 21 13:11:26 "
 var timestampRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}[-T ]\d{2}[-:]\d{2}[-:]\d{2}[:.]\s*`)
 
+// timestampLayouts lists the time.Parse formats tried in order when extracting a timestamp.
+var timestampLayouts = []string{
+	"2006-01-02-15-04-05",
+	"2006-01-02T15:04:05",
+	"2006-01-02 15:04:05",
+}
+
 // stripTimestamp removes a leading timestamp prefix from a line if present.
 func stripTimestamp(line string) string {
 	return timestampRe.ReplaceAllString(line, "")
+}
+
+// extractTimestamp parses the timestamp value from a line's prefix.
+// It returns the parsed time and true on success, or zero/false if no prefix is found.
+func extractTimestamp(line string) (time.Time, bool) {
+	loc := timestampRe.FindStringIndex(line)
+	if loc == nil {
+		return time.Time{}, false
+	}
+	// The matched prefix ends at loc[1]; trim the trailing separator/space to get the raw value.
+	raw := strings.TrimRight(line[:loc[1]], ": \t")
+	for _, layout := range timestampLayouts {
+		if t, err := time.ParseInLocation(layout, raw, time.Local); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
 }
 
 // promptOnlyParser is a minimal VendorParser used only for prompt detection during splitting.
@@ -37,10 +63,11 @@ func (p *promptOnlyParser) ParseOutput(cmdType model.CommandType, raw string) (m
 }
 
 type promptMatch struct {
-	lineIndex int
-	hostname  string
-	vendor    string
-	command   string
+	lineIndex  int
+	hostname   string
+	vendor     string
+	command    string
+	capturedAt time.Time // zero if the line had no timestamp prefix
 }
 
 func Split(raw string, registry *Registry) []CommandBlock {
@@ -53,14 +80,16 @@ func Split(raw string, registry *Registry) []CommandBlock {
 	for i, line := range lines {
 		trimmed := strings.TrimRight(line, "\r \t")
 		if trimmed == "" { continue }
-		// Strip timestamp prefix before prompt detection
+		// Extract timestamp value before stripping the prefix.
+		ts, _ := extractTimestamp(trimmed)
+		// Strip timestamp prefix before prompt detection.
 		stripped := stripTimestamp(trimmed)
 		for _, p := range parsers {
 			hostname, ok := p.DetectPrompt(stripped)
 			if !ok { continue }
 			cmd := extractCommand(stripped, p)
 			if cmd == "" { continue }
-			matches = append(matches, promptMatch{lineIndex: i, hostname: hostname, vendor: p.Vendor(), command: cmd})
+			matches = append(matches, promptMatch{lineIndex: i, hostname: hostname, vendor: p.Vendor(), command: cmd, capturedAt: ts})
 			break
 		}
 	}
@@ -79,7 +108,7 @@ func Split(raw string, registry *Registry) []CommandBlock {
 			}
 		}
 		output := strings.TrimRight(strings.Join(outputLines, "\n"), "\n\r \t")
-		blocks = append(blocks, CommandBlock{Hostname: m.hostname, Vendor: m.vendor, Command: m.command, Output: output})
+		blocks = append(blocks, CommandBlock{Hostname: m.hostname, Vendor: m.vendor, Command: m.command, Output: output, CapturedAt: m.capturedAt})
 	}
 	return blocks
 }

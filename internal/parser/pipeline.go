@@ -75,13 +75,20 @@ func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 		}
 
 		var cmdNames []string
+		var earliestAt time.Time
 		for _, b := range db.blocks {
 			cmdNames = append(cmdNames, b.Command)
+			if !b.CapturedAt.IsZero() {
+				if earliestAt.IsZero() || b.CapturedAt.Before(earliestAt) {
+					earliestAt = b.CapturedAt
+				}
+			}
 		}
 		snapshot := model.Snapshot{
 			DeviceID:   deviceID,
 			SourceFile: sourceFile,
 			Commands:   `["` + strings.Join(cmdNames, `","`) + `"]`,
+			CapturedAt: earliestAt,
 		}
 		snapID, err := p.db.CreateSnapshot(snapshot)
 		if err != nil {

@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/xavierli/nethelper/internal/model"
+import (
+	"time"
+
+	"github.com/xavierli/nethelper/internal/model"
+)
 
 type VendorParser interface {
 	Vendor() string
@@ -10,11 +14,12 @@ type VendorParser interface {
 }
 
 type CommandBlock struct {
-	Hostname string
-	Vendor   string
-	Command  string
-	Output   string
-	CmdType  model.CommandType
+	Hostname   string
+	Vendor     string
+	Command    string
+	Output     string
+	CmdType    model.CommandType
+	CapturedAt time.Time // extracted from log timestamp prefix; zero if absent
 }
 
 type Registry struct {
