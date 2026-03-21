@@ -55,3 +55,27 @@ func TestMockProviderChat(t *testing.T) {
 		t.Errorf("got: %s", resp.Content)
 	}
 }
+
+func TestOpenAIProviderCreation(t *testing.T) {
+	p := NewOpenAIProvider("test-key", "gpt-4o-mini", "")
+	if p.Name() != "openai" {
+		t.Errorf("name: %s", p.Name())
+	}
+	if !p.Supports(CapAnalyze) {
+		t.Error("should support analyze")
+	}
+}
+
+func TestOpenAIProviderCustomName(t *testing.T) {
+	p := NewOpenAICompatProvider("deepseek", "sk-xxx", "deepseek-chat", "https://api.deepseek.com")
+	if p.Name() != "deepseek" {
+		t.Errorf("name: %s", p.Name())
+	}
+}
+
+func TestOpenAIProviderOllama(t *testing.T) {
+	p := NewOpenAICompatProvider("ollama", "", "qwen2.5:14b", "http://localhost:11434")
+	if p.Name() != "ollama" {
+		t.Errorf("name: %s", p.Name())
+	}
+}
