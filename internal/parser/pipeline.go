@@ -2,6 +2,7 @@ package parser
 
 import (
 	"log/slog"
+	"regexp"
 	"strings"
 	"time"
 
@@ -86,6 +87,17 @@ func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 			Vendor:   db.vendor,
 			LastSeen: time.Now(),
 		}
+
+		// Extract OS version from config blocks
+		for _, b := range db.blocks {
+			if b.CmdType == model.CmdConfig || b.CmdType == model.CmdConfigSet {
+				if ver := extractOSVersion(b.Output, db.vendor); ver != "" {
+					dev.OSVersion = ver
+					break
+				}
+			}
+		}
+
 		if err := p.db.UpsertDevice(dev); err != nil {
 			slog.Error("upsert device failed", "device", deviceID, "error", err)
 			continue
@@ -140,7 +152,7 @@ func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 				continue
 			}
 
-			if err := p.storeResult(deviceID, snapID, parseResult); err != nil {
+			if err := p.storeResult(deviceID, snapID, parseResult, b.CapturedAt); err != nil {
 				slog.Error("store result failed", "cmd", b.Command, "error", err)
 				result.BlocksFailed++
 				continue
@@ -151,7 +163,7 @@ func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 	return result, nil
 }
 
-func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult) error {
+func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult, capturedAt time.Time) error {
 	for i := range pr.Interfaces {
 		iface := &pr.Interfaces[i]
 		iface.DeviceID = deviceID
@@ -226,7 +238,8 @@ func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult
 		}
 		cs := model.ConfigSnapshot{
 			DeviceID:   deviceID,
-			ConfigText: pr.ConfigText,
+			ConfigText: cleanConfigText(pr.ConfigText),
+			CapturedAt: capturedAt,
 			SourceFile: "", // will be set by caller if needed
 			Format:     format,
 		}
@@ -308,4 +321,70 @@ func reclassifyH3C(blocks []CommandBlock, reg *Registry) {
 			}
 		}
 	}
+}
+
+// trailingPromptRe matches device prompts at the end of config output.
+// Covers: <hostname>, [hostname], RP/x/RPx/CPUx:hostname#, user@hostname>
+var trailingPromptRe = regexp.MustCompile(`(?m)^(\s*<[A-Za-z][^>]+>\s*$|` +
+	`\s*\[[A-Za-z][^\]]+\]\s*$|` +
+	`\s*RP/\d+/[A-Z0-9]+/CPU\d+:[^\s#]+#\s*$|` +
+	`\s*[a-zA-Z][a-zA-Z0-9._-]*@[A-Za-z][A-Za-z0-9._-]*[>#]\s*$)`)
+
+// ciscoPreambleRe matches Cisco IOS-XR "show running-config" preamble lines.
+var ciscoPreambleRe = regexp.MustCompile(`(?m)^(.*Building configuration\.\.\.\s*\n|` +
+	`\s*\w+ \w+ \d+ \d+:\d+:\d+\.\d+ \w+\s*\n)`)
+
+// cleanConfigText removes trailing device prompts, Cisco preamble, and
+// leading/trailing whitespace from config text before storage.
+func cleanConfigText(text string) string {
+	// Strip Cisco preamble (timestamp + "Building configuration...")
+	text = ciscoPreambleRe.ReplaceAllString(text, "")
+
+	// Strip trailing prompt lines
+	lines := strings.Split(text, "\n")
+	for len(lines) > 0 {
+		last := strings.TrimSpace(lines[len(lines)-1])
+		if last == "" || trailingPromptRe.MatchString(last) {
+			lines = lines[:len(lines)-1]
+		} else {
+			break
+		}
+	}
+
+	return strings.TrimSpace(strings.Join(lines, "\n"))
+}
+
+// Version extraction patterns per vendor
+var (
+	huaweiVersionRe  = regexp.MustCompile(`!Software Version (V\S+)`)
+	ciscoVersionRe   = regexp.MustCompile(`(?i)IOS XR.*?(?:Version|Release)\s+(\S+)`)
+	ciscoVersionRe2  = regexp.MustCompile(`(?m)^!! IOS XR Configuration (\S+)`)
+	h3cVersionRe     = regexp.MustCompile(`(?m)^\s*version\s+(7\.\S+)`)
+	juniperVersionRe = regexp.MustCompile(`(?m)^\s*version\s+(\d+\.\d+\S*);\s*$`)
+)
+
+// extractOSVersion extracts the OS version string from config output.
+func extractOSVersion(configText, vendor string) string {
+	switch vendor {
+	case "huawei":
+		if m := huaweiVersionRe.FindStringSubmatch(configText); m != nil {
+			return "VRP " + m[1]
+		}
+	case "cisco":
+		if m := ciscoVersionRe2.FindStringSubmatch(configText); m != nil {
+			return "IOS-XR " + m[1]
+		}
+		if m := ciscoVersionRe.FindStringSubmatch(configText); m != nil {
+			return "IOS-XR " + m[1]
+		}
+	case "h3c":
+		if m := h3cVersionRe.FindStringSubmatch(configText); m != nil {
+			return "Comware " + m[1]
+		}
+	case "juniper":
+		if m := juniperVersionRe.FindStringSubmatch(configText); m != nil {
+			return "JUNOS " + m[1]
+		}
+	}
+	return ""
 }
