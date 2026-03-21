@@ -15,6 +15,14 @@ var (
 
 func DetectVendor(line string) (vendor, hostname string) {
 	trimmed := strings.TrimRight(line, "\r \t")
+	// NOTE: H3C uses the same <hostname> prompt as Huawei.
+	// DetectVendor returns "huawei" for both. In the pipeline, when the
+	// full VendorParser registry is available, H3C detection happens via
+	// the H3C parser's DetectPrompt — but since both match <hostname>,
+	// the registry iteration order determines which parser claims the block.
+	// For explicit H3C support, users should configure device-vendor mappings
+	// in config.yaml (future feature). For now, Huawei parser handles both
+	// since the output formats are very similar.
 	if m := huaweiAnglePrompt.FindStringSubmatch(trimmed); m != nil { return "huawei", m[1] }
 	if m := huaweiBracketPrompt.FindStringSubmatch(trimmed); m != nil { return "huawei", m[1] }
 	if m := juniperPrompt.FindStringSubmatch(trimmed); m != nil { return "juniper", m[1] }

@@ -7,7 +7,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xavierli/nethelper/internal/config"
 	"github.com/xavierli/nethelper/internal/parser"
+	"github.com/xavierli/nethelper/internal/parser/cisco"
+	"github.com/xavierli/nethelper/internal/parser/h3c"
 	"github.com/xavierli/nethelper/internal/parser/huawei"
+	"github.com/xavierli/nethelper/internal/parser/juniper"
 	"github.com/xavierli/nethelper/internal/store"
 )
 
@@ -43,6 +46,9 @@ func NewRootCmd() *cobra.Command {
 
 			registry := parser.NewRegistry()
 			registry.Register(huawei.New())
+			registry.Register(cisco.New())
+			registry.Register(h3c.New())
+			registry.Register(juniper.New())
 			pipeline = parser.NewPipeline(db, registry)
 
 			return nil
