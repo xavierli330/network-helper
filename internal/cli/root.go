@@ -80,6 +80,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newExplainCmd())
 	root.AddCommand(newConfigCmd())
 	root.AddCommand(newExportCmd())
+	root.AddCommand(newScratchClearCmd())
 
 	return root
 }

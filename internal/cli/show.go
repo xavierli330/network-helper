@@ -22,6 +22,7 @@ func newShowCmd() *cobra.Command {
 	show.AddCommand(newShowNeighborCmd())
 	show.AddCommand(newShowTunnelCmd())
 	show.AddCommand(newShowTopologyCmd())
+	show.AddCommand(newShowScratchCmd())
 	return show
 }
 

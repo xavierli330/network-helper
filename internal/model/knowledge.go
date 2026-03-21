@@ -47,3 +47,15 @@ type LogIngestion struct {
 	LastOffset  int64     `json:"last_offset"`
 	ProcessedAt time.Time `json:"processed_at"`
 }
+
+// ScratchEntry is a temporary record in the scratch pad.
+// Used for large outputs (full routing tables) and specific object queries
+// that are useful during troubleshooting but not worth permanent storage.
+type ScratchEntry struct {
+	ID        int       `json:"id"`
+	DeviceID  string    `json:"device_id"`
+	Category  string    `json:"category"` // route, peer, label, fib, config_section, raw
+	Query     string    `json:"query"`    // the original command
+	Content   string    `json:"content"`  // the output
+	CreatedAt time.Time `json:"created_at"`
+}

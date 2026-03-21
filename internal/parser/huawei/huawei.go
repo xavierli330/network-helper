@@ -41,29 +41,45 @@ func (p *Parser) DetectPrompt(line string) (string, bool) {
 
 func (p *Parser) ClassifyCommand(cmd string) model.CommandType {
 	lower := strings.ToLower(strings.TrimSpace(cmd))
+
+	// Normalize common abbreviations: "dis" → "display"
+	if strings.HasPrefix(lower, "dis ") && !strings.HasPrefix(lower, "display ") {
+		lower = "display " + lower[4:]
+	}
+
 	switch {
-	case strings.HasPrefix(lower, "display ip routing-table"):
+	case strings.HasPrefix(lower, "display ip routing-table"),
+		strings.HasPrefix(lower, "display ip rout"):
 		return model.CmdRIB
 	case strings.HasPrefix(lower, "display fib"):
 		return model.CmdFIB
-	case strings.HasPrefix(lower, "display mpls lsp"), strings.HasPrefix(lower, "display mpls forwarding"):
+	case strings.HasPrefix(lower, "display mpls lsp"),
+		strings.HasPrefix(lower, "display mpls forwarding"):
 		return model.CmdLFIB
-	case strings.HasPrefix(lower, "display interface"):
+	case strings.HasPrefix(lower, "display interface"),
+		strings.HasPrefix(lower, "display int"):
 		return model.CmdInterface
-	case strings.HasPrefix(lower, "display ospf peer"), strings.HasPrefix(lower, "display bgp peer"),
-		strings.HasPrefix(lower, "display isis peer"), strings.HasPrefix(lower, "display mpls ldp session"),
-		strings.HasPrefix(lower, "display mpls ldp peer"), strings.HasPrefix(lower, "display rsvp session"),
+	case strings.HasPrefix(lower, "display ospf peer"),
+		strings.HasPrefix(lower, "display bgp peer"),
+		strings.HasPrefix(lower, "display isis peer"),
+		strings.HasPrefix(lower, "display mpls ldp session"),
+		strings.HasPrefix(lower, "display mpls ldp peer"),
+		strings.HasPrefix(lower, "display rsvp session"),
 		strings.HasPrefix(lower, "display lldp neighbor"):
 		return model.CmdNeighbor
 	case strings.HasPrefix(lower, "display mpls te tunnel"):
 		return model.CmdTunnel
-	case strings.HasPrefix(lower, "display segment-routing"), strings.HasPrefix(lower, "display isis segment-routing"):
+	case strings.HasPrefix(lower, "display segment-routing"),
+		strings.HasPrefix(lower, "display isis segment-routing"):
 		return model.CmdSRMapping
 	case strings.HasPrefix(lower, "display current-configuration"),
 		strings.HasPrefix(lower, "display saved-configuration"),
-		strings.HasPrefix(lower, "dis cur"),
-		strings.HasPrefix(lower, "dis sa"):
+		strings.HasPrefix(lower, "display cur"),
+		strings.HasPrefix(lower, "display sa"):
 		return model.CmdConfig
+	case strings.HasPrefix(lower, "display route-policy"),
+		strings.HasPrefix(lower, "display route-p"):
+		return model.CmdConfig // route-policy is configuration data
 	default:
 		return model.CmdUnknown
 	}

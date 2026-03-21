@@ -70,10 +70,12 @@ func TestPipelineIngestFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no snapshot: %v", err)
 	}
-	ribs, _ := db.GetRIBEntries("core-sw01", snapID)
-	if len(ribs) != 2 {
-		t.Errorf("rib entries: %d", len(ribs))
+	// RIB entries now go to scratch pad (not structured storage)
+	scratches, _ := db.ListScratch("core-sw01", "route", 10)
+	if len(scratches) != 1 {
+		t.Errorf("scratch route entries: %d (expected 1)", len(scratches))
 	}
+
 	neighbors, _ := db.GetNeighbors("core-sw01", snapID)
 	if len(neighbors) != 1 {
 		t.Errorf("neighbors: %d", len(neighbors))

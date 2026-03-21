@@ -96,6 +96,19 @@ func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 				continue
 			}
 
+			// Full-table commands (RIB/FIB/LFIB) → scratch pad instead of structured storage.
+			// They're too large for permanent storage and not practical to show in full.
+			// Specific object queries (e.g., "dis ip route 10.0.0.1") are small enough → also scratch.
+			if isBulkTableCommand(b.CmdType) {
+				category := cmdTypeToScratchCategory(b.CmdType)
+				p.db.InsertScratch(model.ScratchEntry{
+					DeviceID: deviceID, Category: category,
+					Query: b.Command, Content: b.Output,
+				})
+				result.BlocksParsed++
+				continue
+			}
+
 			parseResult, err := vp.ParseOutput(b.CmdType, b.Output)
 			if err != nil {
 				slog.Warn("parse failed, storing raw", "cmd", b.Command, "error", err)
@@ -204,4 +217,28 @@ func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult
 	}
 
 	return nil
+}
+
+// isBulkTableCommand returns true for commands that produce large table outputs
+// (full routing/forwarding/label tables) which should go to scratch pad.
+func isBulkTableCommand(cmdType model.CommandType) bool {
+	switch cmdType {
+	case model.CmdRIB, model.CmdFIB, model.CmdLFIB:
+		return true
+	default:
+		return false
+	}
+}
+
+func cmdTypeToScratchCategory(cmdType model.CommandType) string {
+	switch cmdType {
+	case model.CmdRIB:
+		return "route"
+	case model.CmdFIB:
+		return "fib"
+	case model.CmdLFIB:
+		return "label"
+	default:
+		return "raw"
+	}
 }

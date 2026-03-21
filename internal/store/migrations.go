@@ -196,4 +196,17 @@ var migrations = []string{
 		vendor, command, description,
 		content=command_references, content_rowid=id
 	)`,
+
+	// Scratch pad: temporary storage for large outputs (full routing tables,
+	// specific object queries). FIFO eviction by row limit.
+	`CREATE TABLE IF NOT EXISTS scratch_entries (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		device_id TEXT NOT NULL DEFAULT '',
+		category TEXT NOT NULL DEFAULT 'raw',
+		query TEXT NOT NULL DEFAULT '',
+		content TEXT NOT NULL DEFAULT '',
+		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_scratch_device ON scratch_entries(device_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_scratch_category ON scratch_entries(category)`,
 }
