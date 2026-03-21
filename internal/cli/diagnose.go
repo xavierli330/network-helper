@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xavierli/nethelper/internal/llm"
+	"github.com/xavierli/nethelper/internal/llm/intent"
 )
 
 func newDiagnoseCmd() *cobra.Command {
@@ -57,8 +58,8 @@ Examples:
 				return nil
 			}
 
-			// 3. Gather device context from nethelper memory
-			deviceCtx := gatherContext(query, deviceID)
+			// 3. Gather device context from nethelper memory (use troubleshoot cap).
+			deviceCtx := buildContext(query, intent.IntentComplex, deviceID)
 
 			// 4. Build history context
 			var historyCtx string
