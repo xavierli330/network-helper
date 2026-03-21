@@ -209,4 +209,7 @@ var migrations = []string{
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_scratch_device ON scratch_entries(device_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_scratch_category ON scratch_entries(category)`,
+
+	// Add format column to config_snapshots to distinguish hierarchical vs set format.
+	`ALTER TABLE config_snapshots ADD COLUMN format VARCHAR(20) NOT NULL DEFAULT 'hierarchical'`,
 }

@@ -11,6 +11,7 @@ const (
 	CmdTunnel    CommandType = "tunnel"
 	CmdSRMapping CommandType = "sr_mapping"
 	CmdConfig    CommandType = "config"
+	CmdConfigSet CommandType = "config_set"
 	CmdUnknown   CommandType = "unknown"
 )
 

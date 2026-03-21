@@ -30,6 +30,7 @@ func (p *Parser) ClassifyCommand(cmd string) model.CommandType {
 	case strings.HasPrefix(lower, "show ldp session"), strings.HasPrefix(lower, "show ldp neighbor"): return model.CmdNeighbor
 	case strings.HasPrefix(lower, "show rsvp session"): return model.CmdTunnel
 	case strings.HasPrefix(lower, "show route table mpls"): return model.CmdLFIB
+	case strings.Contains(lower, "| display set"): return model.CmdConfigSet
 	case strings.HasPrefix(lower, "show configuration"): return model.CmdConfig
 	default: return model.CmdUnknown
 	}
@@ -41,6 +42,8 @@ func (p *Parser) ParseOutput(cmdType model.CommandType, raw string) (model.Parse
 	case model.CmdRIB: return ParseShowRoute(raw)
 	case model.CmdNeighbor: return ParseShowOSPFNeighbor(raw)
 	case model.CmdLFIB: return ParseShowMplsRoute(raw)
+	case model.CmdConfig: return model.ParseResult{Type: model.CmdConfig, ConfigText: raw, RawText: raw}, nil
+	case model.CmdConfigSet: return model.ParseResult{Type: model.CmdConfigSet, ConfigText: raw, RawText: raw}, nil
 	default: return model.ParseResult{Type: cmdType, RawText: raw}, nil
 	}
 }

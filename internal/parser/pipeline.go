@@ -220,10 +220,15 @@ func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult
 
 	// Store config snapshots
 	if pr.ConfigText != "" {
+		format := "hierarchical"
+		if pr.Type == model.CmdConfigSet {
+			format = "set"
+		}
 		cs := model.ConfigSnapshot{
 			DeviceID:   deviceID,
 			ConfigText: pr.ConfigText,
 			SourceFile: "", // will be set by caller if needed
+			Format:     format,
 		}
 		// Compute diff from previous config
 		prevConfigs, _ := p.db.GetConfigSnapshots(deviceID)

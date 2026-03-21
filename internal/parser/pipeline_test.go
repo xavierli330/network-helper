@@ -8,6 +8,7 @@ import (
 	"github.com/xavierli/nethelper/internal/parser/cisco"
 	"github.com/xavierli/nethelper/internal/parser/h3c"
 	"github.com/xavierli/nethelper/internal/parser/huawei"
+	"github.com/xavierli/nethelper/internal/parser/juniper"
 	"github.com/xavierli/nethelper/internal/store"
 )
 
@@ -366,5 +367,66 @@ func TestPipelineIngest_H3CDisambiguation(t *testing.T) {
 	ifaces, _ := db.GetInterfaces("h3c-core01")
 	if len(ifaces) != 1 {
 		t.Errorf("interfaces: got %d, want 1", len(ifaces))
+	}
+}
+
+// TestPipelineIngest_JuniperDualConfigFormat verifies that ingesting both
+// `show configuration` (hierarchical) and `show configuration | display set`
+// (flat set format) produces two config snapshots with distinct Format fields.
+func TestPipelineIngest_JuniperDualConfigFormat(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	db, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
+
+	registry := NewRegistry()
+	registry.Register(juniper.New())
+	pipeline := NewPipeline(db, registry)
+
+	content := "admin@MX204-01> show configuration\n" +
+		"interfaces {\n" +
+		"    ge-0/0/0 {\n" +
+		"        unit 0 {\n" +
+		"            family inet {\n" +
+		"                address 10.0.0.1/24;\n" +
+		"            }\n" +
+		"        }\n" +
+		"    }\n" +
+		"}\n" +
+		"admin@MX204-01> show configuration | display set\n" +
+		"set interfaces ge-0/0/0 unit 0 family inet address 10.0.0.1/24\n"
+
+	result, err := pipeline.Ingest("juniper-dual-config.txt", content)
+	if err != nil {
+		t.Fatalf("ingest error: %v", err)
+	}
+	if result.DevicesFound != 1 {
+		t.Errorf("DevicesFound: got %d, want 1", result.DevicesFound)
+	}
+	if result.BlocksParsed != 2 {
+		t.Errorf("BlocksParsed: got %d, want 2", result.BlocksParsed)
+	}
+
+	configs, err := db.GetConfigSnapshots("mx204-01")
+	if err != nil {
+		t.Fatalf("GetConfigSnapshots: %v", err)
+	}
+	if len(configs) != 2 {
+		t.Fatalf("expected 2 config snapshots, got %d", len(configs))
+	}
+
+	// GetConfigSnapshots returns newest first (ORDER BY captured_at DESC).
+	// Both are ingested in the same second so we check both formats are present.
+	formats := map[string]bool{}
+	for _, cs := range configs {
+		formats[cs.Format] = true
+	}
+	if !formats["hierarchical"] {
+		t.Error("expected a config snapshot with format='hierarchical'")
+	}
+	if !formats["set"] {
+		t.Error("expected a config snapshot with format='set'")
 	}
 }
