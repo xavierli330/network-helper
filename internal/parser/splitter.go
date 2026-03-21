@@ -6,6 +6,15 @@ import (
 	"github.com/xavierli/nethelper/internal/model"
 )
 
+// timestampRe matches common log timestamp prefixes:
+// "2026-03-21-13-11-26: " or "2026-03-21 13:11:26 " or "Mar 21 13:11:26 "
+var timestampRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}[-T ]\d{2}[-:]\d{2}[-:]\d{2}[:.]\s*`)
+
+// stripTimestamp removes a leading timestamp prefix from a line if present.
+func stripTimestamp(line string) string {
+	return timestampRe.ReplaceAllString(line, "")
+}
+
 // promptOnlyParser is a minimal VendorParser used only for prompt detection during splitting.
 type promptOnlyParser struct {
 	vendor   string
@@ -44,10 +53,12 @@ func Split(raw string, registry *Registry) []CommandBlock {
 	for i, line := range lines {
 		trimmed := strings.TrimRight(line, "\r \t")
 		if trimmed == "" { continue }
+		// Strip timestamp prefix before prompt detection
+		stripped := stripTimestamp(trimmed)
 		for _, p := range parsers {
-			hostname, ok := p.DetectPrompt(trimmed)
+			hostname, ok := p.DetectPrompt(stripped)
 			if !ok { continue }
-			cmd := extractCommand(trimmed, p)
+			cmd := extractCommand(stripped, p)
 			if cmd == "" { continue }
 			matches = append(matches, promptMatch{lineIndex: i, hostname: hostname, vendor: p.Vendor(), command: cmd})
 			break
@@ -59,8 +70,14 @@ func Split(raw string, registry *Registry) []CommandBlock {
 		outputStart := m.lineIndex + 1
 		var outputEnd int
 		if i+1 < len(matches) { outputEnd = matches[i+1].lineIndex } else { outputEnd = len(lines) }
+		// Collect output lines, stripping timestamps from each
 		var outputLines []string
-		if outputStart < outputEnd { outputLines = lines[outputStart:outputEnd] }
+		if outputStart < outputEnd {
+			for _, ol := range lines[outputStart:outputEnd] {
+				stripped := stripTimestamp(strings.TrimRight(ol, "\r"))
+				outputLines = append(outputLines, stripped)
+			}
+		}
 		output := strings.TrimRight(strings.Join(outputLines, "\n"), "\n\r \t")
 		blocks = append(blocks, CommandBlock{Hostname: m.hostname, Vendor: m.vendor, Command: m.command, Output: output})
 	}

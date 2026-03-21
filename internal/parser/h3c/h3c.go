@@ -14,11 +14,19 @@ func (p *Parser) DetectPrompt(line string) (string, bool) {
 	trimmed := strings.TrimRight(line, "\r \t")
 	if len(trimmed) > 2 && trimmed[0] == '<' {
 		end := strings.Index(trimmed, ">")
-		if end > 1 { return trimmed[1:end], true }
+		if end > 1 {
+			hostname := trimmed[1:end]
+			if strings.ContainsAny(hostname, "@$~/ ") { return "", false }
+			return hostname, true
+		}
 	}
 	if len(trimmed) > 2 && trimmed[0] == '[' {
 		end := strings.Index(trimmed, "]")
-		if end > 1 { return trimmed[1:end], true }
+		if end > 1 {
+			hostname := trimmed[1:end]
+			if strings.ContainsAny(hostname, "@$~ ") { return "", false }
+			return hostname, true
+		}
 	}
 	return "", false
 }

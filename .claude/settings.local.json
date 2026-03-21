@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/xavierli/.claude/agents)",
+      "Bash(cp /Users/xavierli/.claude-internal/skills/agency-agents/engineering/engineering-network-engineer.md /Users/xavierli/.claude/agents/)",
+      "Skill(update-config)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(go run:*)",
+      "Bash(go test:*)",
+      "Bash(go get:*)",
+      "Bash(go build:*)",
+      "Bash(./nethelper version:*)",
+      "Bash(/tmp/huawei-test.log:*)",
+      "Bash(./nethelper watch:*)",
+      "Bash(./nethelper show:*)",
+      "Bash(./nethelper note:*)",
+      "Bash(./nethelper search:*)",
+      "Bash(ls /Users/xavierli/Life/projects/network-helper/internal/cli/*.go)",
+      "Bash(chmod:*)",
+      "Bash(/Users/xavierli/Life/projects/network-helper/install.sh)",
+      "Read(//Users/xavierli/**)",
+      "Bash(~/.zshrc)",
+      "Bash(export PATH=\"/Users/xavierli/go/bin:$PATH\")",
+      "Bash(nethelper version:*)",
+      "Bash(nethelper --help)",
+      "Bash(rm -f ~/.nethelper/nethelper.db)",
+      "Bash(nethelper watch:*)",
+      "Bash(nethelper show:*)",
+      "Bash(nethelper search:*)"
+    ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
+  }
+}

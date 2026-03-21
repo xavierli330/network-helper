@@ -23,6 +23,7 @@ type ParseResult struct {
 	Neighbors   []NeighborInfo `json:"neighbors,omitempty"`
 	Tunnels     []TunnelInfo   `json:"tunnels,omitempty"`
 	SRMappings  []SRMapping    `json:"sr_mappings,omitempty"`
+	ConfigText  string         `json:"config_text,omitempty"`
 	RawText     string         `json:"raw_text"`
 }
 

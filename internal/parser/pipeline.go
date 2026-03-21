@@ -180,5 +180,28 @@ func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult
 			return err
 		}
 	}
+
+	// Store config snapshots
+	if pr.ConfigText != "" {
+		cs := model.ConfigSnapshot{
+			DeviceID:   deviceID,
+			ConfigText: pr.ConfigText,
+			SourceFile: "", // will be set by caller if needed
+		}
+		// Compute diff from previous config
+		prevConfigs, _ := p.db.GetConfigSnapshots(deviceID)
+		if len(prevConfigs) > 0 {
+			// Simple diff indicator — full diff available via 'nethelper diff config'
+			if prevConfigs[0].ConfigText != pr.ConfigText {
+				cs.DiffFromPrev = "changed"
+			} else {
+				cs.DiffFromPrev = "no change"
+			}
+		}
+		if _, err := p.db.InsertConfigSnapshot(cs); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

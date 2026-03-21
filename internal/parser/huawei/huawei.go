@@ -20,14 +20,20 @@ func (p *Parser) DetectPrompt(line string) (string, bool) {
 	if len(trimmed) > 2 && trimmed[0] == '<' {
 		end := strings.Index(trimmed, ">")
 		if end > 1 {
-			return trimmed[1:end], true
+			hostname := trimmed[1:end]
+			// Reject if it looks like a shell prompt or contains invalid chars
+			if strings.ContainsAny(hostname, "@$~/ ") { return "", false }
+			return hostname, true
 		}
 	}
-	// [hostname] style
+	// [hostname] style — Huawei config mode
 	if len(trimmed) > 2 && trimmed[0] == '[' {
 		end := strings.Index(trimmed, "]")
 		if end > 1 {
-			return trimmed[1:end], true
+			hostname := trimmed[1:end]
+			// Reject shell prompts like [user@host ~]$
+			if strings.ContainsAny(hostname, "@$~ ") { return "", false }
+			return hostname, true
 		}
 	}
 	return "", false
@@ -53,7 +59,10 @@ func (p *Parser) ClassifyCommand(cmd string) model.CommandType {
 		return model.CmdTunnel
 	case strings.HasPrefix(lower, "display segment-routing"), strings.HasPrefix(lower, "display isis segment-routing"):
 		return model.CmdSRMapping
-	case strings.HasPrefix(lower, "display current-configuration"), strings.HasPrefix(lower, "display saved-configuration"):
+	case strings.HasPrefix(lower, "display current-configuration"),
+		strings.HasPrefix(lower, "display saved-configuration"),
+		strings.HasPrefix(lower, "dis cur"),
+		strings.HasPrefix(lower, "dis sa"):
 		return model.CmdConfig
 	default:
 		return model.CmdUnknown
@@ -70,6 +79,8 @@ func (p *Parser) ParseOutput(cmdType model.CommandType, raw string) (model.Parse
 		return ParseNeighbor(raw)
 	case model.CmdLFIB:
 		return ParseMplsLsp(raw)
+	case model.CmdConfig:
+		return model.ParseResult{Type: model.CmdConfig, ConfigText: raw, RawText: raw}, nil
 	default:
 		return model.ParseResult{Type: cmdType, RawText: raw}, nil
 	}

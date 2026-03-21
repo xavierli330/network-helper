@@ -19,6 +19,7 @@ type CommandBlock struct {
 
 type Registry struct {
 	parsers map[string]VendorParser
+	order   []string // preserve insertion order for deterministic iteration
 }
 
 func NewRegistry() *Registry {
@@ -26,6 +27,9 @@ func NewRegistry() *Registry {
 }
 
 func (r *Registry) Register(p VendorParser) {
+	if _, exists := r.parsers[p.Vendor()]; !exists {
+		r.order = append(r.order, p.Vendor())
+	}
 	r.parsers[p.Vendor()] = p
 }
 
@@ -35,9 +39,9 @@ func (r *Registry) Get(vendor string) (VendorParser, bool) {
 }
 
 func (r *Registry) Parsers() []VendorParser {
-	result := make([]VendorParser, 0, len(r.parsers))
-	for _, p := range r.parsers {
-		result = append(result, p)
+	result := make([]VendorParser, 0, len(r.order))
+	for _, name := range r.order {
+		result = append(result, r.parsers[name])
 	}
 	return result
 }
