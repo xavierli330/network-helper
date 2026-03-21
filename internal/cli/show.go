@@ -6,6 +6,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"github.com/xavierli/nethelper/internal/graph"
 )
 
 func newShowCmd() *cobra.Command {
@@ -20,7 +21,38 @@ func newShowCmd() *cobra.Command {
 	show.AddCommand(newShowLabelCmd())
 	show.AddCommand(newShowNeighborCmd())
 	show.AddCommand(newShowTunnelCmd())
+	show.AddCommand(newShowTopologyCmd())
 	return show
+}
+
+func newShowTopologyCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "topology",
+		Short: "Show network topology overview",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			g, err := graph.BuildFromDB(db)
+			if err != nil {
+				return fmt.Errorf("build graph: %w", err)
+			}
+
+			fmt.Printf("Network Topology:\n")
+			fmt.Printf("  Devices:    %d\n", len(g.NodesByType(graph.NodeTypeDevice)))
+			fmt.Printf("  Interfaces: %d\n", len(g.NodesByType(graph.NodeTypeInterface)))
+			fmt.Printf("  Subnets:    %d\n", len(g.NodesByType(graph.NodeTypeSubnet)))
+			fmt.Printf("  Total nodes: %d\n", g.NodeCount())
+			fmt.Printf("  Total edges: %d\n\n", g.EdgeCount())
+
+			// List devices with their peer count
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintf(w, "DEVICE\tHOSTNAME\tPEERS\tINTERFACES\n")
+			for _, dev := range g.NodesByType(graph.NodeTypeDevice) {
+				peers := g.NeighborsByType(dev.ID, graph.EdgePeer)
+				ifaces := g.NeighborsByType(dev.ID, graph.EdgeHasInterface)
+				fmt.Fprintf(w, "%s\t%s\t%d\t%d\n", dev.ID, dev.Props["hostname"], len(peers), len(ifaces))
+			}
+			return w.Flush()
+		},
+	}
 }
 
 func newShowDeviceCmd() *cobra.Command {
