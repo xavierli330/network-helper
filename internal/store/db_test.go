@@ -29,6 +29,25 @@ func TestOpenAndMigrate(t *testing.T) {
 	}
 }
 
+func TestFTS5TablesExist(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer db.Close()
+
+	ftsTables := []string{"fts_config", "fts_troubleshoot", "fts_commands"}
+	for _, table := range ftsTables {
+		var count int
+		// FTS5 tables support SELECT
+		err := db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count)
+		if err != nil {
+			t.Errorf("FTS5 table %s does not exist or is broken: %v", table, err)
+		}
+	}
+}
+
 func TestOpenCreatesDirectory(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "sub", "dir", "test.db")
 	db, err := Open(dbPath)

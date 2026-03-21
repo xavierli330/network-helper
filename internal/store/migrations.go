@@ -180,4 +180,20 @@ var migrations = []string{
 		model_name TEXT NOT NULL DEFAULT '',
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`,
+
+	// FTS5 full-text search indexes
+	`CREATE VIRTUAL TABLE IF NOT EXISTS fts_config USING fts5(
+		device_id, config_text, source_file,
+		content=config_snapshots, content_rowid=id
+	)`,
+
+	`CREATE VIRTUAL TABLE IF NOT EXISTS fts_troubleshoot USING fts5(
+		symptom, commands_used, findings, resolution, tags,
+		content=troubleshoot_logs, content_rowid=id
+	)`,
+
+	`CREATE VIRTUAL TABLE IF NOT EXISTS fts_commands USING fts5(
+		vendor, command, description,
+		content=command_references, content_rowid=id
+	)`,
 }
