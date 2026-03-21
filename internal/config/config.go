@@ -1,0 +1,72 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+
+	"gopkg.in/yaml.v3"
+)
+
+type LLMProviderConfig struct {
+	APIKey  string `yaml:"api_key"`
+	Model   string `yaml:"model"`
+	BaseURL string `yaml:"base_url"`
+}
+
+type LLMConfig struct {
+	Default   string                       `yaml:"default"`
+	Providers map[string]LLMProviderConfig `yaml:"providers"`
+	Routing   map[string]string            `yaml:"routing"`
+}
+
+type EmbeddingConfig struct {
+	Provider  string                       `yaml:"provider"`
+	Providers map[string]LLMProviderConfig `yaml:"providers"`
+}
+
+type Config struct {
+	DataDir   string          `yaml:"data_dir"`
+	DBPath    string          `yaml:"db_path"`
+	WatchDirs []string        `yaml:"watch_dirs"`
+	LLM       LLMConfig       `yaml:"llm"`
+	Embedding EmbeddingConfig `yaml:"embedding"`
+}
+
+func DefaultDataDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = "."
+	}
+	return filepath.Join(home, ".nethelper")
+}
+
+func Default() *Config {
+	dataDir := DefaultDataDir()
+	return &Config{
+		DataDir: dataDir,
+		DBPath:  filepath.Join(dataDir, "nethelper.db"),
+	}
+}
+
+func DefaultConfigPath() string {
+	return filepath.Join(DefaultDataDir(), "config.yaml")
+}
+
+func LoadFrom(path string) (*Config, error) {
+	cfg := Default()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return cfg, nil
+		}
+		return nil, err
+	}
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func Load() (*Config, error) {
+	return LoadFrom(DefaultConfigPath())
+}
