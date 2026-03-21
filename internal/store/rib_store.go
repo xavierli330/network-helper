@@ -41,3 +41,19 @@ func (db *DB) GetRIBEntries(deviceID string, snapshotID int) ([]model.RIBEntry, 
 	}
 	return entries, rows.Err()
 }
+
+// GetRIBSnapshotIDs returns the most recent snapshot IDs that contain RIB data for a device.
+func (db *DB) GetRIBSnapshotIDs(deviceID string, limit int) ([]int, error) {
+	rows, err := db.Query(`SELECT DISTINCT snapshot_id FROM rib_entries WHERE device_id = ? ORDER BY snapshot_id DESC LIMIT ?`, deviceID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []int
+	for rows.Next() {
+		var id int
+		rows.Scan(&id)
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}

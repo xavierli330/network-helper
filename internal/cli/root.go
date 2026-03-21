@@ -70,6 +70,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newCheckCmd())
 	root.AddCommand(newNoteCmd())
 	root.AddCommand(newSearchCmd())
+	root.AddCommand(newDiffCmd())
 
 	return root
 }
