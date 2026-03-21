@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"github.com/xavierli/nethelper/internal/llm"
 	"github.com/xavierli/nethelper/internal/model"
 )
 
@@ -17,6 +19,7 @@ func newNoteCmd() *cobra.Command {
 	note.AddCommand(newNoteAddCmd())
 	note.AddCommand(newNoteListCmd())
 	note.AddCommand(newNoteSearchCmd())
+	note.AddCommand(newNoteExtractCmd())
 	return note
 }
 
@@ -105,6 +108,49 @@ func newNoteSearchCmd() *cobra.Command {
 				}
 				fmt.Println()
 			}
+			return nil
+		},
+	}
+}
+
+func newNoteExtractCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "extract <file>",
+		Short: "Extract troubleshooting experience from log file using AI",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, err := os.ReadFile(args[0])
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
+
+			if !llmRouter.Available() {
+				fmt.Println("No LLM provider configured. Use 'nethelper note add' to manually record notes.")
+				return nil
+			}
+
+			systemPrompt := `Analyze this network device troubleshooting log and extract structured information.
+Return a JSON object with these fields:
+- symptom: problem description
+- commands_used: commands executed during troubleshooting
+- findings: what was discovered
+- resolution: how it was fixed (if apparent)
+- tags: comma-separated relevant tags (e.g., ospf,mtu,flap)
+Reply only with the JSON object, no markdown.`
+
+			resp, err := llmRouter.Chat(context.Background(), llm.CapExtract, llm.ChatRequest{
+				Messages: []llm.Message{
+					{Role: "system", Content: systemPrompt},
+					{Role: "user", Content: string(data)},
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("LLM error: %w", err)
+			}
+
+			fmt.Println("Extracted troubleshooting note:")
+			fmt.Println(resp.Content)
+			fmt.Println("\nTo save this note, use: nethelper note add --symptom '...' --finding '...' --resolution '...' --tags '...'")
 			return nil
 		},
 	}

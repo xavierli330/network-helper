@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xavierli/nethelper/internal/config"
+	"github.com/xavierli/nethelper/internal/llm"
 	"github.com/xavierli/nethelper/internal/parser"
 	"github.com/xavierli/nethelper/internal/parser/cisco"
 	"github.com/xavierli/nethelper/internal/parser/h3c"
@@ -15,11 +16,12 @@ import (
 )
 
 var (
-	cfgFile  string
-	dbPath   string
-	cfg      *config.Config
-	db       *store.DB
-	pipeline *parser.Pipeline
+	cfgFile   string
+	dbPath    string
+	cfg       *config.Config
+	db        *store.DB
+	pipeline  *parser.Pipeline
+	llmRouter *llm.Router
 )
 
 func NewRootCmd() *cobra.Command {
@@ -51,6 +53,9 @@ func NewRootCmd() *cobra.Command {
 			registry.Register(juniper.New())
 			pipeline = parser.NewPipeline(db, registry)
 
+			// Initialize LLM router from config
+			llmRouter = llm.BuildFromConfig(cfg.LLM)
+
 			return nil
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
@@ -71,6 +76,10 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newNoteCmd())
 	root.AddCommand(newSearchCmd())
 	root.AddCommand(newDiffCmd())
+	root.AddCommand(newDiagnoseCmd())
+	root.AddCommand(newExplainCmd())
+	root.AddCommand(newConfigCmd())
+	root.AddCommand(newExportCmd())
 
 	return root
 }
