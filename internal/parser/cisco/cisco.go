@@ -64,6 +64,7 @@ func (p *Parser) ParseOutput(cmdType model.CommandType, raw string) (model.Parse
 	case model.CmdRIB: return ParseShowIPRoute(raw)
 	case model.CmdNeighbor: return ParseShowOSPFNeighbor(raw)
 	case model.CmdLFIB: return ParseShowMplsForwarding(raw)
+	case model.CmdConfig: return model.ParseResult{Type: model.CmdConfig, ConfigText: raw, RawText: raw}, nil
 	default: return model.ParseResult{Type: cmdType, RawText: raw}, nil
 	}
 }

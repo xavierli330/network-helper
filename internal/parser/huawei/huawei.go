@@ -23,6 +23,10 @@ func (p *Parser) DetectPrompt(line string) (string, bool) {
 			hostname := trimmed[1:end]
 			// Reject if it looks like a shell prompt or contains invalid chars
 			if strings.ContainsAny(hostname, "@$~/ ") { return "", false }
+			// Reject hostnames that contain brackets (e.g. "<[Enter]>")
+			if strings.ContainsAny(hostname, "[]") { return "", false }
+			// Reject very short hostnames (e.g. "<cr>" from Cisco help output)
+			if len(hostname) < 3 { return "", false }
 			return hostname, true
 		}
 	}

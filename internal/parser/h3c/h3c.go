@@ -17,6 +17,8 @@ func (p *Parser) DetectPrompt(line string) (string, bool) {
 		if end > 1 {
 			hostname := trimmed[1:end]
 			if strings.ContainsAny(hostname, "@$~/ ") { return "", false }
+			if strings.ContainsAny(hostname, "[]") { return "", false }
+			if len(hostname) < 3 { return "", false }
 			return hostname, true
 		}
 	}
@@ -60,6 +62,7 @@ func (p *Parser) ParseOutput(cmdType model.CommandType, raw string) (model.Parse
 	case model.CmdRIB: return ParseRoutingTable(raw)
 	case model.CmdNeighbor: return ParseOspfPeer(raw)
 	case model.CmdLFIB: return ParseMplsLsp(raw)
+	case model.CmdConfig: return model.ParseResult{Type: model.CmdConfig, ConfigText: raw, RawText: raw}, nil
 	default: return model.ParseResult{Type: cmdType, RawText: raw}, nil
 	}
 }
