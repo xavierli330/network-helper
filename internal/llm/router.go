@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/xavierli/nethelper/internal/config"
 )
@@ -55,7 +56,7 @@ func BuildFromConfig(cfg config.LLMConfig) *Router {
 
 	providers := make(map[string]Provider)
 	for name, pc := range cfg.Providers {
-		p := NewOpenAICompatProvider(name, pc.APIKey, pc.Model, pc.BaseURL)
+		p := createProvider(name, pc)
 		providers[name] = p
 	}
 
@@ -81,4 +82,21 @@ func BuildFromConfig(cfg config.LLMConfig) *Router {
 	}
 
 	return router
+}
+
+// createProvider picks the right provider implementation based on name/URL heuristics.
+// Names containing "anthropic" or "kimi" use the Anthropic Messages API protocol.
+// Everything else uses the OpenAI Chat Completions protocol.
+func createProvider(name string, pc config.LLMProviderConfig) Provider {
+	lower := strings.ToLower(name)
+	baseURL := strings.ToLower(pc.BaseURL)
+
+	// Anthropic protocol: Anthropic itself, or Kimi Coding (which uses Anthropic protocol)
+	if lower == "anthropic" || strings.Contains(lower, "kimi") ||
+		strings.Contains(baseURL, "anthropic") || strings.Contains(baseURL, "kimi") {
+		return NewAnthropicCompatProvider(name, pc.APIKey, pc.Model, pc.BaseURL)
+	}
+
+	// Default: OpenAI protocol
+	return NewOpenAICompatProvider(name, pc.APIKey, pc.Model, pc.BaseURL)
 }
