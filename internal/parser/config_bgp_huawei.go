@@ -14,7 +14,7 @@ import (
 
 var (
 	bgpHeaderRe     = regexp.MustCompile(`(?m)^bgp\s+(\d+)`)
-	afHeaderRe      = regexp.MustCompile(`(?i)^(ipv[46]-family)\s+(.+)`)
+	afHeaderRe      = regexp.MustCompile(`(?i)^(?:(ipv[46]-family)\s+(.+)|address-family\s+(.+))`)
 	peerASRe        = regexp.MustCompile(`(?i)^peer\s+(\S+)\s+as-number\s+(\d+)`)
 	peerGroupDefRe  = regexp.MustCompile(`(?i)^group\s+(\S+)\s+(internal|external)`)
 	peerGroupRefRe  = regexp.MustCompile(`(?i)^peer\s+(\S+)\s+group\s+(\S+)`)
@@ -195,11 +195,14 @@ func ExtractBGPPeersHuawei(configText string) []model.BGPPeer {
 			}
 		}
 	}
-	// Also resolve group AS: if a group has an AS, peers in that group inherit it
+	// Also resolve group AS: if a group has an AS, peers in that group inherit it.
+	// For internal groups without explicit AS, inherit LocalAS.
 	for ip, grp := range global.peerGroup {
 		if _, ok := global.peerAS[ip]; !ok {
 			if as, ok := global.groupAS[grp]; ok {
 				global.peerAS[ip] = as
+			} else if global.groupType[grp] == "internal" {
+				global.peerAS[ip] = localAS
 			}
 		}
 	}
@@ -219,6 +222,15 @@ func ExtractBGPPeersHuawei(configText string) []model.BGPPeer {
 		allPeerGroup := mergeMaps(global.peerGroup, afi.peerGroup)
 		allPeerDesc := mergeMaps(global.peerDesc, afi.peerDesc)
 		allGroupType := mergeMaps(global.groupType, afi.groupType)
+
+		// Resolve internal group AS for AF-level peers
+		for ip, grp := range allPeerGroup {
+			if _, ok := allPeerAS[ip]; !ok {
+				if allGroupType[grp] == "internal" {
+					allPeerAS[ip] = localAS
+				}
+			}
+		}
 
 		// Collect all IPs that are enabled (or have group enabled) in this AF
 		enabledIPs := make(map[string]bool)
@@ -360,20 +372,22 @@ func ExtractBGPPeersHuawei(configText string) []model.BGPPeer {
 
 func isBGPSubLine(trimmed string) bool {
 	lower := strings.ToLower(trimmed)
-	prefixes := []string{
-		"peer ", "group ", "router-id ", "timer ",
-		"ipv4-family", "ipv6-family", "l2vpn-family",
-		"undo ", "graceful-restart", "default ",
-		"import-route", "network ", "aggregate ",
-		"preference ", "nexthop ", "bestroute ",
-		"reflect ", "confederation",
+	// Known non-BGP top-level commands that signal end of BGP block
+	nonBGPPrefixes := []string{
+		"interface ", "ip vpn-instance ", "ospf ", "isis ", "mpls",
+		"route-policy ", "acl ", "ip ip-prefix ", "ip community-filter",
+		"ip as-path-filter", "ntp", "snmp", "sysname ", "info-center",
+		"hwtacacs", "aaa", "ssh ", "stp ", "vlan ", "traffic-policy ",
+		"diffserv ", "bfd ", "grpc", "netconf", "telemetry",
+		"return", "user-interface", "wlan", "dns ",
 	}
-	for _, p := range prefixes {
+	for _, p := range nonBGPPrefixes {
 		if strings.HasPrefix(lower, p) {
-			return true
+			return false
 		}
 	}
-	return false
+	// Everything else inside a BGP block is a BGP sub-command
+	return true
 }
 
 func splitByHash(lines []string) [][]string {
@@ -435,16 +449,52 @@ func parseGlobalSection(lines []string, g *bgpGlobalInfo) {
 	}
 }
 
+// normalizeAFHeader parses both Huawei "ipv4-family <rest>" and
+// H3C "address-family <rest>" headers into a family string
+// ("ipv4-family"/"ipv6-family") and remaining tokens.
+func normalizeAFHeader(line string) (family, rest string, ok bool) {
+	m := afHeaderRe.FindStringSubmatch(strings.TrimSpace(line))
+	if m == nil {
+		return "", "", false
+	}
+	if m[1] != "" {
+		// Huawei form: ipv4-family <rest>
+		return strings.ToLower(m[1]), strings.TrimSpace(m[2]), true
+	}
+	// H3C form: address-family <tokens...>
+	// e.g. "ipv4 unicast", "vpnv4", "vpnv6", "ipv6 unicast"
+	tokens := strings.Fields(m[3])
+	if len(tokens) == 0 {
+		return "", "", false
+	}
+	first := strings.ToLower(tokens[0])
+	switch first {
+	case "ipv4":
+		family = "ipv4-family"
+		rest = strings.Join(tokens[1:], " ")
+		if rest == "" {
+			rest = "unicast"
+		}
+	case "ipv6":
+		family = "ipv6-family"
+		rest = strings.Join(tokens[1:], " ")
+		if rest == "" {
+			rest = "unicast"
+		}
+	default:
+		// e.g. "vpnv4", "vpnv6"
+		family = "ipv4-family" // default; doesn't matter for vpnv4/vpnv6
+		rest = strings.Join(tokens, " ")
+	}
+	return family, rest, true
+}
+
 func parseAFSection(lines []string) *bgpAFInfo {
 	af := "ipv4-unicast"
 	vrf := ""
 
 	if len(lines) > 0 {
-		trimFirst := strings.TrimSpace(lines[0])
-		if m := afHeaderRe.FindStringSubmatch(trimFirst); m != nil {
-			family := strings.ToLower(m[1])
-			rest := strings.TrimSpace(m[2])
-
+		if family, rest, ok := normalizeAFHeader(lines[0]); ok {
 			switch {
 			case strings.EqualFold(rest, "unicast"):
 				if family == "ipv4-family" {

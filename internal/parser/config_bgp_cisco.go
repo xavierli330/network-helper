@@ -11,10 +11,17 @@ import (
 
 // ---------- Cisco IOS-XR BGP extraction ----------
 
+// Cisco IOS-XR configs can be in two formats:
+// 1. Indented (from "show run"): `router bgp 45090\n neighbor X\n  remote-as Y`
+// 2. Flat (from config file export): `router bgp 45090\nneighbor X\nremote-as Y\n!\n!`
+//    In flat format, `!` acts as a closing brace for the current nesting level.
+//
+// The strategy: detect flat format and normalize to indented format before parsing.
+
 var (
 	ciscoBGPBlockRe    = regexp.MustCompile(`(?m)^router bgp\s+(\d+)`)
 	ciscoNeighGroupRe  = regexp.MustCompile(`(?m)^\s+neighbor-group\s+(\S+)`)
-	ciscoNeighborRe    = regexp.MustCompile(`(?m)^\s+neighbor\s+(\d+\.\d+\.\d+\.\d+)`)
+	ciscoNeighborRe    = regexp.MustCompile(`(?m)^\s+neighbor\s+(\S+)`)
 	ciscoRemoteASRe    = regexp.MustCompile(`(?i)^\s*remote-as\s+(\d+)`)
 	ciscoUpdateSrcRe   = regexp.MustCompile(`(?i)^\s*update-source\s+(\S+)`)
 	ciscoUseGroupRe    = regexp.MustCompile(`(?i)^\s*use\s+neighbor-group\s+(\S+)`)
@@ -36,8 +43,55 @@ func indentLevel(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " "))
 }
 
+// ciscoContextOpenerRe matches lines that open a new nesting level in IOS-XR.
+var ciscoContextOpenerRe = regexp.MustCompile(`(?i)^(neighbor-group|neighbor|vrf|address-family|import\s+route-target|export\s+route-target|bmp\s+server)\s`)
+
+// isCiscoFlat checks if the BGP block uses flat format (no indentation).
+func isCiscoFlat(lines []string) bool {
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if trimmed == "" || trimmed == "!" {
+			continue
+		}
+		if indentLevel(l) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// normalizeCiscoFlat converts a flat IOS-XR BGP block to indented form.
+// Each context opener increases the indent for subsequent lines.
+// Each `!` decreases the indent (closes current block).
+func normalizeCiscoFlat(flatLines []string) []string {
+	depth := 1 // start at depth 1 (inside router bgp)
+	var result []string
+	for _, line := range flatLines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if trimmed == "!" {
+			if depth > 1 {
+				result = append(result, strings.Repeat(" ", depth)+"!")
+				depth--
+			} else {
+				result = append(result, " !")
+			}
+			continue
+		}
+		// Add line at current depth
+		result = append(result, strings.Repeat(" ", depth)+trimmed)
+		// Check if this line opens a new context
+		if ciscoContextOpenerRe.MatchString(trimmed) {
+			depth++
+		}
+	}
+	return result
+}
+
 // extractBGPBlock returns the lines inside `router bgp <AS>` and the AS number.
-// It finds the block from `router bgp` up to the next top-level `!`.
+// Handles both indented and flat IOS-XR config formats.
 func extractBGPBlock(configText string) (lines []string, localAS int) {
 	allLines := strings.Split(configText, "\n")
 	start := -1
@@ -53,13 +107,51 @@ func extractBGPBlock(configText string) (lines []string, localAS int) {
 	if start < 0 {
 		return nil, 0
 	}
+
+	// Collect raw lines after `router bgp`. For indented configs, stop at
+	// a non-indented non-! line. For flat configs, we need to track ! depth.
+	var rawLines []string
 	for i := start; i < len(allLines); i++ {
 		trimmed := strings.TrimRight(allLines[i], "\r \t")
-		// Top-level "!" (no leading space) ends the router bgp block
-		if trimmed == "!" && (i+1 >= len(allLines) || indentLevel(allLines[i+1]) == 0) {
-			break
+		rawLines = append(rawLines, allLines[i])
+		_ = trimmed
+	}
+
+	if isCiscoFlat(rawLines) {
+		// Flat format: find the end of the BGP block by tracking ! depth.
+		// depth starts at 1 (inside router bgp); each context opener increases,
+		// each ! decreases. When depth reaches 0, block is done.
+		var bgpRaw []string
+		depth := 1
+		for _, line := range rawLines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" {
+				continue
+			}
+			if trimmed == "!" {
+				depth--
+				if depth <= 0 {
+					break
+				}
+				bgpRaw = append(bgpRaw, line)
+				continue
+			}
+			bgpRaw = append(bgpRaw, line)
+			if ciscoContextOpenerRe.MatchString(trimmed) {
+				depth++
+			}
 		}
-		lines = append(lines, allLines[i])
+		lines = normalizeCiscoFlat(bgpRaw)
+	} else {
+		// Indented format: stop at top-level `!`
+		lines = nil
+		for _, line := range rawLines {
+			trimmed := strings.TrimRight(line, "\r \t")
+			if trimmed == "!" && indentLevel(line) == 0 {
+				break
+			}
+			lines = append(lines, line)
+		}
 	}
 	return lines, localAS
 }
