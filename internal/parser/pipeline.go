@@ -271,6 +271,38 @@ func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult
 				return err
 			}
 		}
+
+		// Extract BGP peers, VRF instances, and route-policies from config.
+		bgpPeers := extractBGPPeers(pr.ConfigText, vendor)
+		for i := range bgpPeers {
+			bgpPeers[i].DeviceID = deviceID
+			bgpPeers[i].SnapshotID = snapID
+		}
+		if len(bgpPeers) > 0 {
+			if err := p.db.InsertBGPPeers(bgpPeers); err != nil {
+				slog.Warn("store bgp peers failed", "device", deviceID, "error", err)
+			}
+		}
+
+		vrfs := extractVRFInstances(pr.ConfigText, vendor)
+		for i := range vrfs {
+			vrfs[i].DeviceID = deviceID
+			vrfs[i].SnapshotID = snapID
+		}
+		if len(vrfs) > 0 {
+			if err := p.db.InsertVRFInstances(vrfs); err != nil {
+				slog.Warn("store vrf instances failed", "device", deviceID, "error", err)
+			}
+		}
+
+		policies := extractRoutePolicies(pr.ConfigText, vendor)
+		for _, rp := range policies {
+			rp.DeviceID = deviceID
+			rp.SnapshotID = snapID
+			if _, err := p.db.InsertRoutePolicy(rp); err != nil {
+				slog.Warn("store route policy failed", "device", deviceID, "policy", rp.PolicyName, "error", err)
+			}
+		}
 	}
 
 	return nil
@@ -405,4 +437,46 @@ func extractOSVersion(configText, vendor string) string {
 		}
 	}
 	return ""
+}
+
+// extractBGPPeers dispatches to the correct vendor-specific BGP parser.
+func extractBGPPeers(configText, vendor string) []model.BGPPeer {
+	switch vendor {
+	case "huawei", "h3c":
+		return ExtractBGPPeersHuawei(configText)
+	case "cisco":
+		return ExtractBGPPeersCisco(configText)
+	case "juniper":
+		return ExtractBGPPeersJuniper(configText)
+	default:
+		return nil
+	}
+}
+
+// extractVRFInstances dispatches to the correct vendor-specific VRF parser.
+func extractVRFInstances(configText, vendor string) []model.VRFInstance {
+	switch vendor {
+	case "huawei", "h3c":
+		return ExtractVRFInstancesHuawei(configText)
+	case "cisco":
+		return ExtractVRFInstancesCisco(configText)
+	case "juniper":
+		return ExtractVRFInstancesJuniper(configText)
+	default:
+		return nil
+	}
+}
+
+// extractRoutePolicies dispatches to the correct vendor-specific policy parser.
+func extractRoutePolicies(configText, vendor string) []model.RoutePolicy {
+	switch vendor {
+	case "huawei", "h3c":
+		return ExtractRoutePoliciesHuawei(configText)
+	case "cisco":
+		return ExtractRoutePoliciesCisco(configText)
+	case "juniper":
+		return ExtractRoutePoliciesJuniper(configText)
+	default:
+		return nil
+	}
 }

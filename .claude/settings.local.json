@@ -49,7 +49,11 @@
       "Bash(sqlite3 ~/.nethelper/nethelper.db \"SELECT ''''devices'''', COUNT\\(*\\) FROM devices UNION ALL SELECT ''''interfaces'''', COUNT\\(*\\) FROM interfaces UNION ALL SELECT ''''config_snapshots'''', COUNT\\(*\\) FROM config_snapshots;\")",
       "Bash(grep -n \"^#$\\\\|^bgp\\\\|^ospf\\\\|^isis\\\\|^route-policy\\\\|^ip ip-prefix\\\\|^acl\\\\|^mpls\\\\|^interface \\\\|^ip vpn-instance\\\\|^netstream\\\\|^sflow\\\\|^ntp\\\\|^snmp\\\\|^aaa\\\\|^hwtacacs\\\\|^stelnet\\\\|^ssh\\\\|^ip community-filter\\\\|^ip as-path-filter\\\\|^xpl\\\\|^segment-routing\\\\|^traffic-engineering\\\\|^tunnel-policy\\\\|^diffserv\\\\|^qos\\\\|^bfd\\\\|^multicast\\\\|^pim\\\\|^igmp\" /tmp/ne40e.cfg)",
       "Bash(grep -n \"^#$\\\\|^bgp\\\\|^ospf\\\\|^isis\\\\|^route-policy\\\\|^ip ip-prefix\\\\|^acl\\\\|^mpls\\\\|^interface \\\\|^ip vpn-instance\\\\|^netstream\\\\|^sflow\\\\|^ntp\\\\|^snmp\\\\|^aaa\\\\|^hwtacacs\\\\|^traffic-policy\\\\|^traffic-classifier\\\\|^traffic-behavior\\\\|^qos\\\\|^bfd\\\\|^multicast\\\\|^pim\\\\|^igmp\\\\|^vlan\\\\|^xpl\\\\|^ip community-filter\\\\|^ip as-path-filter\" /tmp/ce12816.cfg)",
-      "Bash(grep -n \"^#$\\\\|^bgp\\\\|^ospf\\\\|^isis\\\\|^route-policy\\\\|^ip prefix-list\\\\|^acl\\\\|^mpls\\\\|^interface \\\\|^ip vpn-instance\\\\|^netstream\\\\|^sflow\\\\|^ntp\\\\|^snmp\\\\|^aaa\\\\|^hwtacacs\\\\|^traffic-policy\\\\|^traffic-classifier\\\\|^traffic-behavior\\\\|^qos\\\\|^bfd\\\\|^multicast\\\\|^pim\\\\|^igmp\\\\|^vlan\\\\|^ip community-filter\\\\|^ip as-path\\\\|^ bgp\\\\|^local-user\\\\|^ssh\\\\|^telnet\" /tmp/h3c.cfg)"
+      "Bash(grep -n \"^#$\\\\|^bgp\\\\|^ospf\\\\|^isis\\\\|^route-policy\\\\|^ip prefix-list\\\\|^acl\\\\|^mpls\\\\|^interface \\\\|^ip vpn-instance\\\\|^netstream\\\\|^sflow\\\\|^ntp\\\\|^snmp\\\\|^aaa\\\\|^hwtacacs\\\\|^traffic-policy\\\\|^traffic-classifier\\\\|^traffic-behavior\\\\|^qos\\\\|^bfd\\\\|^multicast\\\\|^pim\\\\|^igmp\\\\|^vlan\\\\|^ip community-filter\\\\|^ip as-path\\\\|^ bgp\\\\|^local-user\\\\|^ssh\\\\|^telnet\" /tmp/h3c.cfg)",
+      "Bash(while ! grep -q '\"\"stop_reason\"\":\"\"end_turn\"\"' /private/tmp/claude-501/-Users-xavierli-Life-projects-network-helper/c340432b-4111-44b6-8e5e-338b3f536ed7/tasks/ae47dbee12a694d3c.output)",
+      "Bash(do sleep:*)",
+      "Bash(done)",
+      "Bash(ls:*)"
     ]
   },
   "enabledPlugins": {
