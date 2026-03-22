@@ -81,6 +81,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newConfigCmd())
 	root.AddCommand(newExportCmd())
 	root.AddCommand(newScratchClearCmd())
+	root.AddCommand(newPlanCmd())
 
 	return root
 }
