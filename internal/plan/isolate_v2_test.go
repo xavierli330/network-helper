@@ -165,3 +165,67 @@ func TestGenerateIsolationPlanV2_Phase5_ReverseOrder(t *testing.T) {
 		t.Errorf("expected first rollback step in phase 5 to be SDN (management), got Purpose=%q", firstStep.Purpose)
 	}
 }
+
+func TestGenerateIsolationPlanV2_WithISIS(t *testing.T) {
+	topo := DeviceTopology{
+		DeviceID: "qcdr-01", Hostname: "QCDR-01", Vendor: "huawei",
+		LocalAS:   45090,
+		Protocols: []string{"isis", "ldp", "bgp"},
+		IGPs:      []IGPInfo{{Protocol: "isis", ProcessID: "1", Interfaces: []string{"Eth-Trunk1"}}},
+		HasLDP:    true, LDPInterfaces: []string{"Eth-Trunk1"},
+		PeerGroups: []PeerGroup{{Name: "PEERS", Type: "external", Role: RoleDownlink,
+			Peers: []BGPPeerDetail{{PeerIP: "10.0.0.1", RemoteAS: 65508}}}},
+	}
+	p := GenerateIsolationPlanV2(topo)
+
+	phase2Text := ""
+	for _, s := range p.Phases[2].Steps {
+		phase2Text += s.Purpose + "\n"
+	}
+	// ISIS should come before BGP
+	if !strings.Contains(phase2Text, "ISIS") {
+		t.Error("missing ISIS step in phase 2")
+	}
+	if !strings.Contains(phase2Text, "LDP") {
+		t.Error("missing LDP step in phase 2")
+	}
+	if !strings.Contains(phase2Text, "BGP") {
+		t.Error("missing BGP step in phase 2")
+	}
+
+	isisIdx := strings.Index(phase2Text, "ISIS")
+	bgpIdx := strings.Index(phase2Text, "BGP")
+	if isisIdx > bgpIdx {
+		t.Error("ISIS should come before BGP in phase 2")
+	}
+
+	ldpIdx := strings.Index(phase2Text, "LDP")
+	if ldpIdx > bgpIdx {
+		t.Error("LDP should come before BGP in phase 2")
+	}
+}
+
+func TestGenerateIsolationPlanV2_WithISIS_Phase5_HasIGPRollback(t *testing.T) {
+	topo := DeviceTopology{
+		DeviceID: "qcdr-01", Hostname: "QCDR-01", Vendor: "huawei",
+		LocalAS:   45090,
+		Protocols: []string{"isis", "ldp", "bgp"},
+		IGPs:      []IGPInfo{{Protocol: "isis", ProcessID: "1", Interfaces: []string{"Eth-Trunk1"}}},
+		HasLDP:    true, LDPInterfaces: []string{"Eth-Trunk1"},
+		PeerGroups: []PeerGroup{{Name: "PEERS", Type: "external", Role: RoleDownlink,
+			Peers: []BGPPeerDetail{{PeerIP: "10.0.0.1", RemoteAS: 65508}}}},
+	}
+	p := GenerateIsolationPlanV2(topo)
+
+	phase5Text := ""
+	for _, s := range p.Phases[5].Steps {
+		phase5Text += s.Purpose + "\n"
+	}
+
+	if !strings.Contains(phase5Text, "ISIS 回退") {
+		t.Error("phase 5 should contain ISIS rollback step")
+	}
+	if !strings.Contains(phase5Text, "LDP 回退") {
+		t.Error("phase 5 should contain LDP rollback step")
+	}
+}

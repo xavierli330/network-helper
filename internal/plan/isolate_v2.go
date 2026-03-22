@@ -118,12 +118,12 @@ func phase1PreCheck(topo DeviceTopology) Phase {
 	return p
 }
 
-// phase2ProtocolIsolation builds Phase 2: 协议级隔离 — BGP peer ignore, downlink first.
+// phase2ProtocolIsolation builds Phase 2: 协议级隔离 — IGP overload, LDP disable, then BGP peer ignore.
 func phase2ProtocolIsolation(topo DeviceTopology) Phase {
 	p := Phase{
 		Number:      2,
 		Name:        "协议级隔离",
-		Description: "按 downlink → uplink → management 顺序逐组执行 BGP peer ignore",
+		Description: "按 IGP → LDP → BGP 顺序执行协议级隔离",
 	}
 
 	hasBGP := false
@@ -134,10 +134,51 @@ func phase2ProtocolIsolation(topo DeviceTopology) Phase {
 		}
 	}
 
+	// 1. IGP isolation (ISIS overload / OSPF stub-router)
+	for _, igp := range topo.IGPs {
+		switch igp.Protocol {
+		case "isis":
+			isolate := isisIsolateStep(topo.DeviceID, igp, topo.Vendor)
+			isolate.DeviceHost = topo.Hostname
+			checkpoint := isisCheckpoint(topo.DeviceID, igp, topo.Vendor)
+			checkpoint.DeviceHost = topo.Hostname
+			p.Steps = append(p.Steps, isolate, checkpoint)
+		case "ospf":
+			isolate := ospfIsolateStep(topo.DeviceID, igp, topo.Vendor)
+			isolate.DeviceHost = topo.Hostname
+			checkpoint := ospfCheckpoint(topo.DeviceID, igp, topo.Vendor)
+			checkpoint.DeviceHost = topo.Hostname
+			p.Steps = append(p.Steps, isolate, checkpoint)
+		}
+	}
+
+	// 2. Wait for IGP convergence
+	if len(topo.IGPs) > 0 {
+		p.Steps = append(p.Steps, DeviceCommand{
+			DeviceID:   topo.DeviceID,
+			DeviceHost: topo.Hostname,
+			Vendor:     topo.Vendor,
+			Commands:   []string{"# 等待 IGP 收敛（建议至少 60 秒）"},
+			Purpose:    "等待 IGP 路由收敛",
+		})
+	}
+
+	// 3. LDP disable
+	if topo.HasLDP && len(topo.LDPInterfaces) > 0 {
+		ldpIsolate := ldpIsolateSteps(topo.DeviceID, topo.LDPInterfaces, topo.Vendor)
+		ldpIsolate.DeviceHost = topo.Hostname
+		ldpCheck := ldpCheckpoint(topo.DeviceID, topo.Vendor)
+		ldpCheck.DeviceHost = topo.Hostname
+		p.Steps = append(p.Steps, ldpIsolate, ldpCheck)
+	}
+
+	// 4. BGP (existing code)
 	if !hasBGP || len(topo.PeerGroups) == 0 {
-		p.Notes = append(p.Notes,
-			"⚠️  未检测到 BGP 协议或无 peer 组，跳过协议级隔离。请直接执行接口级硬切，风险较高，需人工确认。",
-		)
+		if len(p.Steps) == 0 {
+			p.Notes = append(p.Notes,
+				"⚠️  未检测到 BGP 协议或无 peer 组，跳过协议级隔离。请直接执行接口级硬切，风险较高，需人工确认。",
+			)
+		}
 		return p
 	}
 
@@ -230,12 +271,12 @@ func phase4PostCheck(topo DeviceTopology) Phase {
 	return p
 }
 
-// phase5Rollback builds Phase 5: 回退方案 — reverse BGP (management→uplink→downlink) then interfaces.
+// phase5Rollback builds Phase 5: 回退方案 — reverse BGP (management→uplink→downlink), then LDP, then IGP, then interfaces.
 func phase5Rollback(topo DeviceTopology) Phase {
 	p := Phase{
 		Number:      5,
 		Name:        "回退方案",
-		Description: "按 management → uplink → downlink 顺序撤销 BGP 隔离，再恢复接口",
+		Description: "按 management → uplink → downlink 顺序撤销 BGP 隔离，再恢复 LDP/IGP，最后恢复接口",
 	}
 
 	hasBGP := false
@@ -256,6 +297,28 @@ func phase5Rollback(topo DeviceTopology) Phase {
 
 		for _, pg := range sorted {
 			rollback := bgpRollbackStep(topo.DeviceID, topo.LocalAS, pg, topo.Vendor)
+			rollback.DeviceHost = topo.Hostname
+			p.Steps = append(p.Steps, rollback)
+		}
+	}
+
+	// LDP restore
+	if topo.HasLDP && len(topo.LDPInterfaces) > 0 {
+		ldpRestore := ldpRollbackSteps(topo.DeviceID, topo.LDPInterfaces, topo.Vendor)
+		ldpRestore.DeviceHost = topo.Hostname
+		p.Steps = append(p.Steps, ldpRestore)
+	}
+
+	// IGP restore (reverse order)
+	for i := len(topo.IGPs) - 1; i >= 0; i-- {
+		igp := topo.IGPs[i]
+		switch igp.Protocol {
+		case "isis":
+			rollback := isisRollbackStep(topo.DeviceID, igp, topo.Vendor)
+			rollback.DeviceHost = topo.Hostname
+			p.Steps = append(p.Steps, rollback)
+		case "ospf":
+			rollback := ospfRollbackStep(topo.DeviceID, igp, topo.Vendor)
 			rollback.DeviceHost = topo.Hostname
 			p.Steps = append(p.Steps, rollback)
 		}
