@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xavierli/nethelper/internal/llm"
+	"github.com/xavierli/nethelper/internal/llm/intent"
 )
 
 func newExplainCmd() *cobra.Command {
@@ -37,14 +38,25 @@ Examples:
 				return fmt.Errorf("provide a question as argument or use --file")
 			}
 
+			// Classify intent — simple queries bypass LLM entirely.
+			queryIntent := intent.Classify(userQuestion)
+			if queryIntent != intent.IntentComplex {
+				result := directQuery(queryIntent, userQuestion, deviceID)
+				if result != "" {
+					fmt.Println(result)
+					return nil
+				}
+				// Fall through to LLM if directQuery couldn't answer.
+			}
+
 			if !llmRouter.Available() {
 				fmt.Println("No LLM provider configured.")
 				fmt.Println("Configure an LLM: nethelper config llm --help")
 				return nil
 			}
 
-			// Gather context from nethelper memory
-			ctx := gatherContext(userQuestion, deviceID)
+			// Gather intent-aware context from nethelper memory.
+			ctx := buildContext(userQuestion, queryIntent, deviceID)
 
 			systemPrompt := `You are a senior network engineer assistant with access to a network management database.
 Below is the relevant data from the database for the user's question. Use this data to answer accurately.
@@ -76,17 +88,169 @@ Reply in the same language as the user's question. Be precise and reference spec
 	return cmd
 }
 
-// gatherContext collects relevant data from the nethelper database.
-// It tries to identify which device(s) the question is about, then pulls
-// config, neighbors, interfaces, scratch pad entries as LLM context.
-func gatherContext(question, explicitDevice string) string {
+// directQuery attempts to answer simple intents directly from the DB without
+// invoking an LLM. It returns the formatted answer string, or "" if it cannot
+// satisfy the query (caller should fall through to LLM).
+func directQuery(qi intent.QueryIntent, question, deviceID string) string {
+	switch qi {
+	case intent.IntentDeviceList:
+		devices, err := db.ListDevices()
+		if err != nil || len(devices) == 0 {
+			return ""
+		}
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf("%-30s %-20s %-12s %-16s\n", "DEVICE ID", "HOSTNAME", "VENDOR", "ROUTER-ID"))
+		sb.WriteString(strings.Repeat("-", 82) + "\n")
+		for _, d := range devices {
+			sb.WriteString(fmt.Sprintf("%-30s %-20s %-12s %-16s\n",
+				d.ID, d.Hostname, d.Vendor, d.RouterID))
+		}
+		return sb.String()
+
+	case intent.IntentInterfaceStatus:
+		targets := findRelevantDevices(question, deviceID)
+		if len(targets) == 0 {
+			return ""
+		}
+		var sb strings.Builder
+		for _, devID := range targets {
+			ifaces, err := db.GetInterfaces(devID)
+			if err != nil || len(ifaces) == 0 {
+				continue
+			}
+			sb.WriteString(fmt.Sprintf("=== %s ===\n", devID))
+			sb.WriteString(fmt.Sprintf("%-30s %-10s %-8s %-20s %s\n", "INTERFACE", "TYPE", "STATUS", "IP/MASK", "DESCRIPTION"))
+			sb.WriteString(strings.Repeat("-", 90) + "\n")
+			for _, i := range ifaces {
+				ip := i.IPAddress
+				if ip != "" && i.Mask != "" {
+					ip = ip + "/" + i.Mask
+				}
+				sb.WriteString(fmt.Sprintf("%-30s %-10s %-8s %-20s %s\n",
+					i.Name, string(i.Type), i.Status, ip, i.Description))
+			}
+			sb.WriteString("\n")
+		}
+		result := strings.TrimRight(sb.String(), "\n")
+		if result == "" {
+			return ""
+		}
+		return result
+
+	case intent.IntentRouteTable:
+		targets := findRelevantDevices(question, deviceID)
+		if len(targets) == 0 {
+			return ""
+		}
+		var sb strings.Builder
+		for _, devID := range targets {
+			entries, err := db.ListScratch(devID, "route", 5)
+			if err != nil || len(entries) == 0 {
+				continue
+			}
+			sb.WriteString(fmt.Sprintf("=== %s — 最近路由表输出 ===\n", devID))
+			for _, e := range entries {
+				sb.WriteString(fmt.Sprintf("--- [%s] %s ---\n", e.Category, e.Query))
+				content := e.Content
+				if len(content) > 2000 {
+					content = content[:2000] + "\n...(truncated)"
+				}
+				sb.WriteString(content + "\n\n")
+			}
+		}
+		result := strings.TrimRight(sb.String(), "\n")
+		if result == "" {
+			return ""
+		}
+		return result
+
+	case intent.IntentNeighborList:
+		targets := findRelevantDevices(question, deviceID)
+		if len(targets) == 0 {
+			return ""
+		}
+		var sb strings.Builder
+		for _, devID := range targets {
+			snapID, err := db.LatestSnapshotID(devID)
+			if err != nil {
+				continue
+			}
+			neighbors, err := db.GetNeighbors(devID, snapID)
+			if err != nil || len(neighbors) == 0 {
+				continue
+			}
+			sb.WriteString(fmt.Sprintf("=== %s ===\n", devID))
+			sb.WriteString(fmt.Sprintf("%-8s %-20s %-12s %-20s %-8s %-6s %s\n",
+				"PROTO", "REMOTE-ID", "STATE", "INTERFACE", "AREA", "AS", "UPTIME"))
+			sb.WriteString(strings.Repeat("-", 90) + "\n")
+			for _, n := range neighbors {
+				sb.WriteString(fmt.Sprintf("%-8s %-20s %-12s %-20s %-8s %-6d %s\n",
+					n.Protocol, n.RemoteID, n.State, n.LocalInterface,
+					n.AreaID, n.ASNumber, n.Uptime))
+			}
+			sb.WriteString("\n")
+		}
+		result := strings.TrimRight(sb.String(), "\n")
+		if result == "" {
+			return ""
+		}
+		return result
+
+	case intent.IntentConfigSearch:
+		term := extractSearchTerm(question)
+		if term == "" {
+			return ""
+		}
+		configs, err := db.SearchConfig(term)
+		if err != nil || len(configs) == 0 {
+			return ""
+		}
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf("搜索 \"%s\" 的配置结果 (%d 条):\n\n", term, len(configs)))
+		for _, c := range configs {
+			sb.WriteString(fmt.Sprintf("--- 设备: %s (捕获于 %s) ---\n```\n", c.DeviceID, c.CapturedAt.Format("2006-01-02 15:04")))
+			text := c.ConfigText
+			if len(text) > 1500 {
+				text = text[:1500] + "\n...(truncated)"
+			}
+			sb.WriteString(text + "\n```\n\n")
+		}
+		return strings.TrimRight(sb.String(), "\n")
+	}
+
+	return ""
+}
+
+// extractSearchTerm pulls the search term from a config search query.
+// e.g. "search config bgp" → "bgp", "查找配置 ospf" → "ospf"
+func extractSearchTerm(question string) string {
+	lower := strings.ToLower(strings.TrimSpace(question))
+	// Remove leading action keywords and config keywords, use the remainder.
+	for _, kw := range []string{"search config", "find config", "grep config",
+		"搜索配置", "查找配置", "search", "find", "grep", "搜索", "查找",
+		"config", "配置"} {
+		lower = strings.ReplaceAll(lower, kw, " ")
+	}
+	term := strings.TrimSpace(lower)
+	// Return first non-empty token as search term.
+	parts := strings.Fields(term)
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[0]
+}
+
+// buildContext collects relevant data from the nethelper database.
+// It is intent-aware: protocol-specific questions get filtered context instead
+// of dumping all interfaces and all neighbors.
+func buildContext(question string, qi intent.QueryIntent, explicitDevice string) string {
 	var sections []string
 
-	// Determine target device(s)
+	// Determine target device(s).
 	targetDevices := findRelevantDevices(question, explicitDevice)
 
 	if len(targetDevices) == 0 {
-		// No specific device found — provide general overview
+		// No specific device found — provide general overview.
 		devices, err := db.ListDevices()
 		if err != nil || len(devices) == 0 {
 			return ""
@@ -99,6 +263,9 @@ func gatherContext(question, explicitDevice string) string {
 		return strings.Join(lines, "\n")
 	}
 
+	// Determine which protocol filter to apply based on the question.
+	protoFilter := detectProtocolFilter(question)
+
 	for _, devID := range targetDevices {
 		dev, err := db.GetDevice(devID)
 		if err != nil {
@@ -108,22 +275,26 @@ func gatherContext(question, explicitDevice string) string {
 		sections = append(sections, fmt.Sprintf("## 设备: %s (hostname=%s, vendor=%s, router_id=%s, mgmt_ip=%s)",
 			dev.ID, dev.Hostname, dev.Vendor, dev.RouterID, dev.MgmtIP))
 
-		// Interfaces
-		ifaces, _ := db.GetInterfaces(devID)
-		if len(ifaces) > 0 {
-			var ifLines []string
-			ifLines = append(ifLines, "### 接口列表")
-			for _, i := range ifaces {
-				ip := i.IPAddress
-				if ip != "" && i.Mask != "" {
-					ip = ip + "/" + i.Mask
+		// Interfaces — skip or filter based on protocol context.
+		if protoFilter == "" {
+			// General query: include all interfaces.
+			ifaces, _ := db.GetInterfaces(devID)
+			if len(ifaces) > 0 {
+				var ifLines []string
+				ifLines = append(ifLines, "### 接口列表")
+				for _, i := range ifaces {
+					ip := i.IPAddress
+					if ip != "" && i.Mask != "" {
+						ip = ip + "/" + i.Mask
+					}
+					ifLines = append(ifLines, fmt.Sprintf("- %s type=%s status=%s ip=%s desc=%s", i.Name, i.Type, i.Status, ip, i.Description))
 				}
-				ifLines = append(ifLines, fmt.Sprintf("- %s type=%s status=%s ip=%s desc=%s", i.Name, i.Type, i.Status, ip, i.Description))
+				sections = append(sections, strings.Join(ifLines, "\n"))
 			}
-			sections = append(sections, strings.Join(ifLines, "\n"))
 		}
+		// For protocol-specific queries we skip the full interface dump to save tokens.
 
-		// Neighbors (from latest snapshot)
+		// Neighbors — filter by protocol when applicable.
 		snapID, err := db.LatestSnapshotID(devID)
 		if err == nil {
 			neighbors, _ := db.GetNeighbors(devID, snapID)
@@ -131,19 +302,30 @@ func gatherContext(question, explicitDevice string) string {
 				var nLines []string
 				nLines = append(nLines, "### 协议邻居")
 				for _, n := range neighbors {
+					// When a protocol filter is active, skip unrelated neighbors.
+					if protoFilter != "" && !strings.Contains(strings.ToLower(n.Protocol), protoFilter) {
+						continue
+					}
 					nLines = append(nLines, fmt.Sprintf("- protocol=%s remote_id=%s state=%s interface=%s area=%s as=%d uptime=%s",
 						n.Protocol, n.RemoteID, n.State, n.LocalInterface, n.AreaID, n.ASNumber, n.Uptime))
 				}
-				sections = append(sections, strings.Join(nLines, "\n"))
+				if len(nLines) > 1 { // more than just the header
+					sections = append(sections, strings.Join(nLines, "\n"))
+				}
 			}
 		}
 
-		// Config snapshot (truncated to keep context manageable)
+		// Config snapshot — intent-aware extraction and cap.
 		configs, _ := db.GetConfigSnapshots(devID)
 		if len(configs) > 0 {
 			configText := configs[0].ConfigText
-			// If config is huge, extract relevant sections based on question keywords
-			relevantConfig := extractRelevantConfig(configText, question)
+			var maxChars int
+			if protoFilter != "" {
+				maxChars = 4000 // protocol-specific
+			} else {
+				maxChars = 5000 // general
+			}
+			relevantConfig := extractRelevantConfig(configText, question, maxChars)
 			if relevantConfig != "" {
 				sections = append(sections, "### 相关配置片段\n```\n"+relevantConfig+"\n```")
 			} else if len(configText) > 3000 {
@@ -153,8 +335,12 @@ func gatherContext(question, explicitDevice string) string {
 			}
 		}
 
-		// Scratch pad entries for this device
-		scratches, _ := db.ListScratch(devID, "", 5)
+		// Scratch pad entries — filter category by protocol filter if possible.
+		scratchCat := ""
+		if protoFilter == "mpls" || protoFilter == "tunnel" {
+			scratchCat = "label"
+		}
+		scratches, _ := db.ListScratch(devID, scratchCat, 5)
 		if len(scratches) > 0 {
 			var sLines []string
 			sLines = append(sLines, "### 暂存区（最近的命令输出）")
@@ -172,13 +358,36 @@ func gatherContext(question, explicitDevice string) string {
 	return strings.Join(sections, "\n\n")
 }
 
+// detectProtocolFilter inspects the question and returns a protocol name
+// ("ospf", "bgp", "mpls", "tunnel", "") that should be used to filter
+// neighbors and config sections. Returns "" for general queries.
+func detectProtocolFilter(question string) string {
+	lower := strings.ToLower(question)
+	switch {
+	case strings.Contains(lower, "ospf"):
+		return "ospf"
+	case strings.Contains(lower, "bgp"):
+		return "bgp"
+	case strings.Contains(lower, "mpls") || strings.Contains(lower, " ldp") ||
+		strings.Contains(lower, " rsvp") || strings.Contains(lower, "segment-routing") ||
+		strings.Contains(lower, " sr "):
+		return "mpls"
+	case strings.Contains(lower, "tunnel") || strings.Contains(lower, " te ") ||
+		strings.HasSuffix(lower, " te"):
+		return "tunnel"
+	default:
+		return ""
+	}
+}
+
+
 // findRelevantDevices identifies which device(s) the question is about.
 func findRelevantDevices(question, explicitDevice string) []string {
 	if explicitDevice != "" {
 		return []string{strings.ToLower(explicitDevice)}
 	}
 
-	// Try to match device IDs or hostnames mentioned in the question
+	// Try to match device IDs or hostnames mentioned in the question.
 	devices, err := db.ListDevices()
 	if err != nil {
 		return nil
@@ -187,14 +396,13 @@ func findRelevantDevices(question, explicitDevice string) []string {
 	lower := strings.ToLower(question)
 	var matches []string
 	for _, d := range devices {
-		// Match by device ID, hostname, or partial hostname
 		if strings.Contains(lower, strings.ToLower(d.ID)) ||
 			strings.Contains(lower, strings.ToLower(d.Hostname)) {
 			matches = append(matches, d.ID)
 		}
 	}
 
-	// If no device matched but there's only one device in DB, use it
+	// If no device matched but there's only one device in DB, use it.
 	if len(matches) == 0 && len(devices) == 1 {
 		matches = []string{devices[0].ID}
 	}
@@ -203,11 +411,11 @@ func findRelevantDevices(question, explicitDevice string) []string {
 }
 
 // extractRelevantConfig extracts config sections relevant to the question.
-// For example, if question mentions "bgp", extract the bgp section from config.
-func extractRelevantConfig(fullConfig, question string) string {
+// maxChars limits the returned string length.
+func extractRelevantConfig(fullConfig, question string, maxChars int) string {
 	lower := strings.ToLower(question)
 
-	// Keywords to config section headers
+	// Keywords to config section headers.
 	keywords := map[string][]string{
 		"bgp":     {"bgp"},
 		"ospf":    {"ospf"},
@@ -230,13 +438,12 @@ func extractRelevantConfig(fullConfig, question string) string {
 		"ldp":     {"mpls ldp"},
 		"rsvp":    {"mpls rsvp"},
 		"qos":     {"qos", "traffic-policy"},
-		"接口":    {"interface"},
-		"邻居":    {"bgp", "ospf", "isis"},
-		"路由":    {"route-policy", "bgp", "ospf"},
-		"策略":    {"route-policy", "traffic-policy", "acl"},
+		"接口":      {"interface"},
+		"邻居":      {"bgp", "ospf", "isis"},
+		"路由":      {"route-policy", "bgp", "ospf"},
+		"策略":      {"route-policy", "traffic-policy", "acl"},
 	}
 
-	// Find which keywords match the question
 	var sectionNames []string
 	for keyword, sections := range keywords {
 		if strings.Contains(lower, keyword) {
@@ -248,7 +455,7 @@ func extractRelevantConfig(fullConfig, question string) string {
 		return ""
 	}
 
-	// Extract matching sections from config (between # delimiters for Huawei)
+	// Extract matching sections (Huawei uses # as section delimiter).
 	lines := strings.Split(fullConfig, "\n")
 	var result []string
 	inRelevantSection := false
@@ -257,7 +464,6 @@ func extractRelevantConfig(fullConfig, question string) string {
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Huawei config uses # as section delimiter
 		if trimmed == "#" {
 			if inRelevantSection && sectionDepth == 0 {
 				result = append(result, line)
@@ -268,13 +474,11 @@ func extractRelevantConfig(fullConfig, question string) string {
 			sectionDepth = 0
 		}
 
-		// Check if this line starts a relevant section
 		if !inRelevantSection {
 			lineLower := strings.ToLower(trimmed)
 			for _, name := range sectionNames {
 				if strings.Contains(lineLower, name) {
 					inRelevantSection = true
-					// Include the # before this section
 					result = append(result, "#")
 					break
 				}
@@ -287,8 +491,8 @@ func extractRelevantConfig(fullConfig, question string) string {
 	}
 
 	extracted := strings.Join(result, "\n")
-	if len(extracted) > 8000 {
-		extracted = extracted[:8000] + "\n...(truncated)"
+	if len(extracted) > maxChars {
+		extracted = extracted[:maxChars] + "\n...(truncated)"
 	}
 	return extracted
 }

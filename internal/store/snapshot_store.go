@@ -1,13 +1,30 @@
 package store
 
-import "github.com/xavierli/nethelper/internal/model"
+import (
+	"database/sql"
+
+	"github.com/xavierli/nethelper/internal/model"
+)
 
 func (db *DB) CreateSnapshot(s model.Snapshot) (int, error) {
 	if s.Commands == "" {
 		s.Commands = "[]"
 	}
-	result, err := db.Exec(`INSERT INTO snapshots (device_id, source_file, commands) VALUES (?, ?, ?)`,
-		s.DeviceID, s.SourceFile, s.Commands)
+	var (
+		result sql.Result
+		err    error
+	)
+	if !s.CapturedAt.IsZero() {
+		result, err = db.Exec(
+			`INSERT INTO snapshots (device_id, source_file, commands, captured_at) VALUES (?, ?, ?, ?)`,
+			s.DeviceID, s.SourceFile, s.Commands, s.CapturedAt,
+		)
+	} else {
+		result, err = db.Exec(
+			`INSERT INTO snapshots (device_id, source_file, commands) VALUES (?, ?, ?)`,
+			s.DeviceID, s.SourceFile, s.Commands,
+		)
+	}
 	if err != nil {
 		return 0, err
 	}

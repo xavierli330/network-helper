@@ -16,6 +16,9 @@ func TestCiscoDetectPrompt(t *testing.T) {
 		{"Router-PE01#show version", "Router-PE01", true},
 		{"Router-PE01(config)#interface GE0/0", "Router-PE01", true},
 		{"<HUAWEI>display version", "", false},
+		// IOS-XR style
+		{"RP/0/RP0/CPU0:GZ-YS-0101-G05-ASR9912-01#show running-config", "GZ-YS-0101-G05-ASR9912-01", true},
+		{"RP/0/RSP0/CPU0:MyRouter#show interfaces", "MyRouter", true},
 	}
 	for _, tt := range tests {
 		host, ok := p.DetectPrompt(tt.line)

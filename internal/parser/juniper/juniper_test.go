@@ -25,6 +25,26 @@ func TestJuniperDetectPrompt(t *testing.T) {
 	}
 }
 
+func TestJuniperClassifyCommand_DualConfig(t *testing.T) {
+	p := New()
+	tests := []struct {
+		cmd  string
+		want model.CommandType
+	}{
+		{"show configuration", model.CmdConfig},
+		{"show configuration | display set", model.CmdConfigSet},
+		{"show configuration | display set | match interface", model.CmdConfigSet},
+		{"SHOW CONFIGURATION | DISPLAY SET", model.CmdConfigSet},
+		{"show configuration interfaces", model.CmdConfig},
+	}
+	for _, tt := range tests {
+		got := p.ClassifyCommand(tt.cmd)
+		if got != tt.want {
+			t.Errorf("ClassifyCommand(%q) = %q, want %q", tt.cmd, got, tt.want)
+		}
+	}
+}
+
 func TestParseShowInterfacesTerse(t *testing.T) {
 	input := `Interface               Admin Link Proto    Local                 Remote
 ge-0/0/0                up    up

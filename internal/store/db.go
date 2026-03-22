@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
@@ -43,6 +44,14 @@ func Open(dbPath string) (*DB, error) {
 func (db *DB) migrate() error {
 	for i, m := range migrations {
 		if _, err := db.Exec(m); err != nil {
+			// ALTER TABLE ... ADD COLUMN is not idempotent in SQLite.
+			// Tolerate "duplicate column name" errors so that the migration
+			// runner is safe to run on an already-migrated database.
+			isAddColumn := strings.Contains(strings.ToUpper(m), "ADD COLUMN")
+			isDuplicate := strings.Contains(err.Error(), "duplicate column name")
+			if isAddColumn && isDuplicate {
+				continue
+			}
 			return fmt.Errorf("migration %d failed: %w", i, err)
 		}
 	}

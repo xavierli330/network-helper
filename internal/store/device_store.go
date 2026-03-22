@@ -11,9 +11,12 @@ func (db *DB) UpsertDevice(d model.Device) error {
 		INSERT INTO devices (id, hostname, vendor, model, os_version, mgmt_ip, router_id, mpls_lsr_id, last_seen)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
-			hostname=excluded.hostname, vendor=excluded.vendor, model=excluded.model,
-			os_version=excluded.os_version, mgmt_ip=excluded.mgmt_ip,
-			router_id=excluded.router_id, mpls_lsr_id=excluded.mpls_lsr_id,
+			hostname=excluded.hostname, vendor=excluded.vendor,
+			model=CASE WHEN excluded.model != '' THEN excluded.model ELSE devices.model END,
+			os_version=CASE WHEN excluded.os_version != '' THEN excluded.os_version ELSE devices.os_version END,
+			mgmt_ip=CASE WHEN excluded.mgmt_ip != '' THEN excluded.mgmt_ip ELSE devices.mgmt_ip END,
+			router_id=CASE WHEN excluded.router_id != '' THEN excluded.router_id ELSE devices.router_id END,
+			mpls_lsr_id=CASE WHEN excluded.mpls_lsr_id != '' THEN excluded.mpls_lsr_id ELSE devices.mpls_lsr_id END,
 			last_seen=excluded.last_seen`,
 		d.ID, d.Hostname, d.Vendor, d.Model, d.OSVersion, d.MgmtIP, d.RouterID, d.MPLSLsrID, d.LastSeen)
 	return err

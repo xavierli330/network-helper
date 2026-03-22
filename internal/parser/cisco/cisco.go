@@ -9,14 +9,26 @@ import (
 
 var promptRe = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9._-]*)(?:\([^)]*\))?#`)
 
+// iosxrPromptRe matches IOS-XR prompts such as:
+//   RP/0/RP0/CPU0:GZ-YS-0101-G05-ASR9912-01#show running-config
+//   RP/0/RSP0/CPU0:MyRouter#show interfaces
+var iosxrPromptRe = regexp.MustCompile(`^RP/\d+/[A-Z0-9]+/CPU\d+:([A-Za-z][A-Za-z0-9._-]*)#`)
+
 type Parser struct{}
 func New() *Parser { return &Parser{} }
 func (p *Parser) Vendor() string { return "cisco" }
 
 func (p *Parser) DetectPrompt(line string) (string, bool) {
-	m := promptRe.FindStringSubmatch(strings.TrimRight(line, "\r \t"))
-	if m == nil { return "", false }
-	return m[1], true
+	trimmed := strings.TrimRight(line, "\r \t")
+	// Try standard IOS/IOS-XE prompt first.
+	if m := promptRe.FindStringSubmatch(trimmed); m != nil {
+		return m[1], true
+	}
+	// Fall back to IOS-XR prompt.
+	if m := iosxrPromptRe.FindStringSubmatch(trimmed); m != nil {
+		return m[1], true
+	}
+	return "", false
 }
 
 func (p *Parser) ClassifyCommand(cmd string) model.CommandType {
@@ -52,6 +64,7 @@ func (p *Parser) ParseOutput(cmdType model.CommandType, raw string) (model.Parse
 	case model.CmdRIB: return ParseShowIPRoute(raw)
 	case model.CmdNeighbor: return ParseShowOSPFNeighbor(raw)
 	case model.CmdLFIB: return ParseShowMplsForwarding(raw)
+	case model.CmdConfig: return model.ParseResult{Type: model.CmdConfig, ConfigText: raw, RawText: raw}, nil
 	default: return model.ParseResult{Type: cmdType, RawText: raw}, nil
 	}
 }

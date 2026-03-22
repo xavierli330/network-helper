@@ -87,10 +87,10 @@ func newShowDeviceCmd() *cobra.Command {
 				return nil
 			}
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "ID\tHOSTNAME\tVENDOR\tMODEL\tMGMT IP\tLAST SEEN\n")
+			fmt.Fprintf(w, "ID\tHOSTNAME\tVENDOR\tOS VERSION\tMODEL\tMGMT IP\tLAST SEEN\n")
 			for _, d := range devices {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-					d.ID, d.Hostname, d.Vendor, d.Model, d.MgmtIP, d.LastSeen.Format("2006-01-02 15:04"))
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+					d.ID, d.Hostname, d.Vendor, d.OSVersion, d.Model, d.MgmtIP, d.LastSeen.Format("2006-01-02 15:04"))
 			}
 			return w.Flush()
 		},

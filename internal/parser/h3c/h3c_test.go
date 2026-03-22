@@ -40,6 +40,29 @@ Loop0                UP   UP(s)    1.1.1.1`
 	if result.Interfaces[2].Type != model.IfTypeLoopback { t.Errorf("type: %s", result.Interfaces[2].Type) }
 }
 
+func TestH3CClassifyCommand_Abbreviation(t *testing.T) {
+	p := New()
+	tests := []struct {
+		cmd  string
+		want model.CommandType
+	}{
+		{"dis cur", model.CmdConfig},
+		{"dis current-configuration", model.CmdConfig},
+		{"display current-configuration", model.CmdConfig},
+		{"dis interface", model.CmdInterface},
+		{"dis ip routing-table", model.CmdRIB},
+		{"dis ospf peer", model.CmdNeighbor},
+		{"dis fib", model.CmdFIB},
+		{"dis mpls lsp", model.CmdLFIB},
+	}
+	for _, tt := range tests {
+		got := p.ClassifyCommand(tt.cmd)
+		if got != tt.want {
+			t.Errorf("ClassifyCommand(%q) = %v, want %v", tt.cmd, got, tt.want)
+		}
+	}
+}
+
 func TestH3CParseRoutingTable(t *testing.T) {
 	input := `Routing Tables: Public
 	Destinations : 3        Routes : 3

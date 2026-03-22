@@ -17,6 +17,8 @@ func (p *Parser) DetectPrompt(line string) (string, bool) {
 		if end > 1 {
 			hostname := trimmed[1:end]
 			if strings.ContainsAny(hostname, "@$~/ ") { return "", false }
+			if strings.ContainsAny(hostname, "[]") { return "", false }
+			if len(hostname) < 3 { return "", false }
 			return hostname, true
 		}
 	}
@@ -33,15 +35,23 @@ func (p *Parser) DetectPrompt(line string) (string, bool) {
 
 func (p *Parser) ClassifyCommand(cmd string) model.CommandType {
 	lower := strings.ToLower(strings.TrimSpace(cmd))
+	// Expand the common H3C abbreviation "dis" → "display".
+	if strings.HasPrefix(lower, "dis ") && !strings.HasPrefix(lower, "display ") {
+		lower = "display " + lower[4:]
+	}
 	switch {
 	case strings.HasPrefix(lower, "display ip routing-table"): return model.CmdRIB
 	case strings.HasPrefix(lower, "display fib"): return model.CmdFIB
 	case strings.HasPrefix(lower, "display mpls lsp"), strings.HasPrefix(lower, "display mpls forwarding"): return model.CmdLFIB
-	case strings.HasPrefix(lower, "display interface"): return model.CmdInterface
+	case strings.HasPrefix(lower, "display interface"),
+		strings.HasPrefix(lower, "display int"):
+		return model.CmdInterface
 	case strings.HasPrefix(lower, "display ospf peer"), strings.HasPrefix(lower, "display bgp peer"),
 		strings.HasPrefix(lower, "display isis peer"), strings.HasPrefix(lower, "display mpls ldp session"):
 		return model.CmdNeighbor
-	case strings.HasPrefix(lower, "display current-configuration"): return model.CmdConfig
+	case strings.HasPrefix(lower, "display current-configuration"),
+		strings.HasPrefix(lower, "display cur"):
+		return model.CmdConfig
 	default: return model.CmdUnknown
 	}
 }
@@ -52,6 +62,7 @@ func (p *Parser) ParseOutput(cmdType model.CommandType, raw string) (model.Parse
 	case model.CmdRIB: return ParseRoutingTable(raw)
 	case model.CmdNeighbor: return ParseOspfPeer(raw)
 	case model.CmdLFIB: return ParseMplsLsp(raw)
+	case model.CmdConfig: return model.ParseResult{Type: model.CmdConfig, ConfigText: raw, RawText: raw}, nil
 	default: return model.ParseResult{Type: cmdType, RawText: raw}, nil
 	}
 }

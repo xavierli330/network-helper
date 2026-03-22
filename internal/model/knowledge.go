@@ -17,6 +17,7 @@ type ConfigSnapshot struct {
 	DiffFromPrev string    `json:"diff_from_prev"`
 	CapturedAt   time.Time `json:"captured_at"`
 	SourceFile   string    `json:"source_file"`
+	Format       string    `json:"format"` // "hierarchical" or "set"
 }
 
 type TroubleshootLog struct {
