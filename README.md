@@ -36,8 +36,8 @@ CLI 工具              智能 CLI               Agent Loop            Network A
 |------|------|------|
 | `plan isolate` v2 | ✅ | 多维度拓扑发现（BGP peers + 接口 + 配置 + VRF），按 peer group 分步隔离，每步有检查点 |
 | 增量采集修复 | ✅ | 命令边界回溯，不再截断大配置 |
-| 多 session 并发 watch | 🔲 | 多台设备同时 log，互不干扰 |
-| 数据时效覆盖 | 🔲 | 重复命令后面覆盖前面（网络状态是变化的） |
+| 多 session 并发 watch | ✅ | Per-file mutex，多台设备同时 log 互不干扰 |
+| 数据时效覆盖 | ✅ | UPSERT 去重 + capture-time 条件更新 + config hash 去重 |
 | `plan upgrade` | 🔲 | 隔离 → 升级 → 恢复 |
 | `plan cutover` | 🔲 | 链路/设备割接 |
 | OSPF/ISIS 隔离支持 | 🔲 | 非 BGP 设备的协议隔离命令生成 |
