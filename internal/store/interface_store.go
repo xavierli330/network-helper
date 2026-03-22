@@ -7,10 +7,16 @@ func (db *DB) UpsertInterface(i model.Interface) error {
 		INSERT INTO interfaces (id, device_id, name, type, status, ip_address, mask, vlan, bandwidth, description, parent_id, last_updated)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
-			name=excluded.name, type=excluded.type, status=excluded.status,
-			ip_address=excluded.ip_address, mask=excluded.mask, vlan=excluded.vlan,
-			bandwidth=excluded.bandwidth, description=excluded.description,
-			parent_id=excluded.parent_id, last_updated=excluded.last_updated`,
+		  name        = CASE WHEN excluded.last_updated >= interfaces.last_updated THEN excluded.name        ELSE interfaces.name        END,
+		  type        = CASE WHEN excluded.last_updated >= interfaces.last_updated THEN excluded.type        ELSE interfaces.type        END,
+		  status      = CASE WHEN excluded.last_updated >= interfaces.last_updated THEN excluded.status      ELSE interfaces.status      END,
+		  ip_address  = CASE WHEN excluded.last_updated >= interfaces.last_updated THEN excluded.ip_address  ELSE interfaces.ip_address  END,
+		  mask        = CASE WHEN excluded.last_updated >= interfaces.last_updated THEN excluded.mask        ELSE interfaces.mask        END,
+		  vlan        = CASE WHEN excluded.last_updated >= interfaces.last_updated THEN excluded.vlan        ELSE interfaces.vlan        END,
+		  bandwidth   = CASE WHEN excluded.last_updated >= interfaces.last_updated THEN excluded.bandwidth   ELSE interfaces.bandwidth   END,
+		  description = CASE WHEN excluded.last_updated >= interfaces.last_updated THEN excluded.description ELSE interfaces.description END,
+		  parent_id   = CASE WHEN excluded.last_updated >= interfaces.last_updated THEN excluded.parent_id   ELSE interfaces.parent_id   END,
+		  last_updated = CASE WHEN excluded.last_updated >= interfaces.last_updated THEN excluded.last_updated ELSE interfaces.last_updated END`,
 		i.ID, i.DeviceID, i.Name, string(i.Type), i.Status, i.IPAddress, i.Mask, i.VLAN, i.Bandwidth, i.Description, i.ParentID, i.LastUpdated)
 	return err
 }

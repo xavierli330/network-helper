@@ -187,7 +187,11 @@ func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult
 		if iface.ID == "" {
 			iface.ID = deviceID + ":" + iface.Name
 		}
-		iface.LastUpdated = time.Now()
+		if !capturedAt.IsZero() {
+			iface.LastUpdated = capturedAt
+		} else {
+			iface.LastUpdated = time.Now()
+		}
 		if err := p.db.UpsertInterface(*iface); err != nil {
 			return err
 		}
@@ -283,7 +287,11 @@ func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult
 			if ifaces[i].ID == "" {
 				ifaces[i].ID = deviceID + ":" + ifaces[i].Name
 			}
-			ifaces[i].LastUpdated = time.Now()
+			if !capturedAt.IsZero() {
+				ifaces[i].LastUpdated = capturedAt
+			} else {
+				ifaces[i].LastUpdated = time.Now()
+			}
 			if err := p.db.UpsertInterface(ifaces[i]); err != nil {
 				return err
 			}

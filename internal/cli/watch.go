@@ -67,15 +67,17 @@ func newWatchStartCmd() *cobra.Command {
 			pidFile := pidFilePath()
 			if watcher.IsRunning(pidFile) { return fmt.Errorf("watcher already running (PID file: %s)", pidFile) }
 
-			// Mutex to serialize file processing (spec: 并发安全)
-			var ingestMu sync.Mutex
+			// Mutex to serialize file processing per-file (spec: 并发安全)
+			var fileMutexes sync.Map // keyed by file path → *sync.Mutex
 
 			w, err := watcher.New(watcher.Config{
 				Dirs:     watchDirs,
 				Debounce: 500 * time.Millisecond,
 				OnFileChange: func(path string) {
-					ingestMu.Lock()
-					defer ingestMu.Unlock()
+					muVal, _ := fileMutexes.LoadOrStore(path, &sync.Mutex{})
+					mu := muVal.(*sync.Mutex)
+					mu.Lock()
+					defer mu.Unlock()
 
 					// Incremental read: check last_offset from store
 					var offset int64

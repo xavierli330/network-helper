@@ -282,3 +282,76 @@ func TestGetLatestBGPPeers_Empty(t *testing.T) {
 		t.Errorf("expected nil/empty slice for device with no BGP peers, got %d entries", len(peers))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Interface capture-time tests (Task 4)
+// ---------------------------------------------------------------------------
+
+func TestUpsertInterface_NewerWins(t *testing.T) {
+	db := setupDB(t)
+	db.UpsertDevice(model.Device{ID: "dev-a", Hostname: "DEV-A"})
+
+	old := model.Interface{
+		ID: "dev-a:GE0/0/1", DeviceID: "dev-a", Name: "GE0/0/1",
+		Type: model.IfTypePhysical, Status: "up",
+		LastUpdated: time.Date(2026, 3, 22, 10, 0, 0, 0, time.UTC),
+	}
+	newer := old
+	newer.Status = "down"
+	newer.LastUpdated = time.Date(2026, 3, 22, 10, 30, 0, 0, time.UTC)
+
+	db.UpsertInterface(old)
+	db.UpsertInterface(newer)
+	ifaces, _ := db.GetInterfaces("dev-a")
+	if ifaces[0].Status != "down" {
+		t.Errorf("newer should win, got %s", ifaces[0].Status)
+	}
+}
+
+func TestUpsertInterface_OlderLoses(t *testing.T) {
+	db := setupDB(t)
+	db.UpsertDevice(model.Device{ID: "dev-a", Hostname: "DEV-A"})
+
+	newer := model.Interface{
+		ID: "dev-a:GE0/0/1", DeviceID: "dev-a", Name: "GE0/0/1",
+		Type: model.IfTypePhysical, Status: "down",
+		LastUpdated: time.Date(2026, 3, 22, 10, 30, 0, 0, time.UTC),
+	}
+	older := newer
+	older.Status = "up"
+	older.LastUpdated = time.Date(2026, 3, 22, 10, 0, 0, 0, time.UTC)
+
+	db.UpsertInterface(newer)
+	db.UpsertInterface(older) // should NOT overwrite
+	ifaces, _ := db.GetInterfaces("dev-a")
+	if ifaces[0].Status != "down" {
+		t.Errorf("older should lose, got %s", ifaces[0].Status)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Config hash dedup tests (Task 5)
+// ---------------------------------------------------------------------------
+
+func TestInsertConfigSnapshot_HashDedup(t *testing.T) {
+	db := setupDB(t)
+	db.UpsertDevice(model.Device{ID: "dev-a", Hostname: "DEV-A"})
+	config := "interface GE0/0/1\n ip address 10.0.0.1 255.255.255.0\n"
+	db.InsertConfigSnapshot(model.ConfigSnapshot{DeviceID: "dev-a", ConfigText: config})
+	db.InsertConfigSnapshot(model.ConfigSnapshot{DeviceID: "dev-a", ConfigText: config})
+	results, _ := db.GetConfigSnapshots("dev-a")
+	if len(results) != 1 {
+		t.Errorf("identical config stored twice, got %d", len(results))
+	}
+}
+
+func TestInsertConfigSnapshot_DifferentStored(t *testing.T) {
+	db := setupDB(t)
+	db.UpsertDevice(model.Device{ID: "dev-a", Hostname: "DEV-A"})
+	db.InsertConfigSnapshot(model.ConfigSnapshot{DeviceID: "dev-a", ConfigText: "v1"})
+	db.InsertConfigSnapshot(model.ConfigSnapshot{DeviceID: "dev-a", ConfigText: "v2"})
+	results, _ := db.GetConfigSnapshots("dev-a")
+	if len(results) != 2 {
+		t.Errorf("different configs should both be stored, got %d", len(results))
+	}
+}
