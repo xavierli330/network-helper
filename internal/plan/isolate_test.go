@@ -108,6 +108,74 @@ func TestBuildIsolationPlan_NoSPOF(t *testing.T) {
 	}
 }
 
+func TestBuildIsolationPlan_NoProtocolsWarning(t *testing.T) {
+	// When links have no protocol info, phase 2 should warn about hard-cut risk.
+	input := PlanInput{
+		TargetDevice:   "router-x",
+		TargetHostname: "ROUTER-X",
+		TargetVendor:   "huawei",
+		Links: []Link{
+			{
+				LocalDevice:    "router-x",
+				LocalInterface: "GigabitEthernet0/0/0",
+				LocalIP:        "10.0.0.1",
+				PeerDevice:     "router-y",
+				PeerIP:         "10.0.0.2",
+				Protocols:      []string{}, // no protocols
+			},
+		},
+		IsSPOF:        false,
+		ImpactDevices: nil,
+	}
+
+	plan := BuildIsolationPlan(input)
+
+	phase2 := plan.Phases[2]
+	if phase2.Number != 2 {
+		t.Fatalf("expected phase index 2 to be phase number 2, got %d", phase2.Number)
+	}
+
+	foundWarning := false
+	for _, note := range phase2.Notes {
+		if strings.Contains(note, "硬切") || strings.Contains(note, "未检测到协议") {
+			foundWarning = true
+			break
+		}
+	}
+	if !foundWarning {
+		t.Errorf("phase 2 should warn about hard-cut when no protocols detected; notes: %v", phase2.Notes)
+	}
+}
+
+func TestBuildIsolationPlan_WithProtocolsNoWarning(t *testing.T) {
+	// When links have protocol info, phase 2 should NOT add the no-protocol warning.
+	input := PlanInput{
+		TargetDevice:   "router-x",
+		TargetHostname: "ROUTER-X",
+		TargetVendor:   "huawei",
+		Links: []Link{
+			{
+				LocalDevice:    "router-x",
+				LocalInterface: "GigabitEthernet0/0/0",
+				LocalIP:        "10.0.0.1",
+				PeerDevice:     "router-y",
+				PeerIP:         "10.0.0.2",
+				Protocols:      []string{"ospf"},
+			},
+		},
+		IsSPOF:        false,
+		ImpactDevices: nil,
+	}
+
+	plan := BuildIsolationPlan(input)
+
+	phase2 := plan.Phases[2]
+	for _, note := range phase2.Notes {
+		if strings.Contains(note, "硬切") || strings.Contains(note, "未检测到协议") {
+			t.Errorf("phase 2 should NOT warn about hard-cut when protocols are detected; found note: %q", note)
+		}
+	}
+}
 func TestBuildIsolationPlan_H3CVendor(t *testing.T) {
 	input := PlanInput{
 		TargetDevice:   "h3c-01",

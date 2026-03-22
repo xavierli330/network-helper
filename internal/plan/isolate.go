@@ -75,7 +75,7 @@ func buildPhase1(gen CommandGenerator, input PlanInput) Phase {
 
 // buildPhase2 constructs Phase 2 — 协议级隔离 (Protocol-level isolation).
 func buildPhase2(gen CommandGenerator, input PlanInput) Phase {
-	return Phase{
+	phase2 := Phase{
 		Number:      2,
 		Name:        "协议级隔离",
 		Description: "通过调整路由协议参数（提高 OSPF cost、抑制 BGP 对等体、禁用 LDP），使流量在接口下线前平滑切走",
@@ -85,6 +85,14 @@ func buildPhase2(gen CommandGenerator, input PlanInput) Phase {
 			"观察对端设备是否已重新选路，确认流量已切走后再进入下一阶段",
 		},
 	}
+
+	protocols := collectProtocols(input.Links)
+	if len(protocols) == 0 {
+		phase2.Notes = append(phase2.Notes, "⚠️ 未检测到协议信息（OSPF/BGP/LDP），阶段2将不会执行流量排干。阶段3的接口 shutdown 将是硬切！")
+		phase2.Notes = append(phase2.Notes, "建议: 先采集设备配置（display current-configuration）以获取协议信息")
+	}
+
+	return phase2
 }
 
 // buildPhase3 constructs Phase 3 — 接口级隔离 (Interface-level isolation).

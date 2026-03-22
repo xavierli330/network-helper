@@ -48,6 +48,19 @@ func newPlanIsolateCmd() *cobra.Command {
 				fmt.Fprintf(os.Stderr, "warning: no links discovered for %s — plan may be incomplete\n", deviceID)
 			}
 
+			// After discovering links, check if coverage is suspicious
+			ifaces, _ := db.GetInterfaces(deviceID)
+			physicalCount := 0
+			for _, iface := range ifaces {
+				if iface.Status == "up" && iface.Description != "" {
+					physicalCount++
+				}
+			}
+			if len(links) > 0 && physicalCount > 0 && len(links) < physicalCount/2 {
+				fmt.Fprintf(os.Stderr, "⚠️  警告: 仅发现 %d 条互联关系，但设备有 %d 个有描述的活跃接口。\n", len(links), physicalCount)
+				fmt.Fprintf(os.Stderr, "    建议: 导入更多对端设备日志，或采集 'display lldp neighbor brief' 补充拓扑数据。\n\n")
+			}
+
 			// 3. Impact analysis
 			g, err := graph.BuildFromDB(db)
 			if err != nil {

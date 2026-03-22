@@ -100,13 +100,16 @@ func TestHuaweiGenerator_CollectionCommands(t *testing.T) {
 
 	text := allCommandText(cmds)
 
-	// Target device commands must include all protocol displays.
+	// Target device commands must include all protocol displays and new mandatory commands.
 	for _, want := range []string{
 		"display interface brief",
 		"display ip routing-table statistics",
 		"display ospf peer brief",
 		"display bgp peer",
 		"display mpls ldp session",
+		"display current-configuration",
+		"display lldp neighbor brief",
+		"display version",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("missing command %q in collection commands", want)
@@ -179,6 +182,27 @@ func TestHuaweiGenerator_RollbackCommands(t *testing.T) {
 			t.Errorf("missing command %q in rollback commands", want)
 		}
 	}
+
+	// Verify correct rollback order: protocols must come before interface undo shutdown.
+	protoIdx := strings.Index(text, "undo ospf cost")
+	ifaceIdx := strings.Index(text, "undo shutdown")
+	if protoIdx == -1 || ifaceIdx == -1 {
+		t.Fatal("could not find expected rollback commands for ordering check")
+	}
+	if protoIdx >= ifaceIdx {
+		t.Errorf("rollback order wrong: 'undo ospf cost' (proto) should appear before 'undo shutdown' (iface); got proto@%d iface@%d", protoIdx, ifaceIdx)
+	}
+
+	// Verify purpose ordering: first DeviceCommand should be protocol restore.
+	if len(cmds) < 2 {
+		t.Fatalf("expected 2 DeviceCommands in rollback, got %d", len(cmds))
+	}
+	if !strings.Contains(cmds[0].Purpose, "protocol") {
+		t.Errorf("first rollback DeviceCommand should be protocol restore, got purpose: %q", cmds[0].Purpose)
+	}
+	if !strings.Contains(cmds[1].Purpose, "interface") {
+		t.Errorf("second rollback DeviceCommand should be interface re-enable, got purpose: %q", cmds[1].Purpose)
+	}
 }
 
 func TestHuaweiGenerator_DedupInterfaces(t *testing.T) {
@@ -233,6 +257,17 @@ func TestH3CGenerator_CollectionCommands(t *testing.T) {
 	if strings.Contains(text, "display ospf peer brief") {
 		t.Errorf("H3C should NOT use 'display ospf peer brief', but found it in:\n%s", text)
 	}
+
+	// Must include the new mandatory collection commands.
+	for _, want := range []string{
+		"display current-configuration",
+		"display lldp neighbor brief",
+		"display version",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("missing command %q in H3C collection commands", want)
+		}
+	}
 }
 
 func TestH3CGenerator_ProtocolIsolateCommands(t *testing.T) {
@@ -267,6 +302,27 @@ func TestH3CGenerator_RollbackCommands(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Errorf("missing command %q in H3C rollback commands", want)
 		}
+	}
+
+	// Verify correct rollback order: protocols must come before interface undo shutdown.
+	protoIdx := strings.Index(text, "undo ospf cost")
+	ifaceIdx := strings.Index(text, "undo shutdown")
+	if protoIdx == -1 || ifaceIdx == -1 {
+		t.Fatal("could not find expected rollback commands for ordering check")
+	}
+	if protoIdx >= ifaceIdx {
+		t.Errorf("rollback order wrong: 'undo ospf cost' (proto) should appear before 'undo shutdown' (iface); got proto@%d iface@%d", protoIdx, ifaceIdx)
+	}
+
+	// Verify purpose ordering: first DeviceCommand should be protocol restore.
+	if len(cmds) < 2 {
+		t.Fatalf("expected 2 DeviceCommands in H3C rollback, got %d", len(cmds))
+	}
+	if !strings.Contains(cmds[0].Purpose, "protocol") {
+		t.Errorf("first H3C rollback DeviceCommand should be protocol restore, got purpose: %q", cmds[0].Purpose)
+	}
+	if !strings.Contains(cmds[1].Purpose, "interface") {
+		t.Errorf("second H3C rollback DeviceCommand should be interface re-enable, got purpose: %q", cmds[1].Purpose)
 	}
 }
 

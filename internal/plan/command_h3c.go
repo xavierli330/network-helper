@@ -25,11 +25,18 @@ func (g *H3CGenerator) CollectionCommands(target string, links []Link) []DeviceC
 		cmds = append(cmds, "display mpls ldp session")
 	}
 
+	targetCmds := cmds
+	targetCmds = append(targetCmds,
+		"display current-configuration",
+		"display lldp neighbor brief",
+		"display version",
+	)
+
 	result := []DeviceCommand{
 		{
 			DeviceID: target,
 			Vendor:   "h3c",
-			Commands: cmds,
+			Commands: targetCmds,
 			Purpose:  "Collect baseline state from target device",
 		},
 	}
@@ -220,22 +227,7 @@ func (g *H3CGenerator) PostCheckCommands(target string, links []Link) []DeviceCo
 
 // RollbackCommands reverses protocol and interface isolation on the target device.
 func (g *H3CGenerator) RollbackCommands(target string, links []Link) []DeviceCommand {
-	ifaceCmds := []string{"system-view"}
-
-	seen := make(map[string]bool)
-	for _, l := range links {
-		if l.LocalInterface == "" || seen[l.LocalInterface] {
-			continue
-		}
-		seen[l.LocalInterface] = true
-		ifaceCmds = append(ifaceCmds,
-			fmt.Sprintf("interface %s", l.LocalInterface),
-			"undo shutdown",
-			"quit",
-		)
-	}
-	ifaceCmds = append(ifaceCmds, "return")
-
+	// Correct order: first undo protocols, then re-enable interfaces.
 	protoCmds := []string{"system-view"}
 	for _, l := range links {
 		for _, p := range l.Protocols {
@@ -266,18 +258,33 @@ func (g *H3CGenerator) RollbackCommands(target string, links []Link) []DeviceCom
 	}
 	protoCmds = append(protoCmds, "return")
 
+	ifaceCmds := []string{"system-view"}
+	seen := make(map[string]bool)
+	for _, l := range links {
+		if l.LocalInterface == "" || seen[l.LocalInterface] {
+			continue
+		}
+		seen[l.LocalInterface] = true
+		ifaceCmds = append(ifaceCmds,
+			fmt.Sprintf("interface %s", l.LocalInterface),
+			"undo shutdown",
+			"quit",
+		)
+	}
+	ifaceCmds = append(ifaceCmds, "return")
+
 	return []DeviceCommand{
-		{
-			DeviceID: target,
-			Vendor:   "h3c",
-			Commands: ifaceCmds,
-			Purpose:  "Rollback: re-enable interfaces",
-		},
 		{
 			DeviceID: target,
 			Vendor:   "h3c",
 			Commands: protoCmds,
 			Purpose:  "Rollback: restore protocol settings",
+		},
+		{
+			DeviceID: target,
+			Vendor:   "h3c",
+			Commands: ifaceCmds,
+			Purpose:  "Rollback: re-enable interfaces",
 		},
 	}
 }
