@@ -40,7 +40,7 @@ CLI 工具              智能 CLI               Agent Loop            Network A
 | 数据时效覆盖 | ✅ | UPSERT 去重 + capture-time 条件更新 + config hash 去重 |
 | `plan upgrade` | 🔲 | 隔离 → 升级 → 恢复 |
 | `plan cutover` | 🔲 | 链路/设备割接 |
-| OSPF/ISIS 隔离支持 | 🔲 | 非 BGP 设备的协议隔离命令生成 |
+| OSPF/ISIS 隔离支持 | ✅ | ISIS set-overload + OSPF stub-router + LDP per-interface disable |
 
 ### Phase 2: Agent Loop
 
