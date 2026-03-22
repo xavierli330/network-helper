@@ -9,7 +9,14 @@ func (db *DB) InsertBGPPeers(peers []model.BGPPeer) error {
 			 update_source, ebgp_multihop, bfd_enabled, shutdown, address_family,
 			 import_policy, export_policy, advertise_community, next_hop_self,
 			 soft_reconfig, enabled, snapshot_id)
-			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			ON CONFLICT(device_id, peer_ip, address_family, vrf, snapshot_id) DO UPDATE SET
+			  local_as=excluded.local_as, remote_as=excluded.remote_as, peer_group=excluded.peer_group,
+			  description=excluded.description, update_source=excluded.update_source,
+			  ebgp_multihop=excluded.ebgp_multihop, bfd_enabled=excluded.bfd_enabled,
+			  shutdown=excluded.shutdown, import_policy=excluded.import_policy,
+			  export_policy=excluded.export_policy, advertise_community=excluded.advertise_community,
+			  next_hop_self=excluded.next_hop_self, soft_reconfig=excluded.soft_reconfig, enabled=excluded.enabled`,
 			p.DeviceID, p.VRF, p.LocalAS, p.PeerIP, p.RemoteAS, p.PeerGroup,
 			p.Description, p.UpdateSource, p.EBGPMultihop, p.BFDEnabled, p.Shutdown,
 			p.AddressFamily, p.ImportPolicy, p.ExportPolicy, p.AdvertiseCommunity,
@@ -19,6 +26,15 @@ func (db *DB) InsertBGPPeers(peers []model.BGPPeer) error {
 		}
 	}
 	return nil
+}
+
+func (db *DB) GetLatestBGPPeers(deviceID string) ([]model.BGPPeer, error) {
+	var snapID int
+	err := db.QueryRow(`SELECT snapshot_id FROM bgp_peers WHERE device_id = ? ORDER BY snapshot_id DESC LIMIT 1`, deviceID).Scan(&snapID)
+	if err != nil {
+		return nil, nil
+	}
+	return db.GetBGPPeers(deviceID, snapID)
 }
 
 func (db *DB) GetBGPPeers(deviceID string, snapshotID int) ([]model.BGPPeer, error) {

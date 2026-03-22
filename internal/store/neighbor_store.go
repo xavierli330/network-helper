@@ -8,7 +8,12 @@ func (db *DB) InsertNeighbors(entries []model.NeighborInfo) error {
 		return err
 	}
 	defer tx.Rollback()
-	stmt, err := tx.Prepare(`INSERT INTO protocol_neighbors (device_id, protocol, local_id, remote_id, local_interface, remote_address, state, area_id, as_number, uptime, snapshot_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	stmt, err := tx.Prepare(`INSERT INTO protocol_neighbors (device_id, protocol, local_id, remote_id, local_interface, remote_address, state, area_id, as_number, uptime, snapshot_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(device_id, protocol, remote_id, remote_address, snapshot_id) DO UPDATE SET
+		  local_id=excluded.local_id, local_interface=excluded.local_interface,
+		  state=excluded.state, area_id=excluded.area_id,
+		  as_number=excluded.as_number, uptime=excluded.uptime`)
 	if err != nil {
 		return err
 	}
@@ -19,6 +24,14 @@ func (db *DB) InsertNeighbors(entries []model.NeighborInfo) error {
 		}
 	}
 	return tx.Commit()
+}
+
+func (db *DB) GetLatestNeighbors(deviceID string) ([]model.NeighborInfo, error) {
+	snapID, err := db.LatestSnapshotID(deviceID)
+	if err != nil {
+		return nil, nil
+	}
+	return db.GetNeighbors(deviceID, snapID)
 }
 
 func (db *DB) GetNeighbors(deviceID string, snapshotID int) ([]model.NeighborInfo, error) {
