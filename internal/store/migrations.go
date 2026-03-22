@@ -281,4 +281,25 @@ var migrations = []string{
 		apply_clauses TEXT NOT NULL DEFAULT '[]'
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_rpn_policy ON route_policy_nodes(policy_id)`,
+
+	// Multi-session dedup: clean existing duplicates then add unique constraints
+
+	// protocol_neighbors
+	`DELETE FROM protocol_neighbors WHERE id NOT IN (SELECT MIN(id) FROM protocol_neighbors GROUP BY device_id, protocol, remote_id, remote_address, snapshot_id)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_neighbors_dedup ON protocol_neighbors(device_id, protocol, remote_id, remote_address, snapshot_id)`,
+
+	// bgp_peers
+	`DELETE FROM bgp_peers WHERE id NOT IN (SELECT MIN(id) FROM bgp_peers GROUP BY device_id, peer_ip, address_family, vrf, snapshot_id)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_bgp_peers_dedup ON bgp_peers(device_id, peer_ip, address_family, vrf, snapshot_id)`,
+
+	// mpls_te_tunnels
+	`DELETE FROM mpls_te_tunnels WHERE id NOT IN (SELECT MIN(id) FROM mpls_te_tunnels GROUP BY device_id, tunnel_name, snapshot_id)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_tunnels_dedup ON mpls_te_tunnels(device_id, tunnel_name, snapshot_id)`,
+
+	// sr_mappings
+	`DELETE FROM sr_mappings WHERE id NOT IN (SELECT MIN(id) FROM sr_mappings GROUP BY device_id, prefix, sid_index, snapshot_id)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_sr_dedup ON sr_mappings(device_id, prefix, sid_index, snapshot_id)`,
+
+	// config_snapshots hash column
+	`ALTER TABLE config_snapshots ADD COLUMN content_hash TEXT NOT NULL DEFAULT ''`,
 }
