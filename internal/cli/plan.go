@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/xavierli/nethelper/internal/graph"
 	"github.com/xavierli/nethelper/internal/model"
 	"github.com/xavierli/nethelper/internal/plan"
 )
@@ -33,62 +32,18 @@ func newPlanIsolateCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			deviceID := strings.ToLower(args[0])
 
-			// 1. Resolve device
-			device, err := db.GetDevice(deviceID)
+			// 1. Build topology (includes device lookup, link discovery, SPOF, impact analysis)
+			topo, err := plan.BuildTopology(db, deviceID)
 			if err != nil {
-				return fmt.Errorf("device %q not found: %w", deviceID, err)
+				return fmt.Errorf("build topology for %q: %w", deviceID, err)
 			}
 
-			// 2. Discover links
-			links, err := plan.DiscoverLinks(db, deviceID)
-			if err != nil {
-				return fmt.Errorf("discover links: %w", err)
-			}
-			if len(links) == 0 {
-				fmt.Fprintf(os.Stderr, "warning: no links discovered for %s — plan may be incomplete\n", deviceID)
-			}
+			// 2. Generate v2 plan
+			p := plan.GenerateIsolationPlanV2(topo)
 
-			// After discovering links, check if coverage is suspicious
-			ifaces, _ := db.GetInterfaces(deviceID)
-			physicalCount := 0
-			for _, iface := range ifaces {
-				if iface.Status == "up" && iface.Description != "" {
-					physicalCount++
-				}
-			}
-			if len(links) > 0 && physicalCount > 0 && len(links) < physicalCount/2 {
-				fmt.Fprintf(os.Stderr, "⚠️  警告: 仅发现 %d 条互联关系，但设备有 %d 个有描述的活跃接口。\n", len(links), physicalCount)
-				fmt.Fprintf(os.Stderr, "    建议: 导入更多对端设备日志，或采集 'display lldp neighbor brief' 补充拓扑数据。\n\n")
-			}
-
-			// 3. Impact analysis
-			g, err := graph.BuildFromDB(db)
-			if err != nil {
-				return fmt.Errorf("build graph: %w", err)
-			}
-			affected := graph.ImpactAnalysis(g, deviceID, graph.NodeTypeDevice)
-			impactHostnames := make([]string, 0, len(affected))
-			for _, id := range affected {
-				hostname := id
-				if n, ok := g.GetNode(id); ok && n.Props["hostname"] != "" {
-					hostname = n.Props["hostname"]
-				}
-				impactHostnames = append(impactHostnames, hostname)
-			}
-
-			// 4. Build plan
-			p := plan.BuildIsolationPlan(plan.PlanInput{
-				TargetDevice:   deviceID,
-				TargetHostname: device.Hostname,
-				TargetVendor:   device.Vendor,
-				Links:          links,
-				IsSPOF:         len(affected) > 0,
-				ImpactDevices:  impactHostnames,
-			})
-
-			// 5. Pre-check (optional)
+			// 3. Pre-check (optional)
 			if check {
-				result, err := runPreCheck(deviceID, links)
+				result, err := runPreCheck(topo)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "warning: pre-check failed: %v\n", err)
 				} else {
@@ -112,7 +67,7 @@ func newPlanIsolateCmd() *cobra.Command {
 				}
 			}
 
-			// 6. Render
+			// 4. Render
 			var rendered string
 			switch strings.ToLower(format) {
 			case "markdown", "md":
@@ -121,7 +76,7 @@ func newPlanIsolateCmd() *cobra.Command {
 				rendered = plan.RenderText(p)
 			}
 
-			// 7. Output
+			// 5. Output
 			if output != "" {
 				if err := os.WriteFile(output, []byte(rendered), 0o644); err != nil {
 					return fmt.Errorf("write output file: %w", err)
@@ -143,7 +98,9 @@ func newPlanIsolateCmd() *cobra.Command {
 }
 
 // runPreCheck gathers current protocol/interface state and returns a PreCheckResult.
-func runPreCheck(deviceID string, links []plan.Link) (plan.PreCheckResult, error) {
+// It uses topo.PeerGroups to know which BGP peers to verify.
+func runPreCheck(topo plan.DeviceTopology) (plan.PreCheckResult, error) {
+	deviceID := topo.DeviceID
 	result := plan.PreCheckResult{
 		DeviceID: deviceID,
 	}
@@ -175,7 +132,15 @@ func runPreCheck(deviceID string, links []plan.Link) (plan.PreCheckResult, error
 	}
 	result.OSPFAllFull = ospfAllFull || result.OSPFPeerCount == 0
 
-	// Check BGP
+	// Build a set of expected BGP peer IPs from topology peer groups
+	expectedBGPPeers := make(map[string]bool)
+	for _, pg := range topo.PeerGroups {
+		for _, peer := range pg.Peers {
+			expectedBGPPeers[peer.PeerIP] = true
+		}
+	}
+
+	// Check BGP — verify each neighbor entry; also warn for expected peers missing from neighbors
 	bgpAllEstab := true
 	for _, n := range neighbors {
 		if strings.EqualFold(n.Protocol, "bgp") {
@@ -186,7 +151,16 @@ func runPreCheck(deviceID string, links []plan.Link) (plan.PreCheckResult, error
 				result.Warnings = append(result.Warnings,
 					fmt.Sprintf("BGP peer %s is in state %s (not Established)", n.RemoteID, n.State))
 			}
+			// Mark peer as seen
+			delete(expectedBGPPeers, n.RemoteID)
 		}
+	}
+
+	// Warn about expected peers not found in neighbor table at all
+	for peerIP := range expectedBGPPeers {
+		bgpAllEstab = false
+		result.Warnings = append(result.Warnings,
+			fmt.Sprintf("BGP peer %s (from topology) not found in neighbor table", peerIP))
 	}
 	result.BGPAllEstab = bgpAllEstab || result.BGPPeerCount == 0
 
