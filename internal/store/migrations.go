@@ -212,4 +212,73 @@ var migrations = []string{
 
 	// Add format column to config_snapshots to distinguish hierarchical vs set format.
 	`ALTER TABLE config_snapshots ADD COLUMN format VARCHAR(20) NOT NULL DEFAULT 'hierarchical'`,
+
+	// Phase 1: BGP peers with per-AF policy binding
+	`CREATE TABLE IF NOT EXISTS bgp_peers (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		device_id     TEXT NOT NULL REFERENCES devices(id),
+		vrf           TEXT NOT NULL DEFAULT 'default',
+		local_as      INTEGER NOT NULL DEFAULT 0,
+		peer_ip       TEXT NOT NULL,
+		remote_as     INTEGER NOT NULL DEFAULT 0,
+		peer_group    TEXT NOT NULL DEFAULT '',
+		description   TEXT NOT NULL DEFAULT '',
+		update_source TEXT NOT NULL DEFAULT '',
+		ebgp_multihop INTEGER NOT NULL DEFAULT 0,
+		bfd_enabled   INTEGER NOT NULL DEFAULT 0,
+		shutdown      INTEGER NOT NULL DEFAULT 0,
+		address_family TEXT NOT NULL DEFAULT 'ipv4-unicast',
+		import_policy TEXT NOT NULL DEFAULT '',
+		export_policy TEXT NOT NULL DEFAULT '',
+		advertise_community INTEGER NOT NULL DEFAULT 0,
+		next_hop_self INTEGER NOT NULL DEFAULT 0,
+		soft_reconfig INTEGER NOT NULL DEFAULT 0,
+		enabled       INTEGER NOT NULL DEFAULT 1,
+		snapshot_id   INTEGER NOT NULL REFERENCES snapshots(id)
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_bgp_peers_device ON bgp_peers(device_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_bgp_peers_snapshot ON bgp_peers(snapshot_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_bgp_peers_ip ON bgp_peers(peer_ip)`,
+
+	// VPN Instance / VRF definitions
+	`CREATE TABLE IF NOT EXISTS vrf_instances (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		device_id     TEXT NOT NULL REFERENCES devices(id),
+		vrf_name      TEXT NOT NULL,
+		rd            TEXT NOT NULL DEFAULT '',
+		import_rt     TEXT NOT NULL DEFAULT '[]',
+		export_rt     TEXT NOT NULL DEFAULT '[]',
+		import_policy TEXT NOT NULL DEFAULT '',
+		export_policy TEXT NOT NULL DEFAULT '',
+		tunnel_policy TEXT NOT NULL DEFAULT '',
+		label_mode    TEXT NOT NULL DEFAULT '',
+		address_family TEXT NOT NULL DEFAULT 'ipv4',
+		snapshot_id   INTEGER NOT NULL REFERENCES snapshots(id)
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_vrf_device ON vrf_instances(device_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_vrf_name ON vrf_instances(vrf_name)`,
+
+	// Route-Policy / Policy-Statement headers
+	`CREATE TABLE IF NOT EXISTS route_policies (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		device_id     TEXT NOT NULL REFERENCES devices(id),
+		policy_name   TEXT NOT NULL,
+		vendor_type   TEXT NOT NULL DEFAULT '',
+		raw_text      TEXT NOT NULL DEFAULT '',
+		snapshot_id   INTEGER NOT NULL REFERENCES snapshots(id)
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_rp_device ON route_policies(device_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_rp_name ON route_policies(policy_name)`,
+
+	// Route-Policy nodes / terms
+	`CREATE TABLE IF NOT EXISTS route_policy_nodes (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		policy_id     INTEGER NOT NULL REFERENCES route_policies(id),
+		sequence      INTEGER NOT NULL DEFAULT 0,
+		term_name     TEXT NOT NULL DEFAULT '',
+		action        TEXT NOT NULL DEFAULT 'permit',
+		match_clauses TEXT NOT NULL DEFAULT '[]',
+		apply_clauses TEXT NOT NULL DEFAULT '[]'
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_rpn_policy ON route_policy_nodes(policy_id)`,
 }
