@@ -42,7 +42,7 @@ nethelper plan isolate cd-gx-0201-g17-h12516af-lc-01 --check
 
 可选参数：
 - `--format markdown|text` — 输出格式（默认 text）
-- `--check` — 启用预检查，要求已采集动态数据
+- `--check` — 启用预检查模式：使用每台设备的**最新快照**数据执行预检查判断，并输出完整五阶段方案（Phase 1 填充实际数据而非占位符）。若最新快照超过 24 小时则发出过期警告。
 - `--output <file>` — 输出到文件
 
 ### 五阶段变更流程
@@ -93,13 +93,21 @@ nethelper plan isolate cd-gx-0201-g17-h12516af-lc-01 --check
 
 #### 阶段 1: 预检查（Pre-check）
 
-在工程师采集完数据（`watch ingest`）后运行，基于完整数据验证基线状态。
+在工程师采集完数据（`watch ingest`）后运行（通过 `--check` 触发），基于完整数据验证基线状态。
 
-**输入:** 新采集的邻居、路由数据
+**输入:** 新采集的邻居、路由数据（取每台设备最新快照）
 **输出:**
 - 基线状态汇总（邻居数、路由数、接口状态）
 - 是否可以安全隔离的判断
 - 已知风险告警
+
+**安全隔离判断标准:**
+- 所有预期的 OSPF 邻居状态为 Full 或 2-Way ✓
+- 所有指向目标设备的 BGP peer 状态为 Established ✓
+- 所有互联接口 oper-status 为 Up ✓
+- 若以上任一不满足，输出警告但仍生成方案（由工程师决定是否继续）
+
+**基线持久化:** 预检查结果保存到 `scratch_entries` 表（JSON 格式，tag 为 `plan-baseline-<deviceID>-<timestamp>`），供阶段 4 变更后检查对比使用。
 
 #### 阶段 2: 协议级隔离（排干流量）
 
@@ -120,7 +128,17 @@ nethelper plan isolate cd-gx-0201-g17-h12516af-lc-01 --check
 在邻居设备上执行检查，确认目标设备已脱离网络：
 - 邻居表中不再出现目标设备
 - 路由已收敛到备用路径
-- 与阶段1基线对比
+- 与阶段1基线对比（从 `scratch_entries` 加载 `plan-baseline-*` 条目）
+
+#### 阶段 5: 回退方案（Rollback）
+
+输出回退命令——即阶段 2 和阶段 3 的逆操作：
+- 恢复接口 `undo shutdown`
+- 恢复 OSPF cost（`undo ospf cost`）
+- 恢复 BGP peer（`undo peer <IP> ignore` / `reset peer <IP>`）
+- 注意：回退后需要等待协议收敛，附带验证命令
+
+> 初始版本仅生成静态回退命令文本，不支持自动化执行。
 
 ### 互联关系推断引擎
 
@@ -143,19 +161,66 @@ nethelper plan isolate cd-gx-0201-g17-h12516af-lc-01 --check
    - 解析 BGP 配置段，提取 peer IP，与已知接口 IP 交叉匹配
    - 解析 MPLS/LDP 配置段
 
+**`DiscoverLinks` 函数签名:**
+
+```go
+// internal/plan/link.go
+// DiscoverLinks 基于数据库中的静态数据推断目标设备的互联关系。
+// 内部调用 graph.BuildFromDB 获取子网连接信息，并叠加 description 匹配和配置推断。
+func DiscoverLinks(db *store.DB, deviceID string) ([]Link, error)
+```
+
+实现策略：
+- 策略 1（description 匹配）和策略 3（配置推断）直接查询数据库
+- 策略 2（子网匹配）通过调用 `graph.BuildFromDB(db)` 获取已有的 `CONNECTS_TO` 边，避免重复实现子网计算逻辑
+- 配置推断复用 `internal/parser/config_extract.go` 和 `config_bgp_huawei.go` / `config_bgp_h3c.go` 中已有的配置解析函数
+
 **数据结构:**
 
 ```go
 // internal/plan/link.go
 type Link struct {
     LocalDevice    string   // 本端设备 ID
-    LocalInterface string   // 本端接口名
+    LocalInterface string   // 本端接口名（如果是 Trunk/LAG 成员，解析为父接口）
     LocalIP        string   // 本端 IP
     PeerDevice     string   // 对端设备 ID
     PeerInterface  string   // 对端接口名（可能为空）
     PeerIP         string   // 对端 IP（可能为空）
     Protocols      []string // 推断出的协议 ["ospf", "bgp", "ldp"]
-    Source         string   // 推断来源 "description" / "subnet" / "config"
+    Sources        []string // 推断来源（可多个）"description" / "subnet" / "config"
+    VRF            string   // VRF 名称，空串表示 global
+}
+```
+
+注意：`LocalInterface` 在推断时如果发现该接口有 `ParentID`（即是 Trunk/LAG 成员），自动解析为父接口。隔离命令应作用于 Trunk 接口而非成员口。
+
+```go
+// internal/plan/plan.go — 核心数据模型
+type Plan struct {
+    TargetDevice   string    // 目标设备 ID
+    TargetHostname string    // 目标设备 hostname
+    TargetVendor   string    // 目标设备厂商
+    Links          []Link    // 推断出的互联关系
+    IsSPOF         bool      // 是否为单点故障
+    ImpactDevices  []string  // 受影响设备列表
+    Phases         []Phase   // 五个阶段
+    GeneratedAt    time.Time // 生成时间
+}
+
+type Phase struct {
+    Number      int             // 阶段编号 0-4（含回退为5）
+    Name        string          // 阶段名称
+    Description string          // 阶段说明
+    Steps       []DeviceCommand // 按设备分组的命令
+    Notes       []string        // 注意事项/等待说明
+}
+
+type DeviceCommand struct {
+    DeviceID   string   // 设备 ID
+    DeviceHost string   // 设备 hostname
+    Vendor     string   // 厂商（决定命令语法）
+    Commands   []string // 有序 CLI 命令列表
+    Purpose    string   // 这组命令的目的说明
 }
 ```
 
@@ -166,15 +231,18 @@ type Link struct {
 ```go
 // internal/plan/command.go
 type CommandGenerator interface {
-    PreCheckCommands(links []Link) []DeviceCommand
-    ProtocolIsolateCommands(links []Link) []DeviceCommand
-    InterfaceIsolateCommands(links []Link) []DeviceCommand
-    PostCheckCommands(links []Link) []DeviceCommand
-    CollectionCommands(links []Link) []DeviceCommand  // 阶段0的采集命令
+    CollectionCommands(links []Link) []DeviceCommand  // 阶段0: 采集命令
+    PreCheckCommands(links []Link) []DeviceCommand     // 阶段1: 预检查
+    ProtocolIsolateCommands(links []Link) []DeviceCommand // 阶段2: 协议隔离
+    InterfaceIsolateCommands(links []Link) []DeviceCommand // 阶段3: 接口隔离
+    PostCheckCommands(links []Link) []DeviceCommand    // 阶段4: 变更后检查
+    RollbackCommands(links []Link) []DeviceCommand     // 阶段5: 回退
 }
 ```
 
-初始实现覆盖 Huawei VRP 和 H3C Comware（本次场景涉及的两个厂商）。Cisco IOS 和 Juniper 作为后续扩展。
+BGP peer shutdown 的 PeerIP 解析策略：优先使用 `Link.PeerIP`；若为空，查询 `bgp_peers` 表中 `RemoteID` 匹配 `PeerDevice` router-id 的记录获取 peer IP；仍为空则查询 `protocol_neighbors` 表中 BGP 类型的邻居。
+
+初始实现覆盖 Huawei VRP 和 H3C Comware（本次场景涉及的两个厂商）。Cisco IOS 和 Juniper 作为后续扩展。初始版本仅处理 global VRF，VRF-aware 隔离作为后续增强。
 
 ### 代码结构
 
@@ -203,8 +271,36 @@ internal/cli/
 
 - **单元测试:** 互联推断引擎（mock 数据库数据，验证 Link 输出）
 - **单元测试:** 命令生成器（给定 Link 列表，验证输出命令正确性）
-- **集成测试:** 用 LC/LA/QCDR 真实数据端到端运行 `plan isolate`
+- **集成测试:** 用 LC/LA/QCDR 真实数据端到端运行 `plan isolate`，使用 golden-file 对比预期输出（`testdata/plan_isolate_lc_phase0.golden`）
 - **网络工程师审查:** 输出方案的专业性由网络工程师角色验证
+
+### 输出格式示例
+
+**Markdown 格式** (`--format markdown`)：
+
+```markdown
+# 设备隔离变更方案
+
+**目标设备:** CD-GX-0201-G17-H12516AF-LC-01 (H3C Comware 7)
+**生成时间:** 2026-03-22 14:00
+**影响评估:** ⚠️ SPOF — 移除后 6 台设备受影响
+
+## 互联关系
+
+| 本端接口 | 对端设备 | 对端接口 | 协议 | 来源 |
+|----------|---------|---------|------|------|
+| FortyGigE2/0/27 | LA-01 | FG1/0/50 | OSPF, BGP | description |
+| FortyGigE2/0/35 | QCDR-01 | — | OSPF | subnet |
+
+## 阶段0: 请执行以下采集命令
+
+### CD-GX-0201-G17-H12516AF-LC-01
+\`\`\`
+display ospf peer brief
+display bgp peer
+\`\`\`
+...
+```
 
 ## 三角色协作流程
 
