@@ -38,7 +38,7 @@ CLI 工具              智能 CLI               Agent Loop            Network A
 | 增量采集修复 | ✅ | 命令边界回溯，不再截断大配置 |
 | 多 session 并发 watch | ✅ | Per-file mutex，多台设备同时 log 互不干扰 |
 | 数据时效覆盖 | ✅ | UPSERT 去重 + capture-time 条件更新 + config hash 去重 |
-| `plan upgrade` | 🔲 | 隔离 → 升级 → 恢复 |
+| `plan upgrade` | ✅ | 隔离 → 升级（含厂商命令）→ 验证 → 恢复，8 阶段全流程 |
 | `plan cutover` | 🔲 | 链路/设备割接 |
 | OSPF/ISIS 隔离支持 | ✅ | ISIS set-overload + OSPF stub-router + LDP per-interface disable |
 
@@ -140,7 +140,8 @@ nethelper
 │   └── status      监控状态
 │
 ├── plan        变更方案生成
-│   └── isolate     设备隔离方案（多维度拓扑发现 + 按 peer group 分步 + 检查点）
+│   ├── isolate     设备隔离方案（多维度拓扑发现 + 按 peer group 分步 + 检查点）
+│   └── upgrade     设备升级方案（隔离 + 升级 + 验证 + 恢复，--version + --file）
 │
 ├── trace       路径分析
 │   ├── path        端到端路径追踪 (--from A --to B)
