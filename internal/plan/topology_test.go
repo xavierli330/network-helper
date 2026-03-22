@@ -323,3 +323,151 @@ func TestBuildTopology_NoBGP(t *testing.T) {
 		t.Errorf("want Vendor=cisco, got %q", topo.Vendor)
 	}
 }
+
+// TestBuildTopology_IGPDetection verifies that ISIS processes and LDP are
+// extracted from a Huawei-style # delimited config.
+func TestBuildTopology_IGPDetection(t *testing.T) {
+	db := setupTestDB(t)
+	insertDevice(t, db, "pe6", "PE6", "huawei")
+
+	configText := `#
+isis 1
+ is-level level-2
+ network-entity 49.0001.0000.0000.0006.00
+#
+interface Eth-Trunk1
+ ip address 10.0.0.1 255.255.255.252
+ isis enable 1
+ isis circuit-type p2p
+ mpls ldp
+#
+interface Eth-Trunk2
+ ip address 10.0.0.5 255.255.255.252
+ isis enable 1
+ mpls ldp
+#
+interface LoopBack0
+ ip address 1.1.1.6 255.255.255.255
+ isis enable 1
+#
+`
+	_, err := db.InsertConfigSnapshot(model.ConfigSnapshot{
+		DeviceID:   "pe6",
+		ConfigText: configText,
+		Format:     "hierarchical",
+		CapturedAt: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("insert config: %v", err)
+	}
+
+	topo, err := plan.BuildTopology(db, "pe6")
+	if err != nil {
+		t.Fatalf("BuildTopology: %v", err)
+	}
+
+	// Should have exactly 1 IGP entry: isis process 1
+	if len(topo.IGPs) != 1 {
+		t.Fatalf("want 1 IGP entry, got %d: %+v", len(topo.IGPs), topo.IGPs)
+	}
+	igp := topo.IGPs[0]
+	if igp.Protocol != "isis" {
+		t.Errorf("want Protocol=isis, got %q", igp.Protocol)
+	}
+	if igp.ProcessID != "1" {
+		t.Errorf("want ProcessID=1, got %q", igp.ProcessID)
+	}
+	if len(igp.Interfaces) < 2 {
+		t.Errorf("want at least 2 ISIS interfaces, got %d: %v", len(igp.Interfaces), igp.Interfaces)
+	}
+
+	// LDP should be detected on 2 interfaces
+	if !topo.HasLDP {
+		t.Error("want HasLDP=true")
+	}
+	if len(topo.LDPInterfaces) < 2 {
+		t.Errorf("want at least 2 LDP interfaces, got %d: %v", len(topo.LDPInterfaces), topo.LDPInterfaces)
+	}
+
+	// Protocols slice should include "isis" and "ldp"
+	protoSet := make(map[string]bool)
+	for _, p := range topo.Protocols {
+		protoSet[p] = true
+	}
+	if !protoSet["isis"] {
+		t.Error("want 'isis' in Protocols")
+	}
+	if !protoSet["ldp"] {
+		t.Error("want 'ldp' in Protocols")
+	}
+}
+
+// TestBuildTopology_OSPFDetection verifies that OSPF processes and enabled
+// interfaces are extracted from a Huawei-style # delimited config.
+func TestBuildTopology_OSPFDetection(t *testing.T) {
+	db := setupTestDB(t)
+	insertDevice(t, db, "pe7", "PE7", "huawei")
+
+	configText := `#
+ospf 100
+ area 0.0.0.0
+#
+interface GigabitEthernet0/0/0
+ ip address 192.168.1.1 255.255.255.252
+ ospf enable 100 area 0.0.0.0
+#
+interface GigabitEthernet0/0/1
+ ip address 192.168.2.1 255.255.255.252
+ ospf enable 100 area 0.0.0.0
+#
+interface LoopBack0
+ ip address 2.2.2.7 255.255.255.255
+#
+`
+	_, err := db.InsertConfigSnapshot(model.ConfigSnapshot{
+		DeviceID:   "pe7",
+		ConfigText: configText,
+		Format:     "hierarchical",
+		CapturedAt: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("insert config: %v", err)
+	}
+
+	topo, err := plan.BuildTopology(db, "pe7")
+	if err != nil {
+		t.Fatalf("BuildTopology: %v", err)
+	}
+
+	// Should have exactly 1 IGP entry: ospf process 100
+	if len(topo.IGPs) != 1 {
+		t.Fatalf("want 1 IGP entry, got %d: %+v", len(topo.IGPs), topo.IGPs)
+	}
+	igp := topo.IGPs[0]
+	if igp.Protocol != "ospf" {
+		t.Errorf("want Protocol=ospf, got %q", igp.Protocol)
+	}
+	if igp.ProcessID != "100" {
+		t.Errorf("want ProcessID=100, got %q", igp.ProcessID)
+	}
+	if len(igp.Interfaces) != 2 {
+		t.Errorf("want 2 OSPF interfaces, got %d: %v", len(igp.Interfaces), igp.Interfaces)
+	}
+
+	// No LDP in this config
+	if topo.HasLDP {
+		t.Error("want HasLDP=false")
+	}
+
+	// Protocols slice should include "ospf" but not "ldp"
+	protoSet := make(map[string]bool)
+	for _, p := range topo.Protocols {
+		protoSet[p] = true
+	}
+	if !protoSet["ospf"] {
+		t.Error("want 'ospf' in Protocols")
+	}
+	if protoSet["ldp"] {
+		t.Error("want no 'ldp' in Protocols")
+	}
+}

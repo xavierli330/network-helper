@@ -59,6 +59,12 @@ type VRFSummary struct {
 	RD   string
 }
 
+type IGPInfo struct {
+	Protocol   string   // "isis" or "ospf"
+	ProcessID  string   // e.g. "1", "100"
+	Interfaces []string // interface names with this protocol enabled
+}
+
 type DeviceTopology struct {
 	DeviceID      string
 	Hostname      string
@@ -72,6 +78,9 @@ type DeviceTopology struct {
 	VRFs          []VRFSummary
 	IsSPOF        bool
 	ImpactDevices []string
+	IGPs          []IGPInfo
+	HasLDP        bool
+	LDPInterfaces []string
 }
 
 // BuildTopology builds the multi-dimensional topology view for a single device.
@@ -205,6 +214,7 @@ func BuildTopology(db *store.DB, deviceID string) (DeviceTopology, error) {
 	}
 
 	configSnapshots, _ := db.GetConfigSnapshots(deviceID)
+	var configText string
 	for _, cs := range configSnapshots {
 		text := cs.ConfigText
 		lower := strings.ToLower(text)
@@ -228,6 +238,17 @@ func BuildTopology(db *store.DB, deviceID string) (DeviceTopology, error) {
 				}
 			}
 		}
+
+		// Use the first (most recent) config snapshot for IGP/LDP extraction
+		if configText == "" {
+			configText = text
+		}
+	}
+
+	// Extract detailed IGP and LDP info from config
+	if configText != "" {
+		topo.IGPs = extractIGPInfo(configText)
+		topo.HasLDP, topo.LDPInterfaces = extractLDPInfo(configText)
 	}
 
 	// Collect protocols in stable order
@@ -430,4 +451,122 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return string(buf[pos:])
+}
+
+// extractIGPInfo parses config text (Huawei/H3C # delimited format) and returns
+// a list of IGPInfo entries, one per unique protocol+process combination.
+// It finds top-level "isis <N>" or "ospf <N>" blocks to enumerate processes,
+// and interface-level "isis enable <N>" / "ospf enable <N> area <A>" lines to
+// associate interfaces with each process.
+func extractIGPInfo(configText string) []IGPInfo {
+	// Map from "<proto>:<processID>" → *IGPInfo for dedup
+	igpMap := make(map[string]*IGPInfo)
+	var igpOrder []string
+
+	getOrCreate := func(proto, processID string) *IGPInfo {
+		key := proto + ":" + processID
+		if entry, ok := igpMap[key]; ok {
+			return entry
+		}
+		entry := &IGPInfo{Protocol: proto, ProcessID: processID}
+		igpMap[key] = entry
+		igpOrder = append(igpOrder, key)
+		return entry
+	}
+
+	// Split on "#" (Huawei/H3C block delimiter). Also handle "\n#" variants.
+	blocks := strings.Split(configText, "#")
+
+	for _, block := range blocks {
+		lines := strings.Split(strings.TrimSpace(block), "\n")
+		if len(lines) == 0 {
+			continue
+		}
+		firstLine := strings.TrimSpace(lines[0])
+
+		// Check if this is an interface block
+		if strings.HasPrefix(strings.ToLower(firstLine), "interface ") {
+			ifName := strings.TrimSpace(firstLine[len("interface "):])
+			for _, line := range lines[1:] {
+				trimmed := strings.TrimSpace(line)
+				lower := strings.ToLower(trimmed)
+				// isis enable <N>
+				if strings.HasPrefix(lower, "isis enable ") {
+					parts := strings.Fields(trimmed)
+					if len(parts) >= 3 {
+						processID := parts[2]
+						getOrCreate("isis", processID).Interfaces = append(
+							getOrCreate("isis", processID).Interfaces, ifName)
+					}
+				}
+				// ospf enable <N> area <A>
+				if strings.HasPrefix(lower, "ospf enable ") {
+					parts := strings.Fields(trimmed)
+					if len(parts) >= 3 {
+						processID := parts[2]
+						getOrCreate("ospf", processID).Interfaces = append(
+							getOrCreate("ospf", processID).Interfaces, ifName)
+					}
+				}
+			}
+			continue
+		}
+
+		// Check if this is a top-level "isis <N>" block
+		if strings.HasPrefix(strings.ToLower(firstLine), "isis ") {
+			parts := strings.Fields(firstLine)
+			if len(parts) >= 2 {
+				processID := parts[1]
+				getOrCreate("isis", processID) // ensure entry exists
+			}
+			continue
+		}
+
+		// Check if this is a top-level "ospf <N>" block
+		if strings.HasPrefix(strings.ToLower(firstLine), "ospf ") {
+			parts := strings.Fields(firstLine)
+			if len(parts) >= 2 {
+				processID := parts[1]
+				getOrCreate("ospf", processID) // ensure entry exists
+			}
+			continue
+		}
+	}
+
+	// Build result in stable order
+	var result []IGPInfo
+	for _, key := range igpOrder {
+		result = append(result, *igpMap[key])
+	}
+	return result
+}
+
+// extractLDPInfo parses config text (Huawei/H3C # delimited format) and returns
+// whether LDP is configured and which interfaces have it enabled.
+func extractLDPInfo(configText string) (bool, []string) {
+	var ldpIfaces []string
+
+	blocks := strings.Split(configText, "#")
+	for _, block := range blocks {
+		lines := strings.Split(strings.TrimSpace(block), "\n")
+		if len(lines) == 0 {
+			continue
+		}
+		firstLine := strings.TrimSpace(lines[0])
+
+		// Only interested in interface blocks
+		if !strings.HasPrefix(strings.ToLower(firstLine), "interface ") {
+			continue
+		}
+		ifName := strings.TrimSpace(firstLine[len("interface "):])
+		for _, line := range lines[1:] {
+			trimmed := strings.TrimSpace(line)
+			if strings.EqualFold(trimmed, "mpls ldp") {
+				ldpIfaces = append(ldpIfaces, ifName)
+				break
+			}
+		}
+	}
+
+	return len(ldpIfaces) > 0, ldpIfaces
 }
