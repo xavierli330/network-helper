@@ -133,119 +133,121 @@ var (
 )
 
 func extractJuniperConfig(configText string) []model.Interface {
-	// Find the "interfaces {" block.
-	lines := strings.Split(configText, "\n")
-	startIdx := -1
-	for i, line := range lines {
-		if juniperIfBlockRe.MatchString(strings.TrimSpace(line)) {
-			startIdx = i
-			break
-		}
-	}
-	if startIdx < 0 {
-		return nil
-	}
-
-	// Find matching closing brace for the interfaces block.
-	depth := 0
-	endIdx := startIdx
-	for i := startIdx; i < len(lines); i++ {
-		trimmed := strings.TrimSpace(lines[i])
-		depth += strings.Count(trimmed, "{") - strings.Count(trimmed, "}")
-		if depth <= 0 {
-			endIdx = i
-			break
-		}
-	}
-
-	// Parse interface entries within the block.
 	var result []model.Interface
-	type ifState struct {
-		name string
-		desc string
-		ip   string
-		mask string
+
+	// There may be multiple "interfaces {" blocks (e.g. in different
+	// routing-engine groups).  Collect all of them.
+	lines := strings.Split(configText, "\n")
+	for startIdx := 0; startIdx < len(lines); startIdx++ {
+		if !juniperIfBlockRe.MatchString(strings.TrimSpace(lines[startIdx])) {
+			continue
+		}
+		// Find closing brace for this interfaces block.
+		depth := 0
+		endIdx := startIdx
+		for i := startIdx; i < len(lines); i++ {
+			trimmed := strings.TrimSpace(lines[i])
+			depth += strings.Count(trimmed, "{") - strings.Count(trimmed, "}")
+			if depth <= 0 {
+				endIdx = i
+				break
+			}
+		}
+
+		blockContent := strings.Join(lines[startIdx+1:endIdx], "\n")
+		ifBlocks := extractAllTopLevelBlocks(blockContent)
+		for _, ifb := range ifBlocks {
+			ifaces := parseJuniperInterfaceBlock(ifb.Name, ifb.Content)
+			result = append(result, ifaces...)
+		}
+		startIdx = endIdx
 	}
 
-	var current *ifState
-	var unitName string
-	depth = 0
+	return result
+}
 
-	for i := startIdx + 1; i <= endIdx; i++ {
-		trimmed := strings.TrimSpace(lines[i])
-		if trimmed == "" || trimmed == "}" {
-			if trimmed == "}" {
-				depth--
-				if depth <= 0 && current != nil {
-					// End of this interface block — emit.
-					ifName := current.name
-					if unitName != "" {
-						ifName = current.name + "." + unitName
-					}
-					iface := model.Interface{
-						Name:        ifName,
-						Type:        inferInterfaceTypeByVendor(current.name, "juniper"),
-						Status:      "up",
-						Description: current.desc,
-						IPAddress:   current.ip,
-						Mask:        current.mask,
-					}
-					if current.ip != "" {
-						result = append(result, iface)
-					} else if current.desc != "" {
-						result = append(result, iface)
-					} else {
-						// Still emit interfaces without IP/desc
-						result = append(result, iface)
-					}
-					current = nil
-					unitName = ""
-				}
-			}
-			continue
+// parseJuniperInterfaceBlock parses a single interface definition block and
+// returns one or more Interface entries (one per unit with an address, or one
+// for the interface itself if no units have addresses).
+func parseJuniperInterfaceBlock(ifName, content string) []model.Interface {
+	// Check for interface-level description.
+	ifDesc := ""
+	if dm := juniperDescRe.FindStringSubmatch(content); dm != nil {
+		ifDesc = dm[1]
+	}
+
+	// Check for interface-level disable.
+	ifDisabled := false
+	for _, line := range strings.Split(content, "\n") {
+		if strings.TrimSpace(line) == "disable;" {
+			ifDisabled = true
+			break
+		}
+	}
+
+	// Parse unit sub-blocks.
+	units := extractNamedBlocks(content, "unit")
+	var result []model.Interface
+
+	for _, u := range units {
+		desc := ifDesc
+		if dm := juniperDescRe.FindStringSubmatch(u.Content); dm != nil {
+			desc = dm[1]
 		}
 
-		opens := strings.Count(trimmed, "{")
-		closes := strings.Count(trimmed, "}")
-
-		if depth == 0 && opens > 0 {
-			// Top-level interface entry, e.g. "ge-0/0/0 {"
-			name := strings.TrimSuffix(strings.TrimSpace(strings.SplitN(trimmed, "{", 2)[0]), " ")
-			current = &ifState{name: name}
-			depth += opens - closes
-			continue
+		ip := ""
+		mask := ""
+		if am := juniperAddrRe.FindStringSubmatch(u.Content); am != nil {
+			ip = am[1]
+			mask = am[2]
 		}
 
-		depth += opens - closes
+		unitName := u.Name
+		fullName := ifName + "." + unitName
 
-		if current == nil {
-			continue
+		status := "up"
+		if ifDisabled {
+			status = "down"
 		}
-
-		// Look for description
-		if dm := juniperDescRe.FindStringSubmatch(trimmed); dm != nil {
-			current.desc = dm[1]
-		}
-
-		// Track unit number
-		if strings.HasPrefix(trimmed, "unit ") {
-			parts := strings.Fields(trimmed)
-			if len(parts) >= 2 {
-				unitName = parts[1]
+		// Check unit-level disable
+		for _, line := range strings.Split(u.Content, "\n") {
+			if strings.TrimSpace(line) == "disable;" {
+				status = "down"
+				break
 			}
 		}
 
-		// Look for address
-		if am := juniperAddrRe.FindStringSubmatch(trimmed); am != nil {
-			current.ip = am[1]
-			current.mask = am[2] // CIDR prefix length
+		iface := model.Interface{
+			Name:        fullName,
+			Type:        inferInterfaceTypeByVendor(ifName, "juniper"),
+			Status:      status,
+			Description: desc,
+			IPAddress:   ip,
+			Mask:        mask,
 		}
+		result = append(result, iface)
+	}
 
-		// Juniper uses "disable;" for shutdown
-		if trimmed == "disable;" {
-			// We'll handle this at emit time — but we need to store it.
-			// Let's just mark status in the ifState... extend ifState.
+	// If no units found, emit the interface itself.
+	if len(units) == 0 {
+		status := "up"
+		if ifDisabled {
+			status = "down"
 		}
+		ip := ""
+		mask := ""
+		if am := juniperAddrRe.FindStringSubmatch(content); am != nil {
+			ip = am[1]
+			mask = am[2]
+		}
+		result = append(result, model.Interface{
+			Name:        ifName,
+			Type:        inferInterfaceTypeByVendor(ifName, "juniper"),
+			Status:      status,
+			Description: ifDesc,
+			IPAddress:   ip,
+			Mask:        mask,
+		})
 	}
 
 	return result

@@ -591,7 +591,11 @@ var (
 // ExtractVRFInstancesHuawei extracts VPN instances from Huawei/H3C config.
 func ExtractVRFInstancesHuawei(configText string) []model.VRFInstance {
 	sections := strings.Split(configText, "\n#")
-	var result []model.VRFInstance
+	// Use a map to deduplicate by VRF name — the same VPN instance may
+	// appear in multiple config sections (standalone ip vpn-instance block
+	// and bgp / ipv4-family vpn-instance sub-block).
+	vrfMap := make(map[string]*model.VRFInstance)
+	var vrfOrder []string // preserve first-seen order
 
 	for _, sec := range sections {
 		lines := strings.Split(strings.TrimSpace(sec), "\n")
@@ -639,7 +643,37 @@ func ExtractVRFInstancesHuawei(configText string) []model.VRFInstance {
 		vrf.ImportRT = string(importJSON)
 		vrf.ExportRT = string(exportJSON)
 
-		result = append(result, vrf)
+		// Merge into existing entry or create new one
+		if existing, ok := vrfMap[vrfName]; ok {
+			// Merge: keep non-empty values from existing, fill gaps from new
+			if existing.RD == "" && vrf.RD != "" {
+				existing.RD = vrf.RD
+			}
+			if existing.ImportRT == "[]" && vrf.ImportRT != "[]" {
+				existing.ImportRT = vrf.ImportRT
+			}
+			if existing.ExportRT == "[]" && vrf.ExportRT != "[]" {
+				existing.ExportRT = vrf.ExportRT
+			}
+			if existing.TunnelPolicy == "" && vrf.TunnelPolicy != "" {
+				existing.TunnelPolicy = vrf.TunnelPolicy
+			}
+			if existing.LabelMode == "" && vrf.LabelMode != "" {
+				existing.LabelMode = vrf.LabelMode
+			}
+			if existing.AddressFamily == "" && vrf.AddressFamily != "" {
+				existing.AddressFamily = vrf.AddressFamily
+			}
+		} else {
+			vrfCopy := vrf
+			vrfMap[vrfName] = &vrfCopy
+			vrfOrder = append(vrfOrder, vrfName)
+		}
+	}
+
+	var result []model.VRFInstance
+	for _, name := range vrfOrder {
+		result = append(result, *vrfMap[name])
 	}
 	return result
 }

@@ -173,15 +173,74 @@ var juniperFamilyMap = map[string]string{
 func ExtractBGPPeersJuniper(configText string) []model.BGPPeer {
 	var peers []model.BGPPeer
 
+	// Determine local AS from routing-options { autonomous-system <N>; }
+	// There may be multiple routing-options blocks (e.g. per routing-engine);
+	// search all of them for autonomous-system.
+	localAS := findJuniperLocalAS(configText)
+	// Also check for local-as in the BGP block itself
+	if localAS == 0 {
+		bgpBlock := extractJuniperBlock(configText, "protocols")
+		if bgpBlock != "" {
+			bgpInner := extractJuniperBlock(bgpBlock, "bgp")
+			if bgpInner != "" {
+				if v := juniperValue(bgpInner, "local-as"); v != "" {
+					localAS, _ = strconv.Atoi(v)
+				}
+			}
+		}
+	}
+
 	// Collect BGP groups from the top-level protocols block.
-	peers = append(peers, extractBGPGroupsFrom(configText, "")...)
+	peers = append(peers, extractBGPGroupsFrom(configText, "", localAS)...)
 
 	return peers
 }
 
+// findJuniperLocalAS searches through all routing-options blocks in the config
+// to find the autonomous-system number.  There may be multiple routing-options
+// blocks (e.g. per routing-engine group); we search all of them.
+func findJuniperLocalAS(configText string) int {
+	re := regexp.MustCompile(`(?m)^\s*autonomous-system\s+(\d+);`)
+	// First try: search all routing-options blocks
+	lines := strings.Split(configText, "\n")
+	roRe := regexp.MustCompile(`(?i)^\s*routing-options\s*\{`)
+	for i := 0; i < len(lines); i++ {
+		if !roRe.MatchString(lines[i]) {
+			continue
+		}
+		depth := 0
+		for j := i; j < len(lines); j++ {
+			trimmed := strings.TrimSpace(lines[j])
+			depth += strings.Count(trimmed, "{") - strings.Count(trimmed, "}")
+			if m := re.FindStringSubmatch(trimmed); m != nil {
+				v, _ := strconv.Atoi(m[1])
+				if v > 0 {
+					return v
+				}
+			}
+			if depth <= 0 && j > i {
+				break
+			}
+		}
+	}
+	// Fallback: look for local-as in protocols bgp block
+	bgpBlock := extractJuniperBlock(configText, "protocols")
+	if bgpBlock != "" {
+		bgpInner := extractJuniperBlock(bgpBlock, "bgp")
+		if bgpInner != "" {
+			if v := juniperValue(bgpInner, "local-as"); v != "" {
+				as, _ := strconv.Atoi(v)
+				return as
+			}
+		}
+	}
+	return 0
+}
+
 // extractBGPGroupsFrom finds "protocols { bgp {" inside text and extracts all
-// groups/neighbors. vrfName is "" for global table.
-func extractBGPGroupsFrom(text, vrfName string) []model.BGPPeer {
+// groups/neighbors. vrfName is "" for global table. localAS is the autonomous
+// system number for iBGP remote-as resolution.
+func extractBGPGroupsFrom(text, vrfName string, localAS int) []model.BGPPeer {
 	bgpBlock := extractJuniperBlock(text, "protocols")
 	if bgpBlock == "" {
 		return nil
@@ -198,12 +257,12 @@ func extractBGPGroupsFrom(text, vrfName string) []model.BGPPeer {
 	var peers []model.BGPPeer
 	groups := extractNamedBlocks(bgpInner, "group")
 	for _, g := range groups {
-		peers = append(peers, parseJuniperBGPGroup(g.Name, g.Content, vrfName)...)
+		peers = append(peers, parseJuniperBGPGroup(g.Name, g.Content, vrfName, localAS)...)
 	}
 	return peers
 }
 
-func parseJuniperBGPGroup(groupName, groupContent, vrfName string) []model.BGPPeer {
+func parseJuniperBGPGroup(groupName, groupContent, vrfName string, localAS int) []model.BGPPeer {
 	groupType := juniperValue(groupContent, "type")
 	localAddr := juniperValue(groupContent, "local-address")
 
@@ -243,6 +302,11 @@ func parseJuniperBGPGroup(groupName, groupContent, vrfName string) []model.BGPPe
 
 		isIBGP := strings.EqualFold(groupType, "internal")
 
+		// For iBGP, remote AS equals local AS when peer-as is not explicitly set.
+		if isIBGP && peerAS == 0 && localAS > 0 {
+			peerAS = localAS
+		}
+
 		for _, af := range families {
 			p := model.BGPPeer{
 				VRF:           vrfName,
@@ -253,13 +317,12 @@ func parseJuniperBGPGroup(groupName, groupContent, vrfName string) []model.BGPPe
 				ImportPolicy:  impPolicy,
 				ExportPolicy:  expPolicy,
 				RemoteAS:      peerAS,
+				LocalAS:       localAS,
 				AddressFamily: af,
 				Enabled:       1,
 			}
 			if isIBGP {
-				// For iBGP the remote AS equals local AS; we don't know
-				// local AS from config alone, so leave RemoteAS as 0 unless
-				// peer-as is set at group or neighbor level.
+				// Already set RemoteAS above
 			}
 			peers = append(peers, p)
 		}
@@ -334,6 +397,10 @@ func ExtractVRFBGPPeersJuniper(configText string) []model.BGPPeer {
 	if riBlock == "" {
 		return nil
 	}
+
+	// Determine local AS for iBGP resolution
+	localAS := findJuniperLocalAS(configText)
+
 	instances := extractAllTopLevelBlocks(riBlock)
 	var peers []model.BGPPeer
 	for _, inst := range instances {
@@ -341,7 +408,7 @@ func ExtractVRFBGPPeersJuniper(configText string) []model.BGPPeer {
 		if !strings.EqualFold(instType, "vrf") {
 			continue
 		}
-		vrfPeers := extractBGPGroupsFrom(inst.Content, inst.Name)
+		vrfPeers := extractBGPGroupsFrom(inst.Content, inst.Name, localAS)
 		peers = append(peers, vrfPeers...)
 	}
 	return peers

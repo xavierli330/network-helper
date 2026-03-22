@@ -514,7 +514,7 @@ var (
 	ciscoExportRTRe    = regexp.MustCompile(`(?i)^\s*export\s+route-target`)
 	ciscoImportPolRe   = regexp.MustCompile(`(?i)^\s*import\s+route-policy\s+(\S+)`)
 	ciscoExportPolRe   = regexp.MustCompile(`(?i)^\s*export\s+route-policy\s+(\S+)`)
-	ciscoRTValueRe     = regexp.MustCompile(`^\s+(\d+:\d+)\s*$`)
+	ciscoRTValueRe     = regexp.MustCompile(`^\s*(\d+:\d+)\s*$`)
 )
 
 // ExtractVRFInstancesCisco extracts VRF definitions from Cisco IOS-XR config.
@@ -550,47 +550,66 @@ func ExtractVRFInstancesCisco(configText string) []model.VRFInstance {
 		}
 	}
 
-	// Parse standalone vrf blocks
+	// Parse standalone vrf blocks — use a map to deduplicate by VRF name.
+	// In flat IOS-XR configs, "vrf <name>" may appear at indent 0 inside
+	// interface blocks, router static, etc., producing many entries for the
+	// same VRF.  We merge all occurrences, keeping the richest data.
+	standaloneVRFs := make(map[string]*vrfData)
+	var vrfOrder []string // preserve first-seen order
 	for i := 0; i < len(allLines); i++ {
 		line := strings.TrimRight(allLines[i], "\r \t")
 		trimmedClean := strings.TrimSpace(line)
 
 		// Match top-level "vrf <name>" (indent 0)
 		if m := ciscoVRFTopRe.FindStringSubmatch(trimmedClean); m != nil && indentLevel(allLines[i]) == 0 {
-			// Skip if this is inside router bgp (check previous non-empty line)
 			vrfName := m[1]
-			subLines, nextI := collectSubBlock(allLines, i+1, 0)
+			var subLines []string
+			var nextI int
+
+			// Detect flat vs indented: check if the next non-empty line
+			// has indent > 0.
+			isFlat := true
+			for k := i + 1; k < len(allLines); k++ {
+				t := strings.TrimSpace(allLines[k])
+				if t == "" || t == "!" {
+					continue
+				}
+				if indentLevel(allLines[k]) > 0 {
+					isFlat = false
+				}
+				break
+			}
+
+			if isFlat {
+				// Flat format: collect until we see a line that starts a new
+				// top-level block (not an RT value, not address-family, not
+				// import/export, not !). Track ! depth similar to flat BGP.
+				subLines, nextI = collectFlatBlock(allLines, i+1)
+			} else {
+				subLines, nextI = collectSubBlock(allLines, i+1, 0)
+			}
 			vd := parseVRFSubLines(subLines)
 			vd.name = vrfName
 
-			// Merge BGP VRF data (RD comes from router bgp block)
-			if bv, ok := bgpVRFData[vrfName]; ok {
-				if vd.rd == "" {
-					vd.rd = bv.rd
-				}
-				// Merge RTs
-				if len(vd.importRTs) == 0 {
-					vd.importRTs = bv.importRTs
-				}
-				if len(vd.exportRTs) == 0 {
-					vd.exportRTs = bv.exportRTs
-				}
-				if vd.importPolicy == "" {
-					vd.importPolicy = bv.importPolicy
-				}
-				if vd.exportPolicy == "" {
-					vd.exportPolicy = bv.exportPolicy
-				}
-				if vd.af == "" {
-					vd.af = bv.af
-				}
-				delete(bgpVRFData, vrfName)
+			if existing, ok := standaloneVRFs[vrfName]; ok {
+				mergeVRFData(existing, vd)
+			} else {
+				standaloneVRFs[vrfName] = vd
+				vrfOrder = append(vrfOrder, vrfName)
 			}
-
-			result = append(result, vd.toModel())
 			i = nextI - 1
 			continue
 		}
+	}
+
+	// Merge BGP VRF data into standalone VRFs and emit
+	for _, vrfName := range vrfOrder {
+		vd := standaloneVRFs[vrfName]
+		if bv, ok := bgpVRFData[vrfName]; ok {
+			mergeVRFData(vd, bv)
+			delete(bgpVRFData, vrfName)
+		}
+		result = append(result, vd.toModel())
 	}
 
 	// Emit any BGP-only VRFs not seen as standalone
@@ -599,6 +618,64 @@ func ExtractVRFInstancesCisco(configText string) []model.VRFInstance {
 	}
 
 	return result
+}
+
+// collectFlatBlock collects lines in a flat IOS-XR block starting at lines[start].
+// It uses ! as end-of-block markers. Nested blocks (address-family, import/export
+// route-target) increase the depth; ! decreases it. Returns collected lines and
+// the index after the block.
+func collectFlatBlock(lines []string, start int) ([]string, int) {
+	var sub []string
+	depth := 1 // we're inside the top-level block
+	i := start
+	for i < len(lines) {
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed == "" {
+			i++
+			continue
+		}
+		if trimmed == "!" {
+			depth--
+			if depth <= 0 {
+				i++
+				break
+			}
+			sub = append(sub, lines[i])
+			i++
+			continue
+		}
+		sub = append(sub, lines[i])
+		// Check if this line opens a new context
+		if ciscoContextOpenerRe.MatchString(trimmed) ||
+			strings.HasPrefix(strings.ToLower(trimmed), "address-family") {
+			depth++
+		}
+		i++
+	}
+	return sub, i
+}
+
+// mergeVRFData merges src into dst, keeping non-empty values from src
+// only when dst's corresponding field is empty.
+func mergeVRFData(dst, src *vrfData) {
+	if dst.rd == "" {
+		dst.rd = src.rd
+	}
+	if len(dst.importRTs) == 0 && len(src.importRTs) > 0 {
+		dst.importRTs = src.importRTs
+	}
+	if len(dst.exportRTs) == 0 && len(src.exportRTs) > 0 {
+		dst.exportRTs = src.exportRTs
+	}
+	if dst.importPolicy == "" {
+		dst.importPolicy = src.importPolicy
+	}
+	if dst.exportPolicy == "" {
+		dst.exportPolicy = src.exportPolicy
+	}
+	if dst.af == "" {
+		dst.af = src.af
+	}
 }
 
 type vrfData struct {
@@ -694,6 +771,58 @@ var (
 	ciscoEndPolicyRe        = regexp.MustCompile(`(?m)^end-policy`)
 )
 
+// ciscoMatchClause represents a parsed match condition from a route-policy.
+type ciscoMatchClause struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+// ciscoApplyClause represents a parsed apply/set action from a route-policy.
+type ciscoApplyClause struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+var (
+	ciscoPolicyIfRe       = regexp.MustCompile(`(?i)^\s*(if|elseif)\s+(.+)\s+then\s*$`)
+	ciscoPolicyElseRe     = regexp.MustCompile(`(?i)^\s*else\s*$`)
+	ciscoPolicySetRe      = regexp.MustCompile(`(?i)^\s*set\s+(\S+)\s+(.+)$`)
+	ciscoPolicyApplyRe    = regexp.MustCompile(`(?i)^\s*apply\s+(\S+)`)
+	ciscoPolicyPassRe     = regexp.MustCompile(`(?i)^\s*pass\s*$`)
+	ciscoPolicyDropRe     = regexp.MustCompile(`(?i)^\s*drop\s*$`)
+	ciscoPolicyPrependRe  = regexp.MustCompile(`(?i)^\s*prepend\s+(.+)$`)
+
+	// Match condition patterns
+	ciscoMatchCommunityRe    = regexp.MustCompile(`(?i)community\s+(matches-any|matches-every)\s+(\([^)]+\)|\S+)`)
+	ciscoMatchExtCommunityRe = regexp.MustCompile(`(?i)extcommunity\s+soo\s+(matches-any|matches-every)\s+(\([^)]+\)|\S+)`)
+	ciscoMatchDestRe         = regexp.MustCompile(`(?i)destination\s+in\s+(\([^)]+\)|\S+)`)
+	ciscoMatchNextHopRe      = regexp.MustCompile(`(?i)next-hop\s+in\s+(\S+)`)
+)
+
+// parseCiscoMatchCondition parses an if/elseif condition string into match clauses.
+func parseCiscoMatchCondition(cond string) []ciscoMatchClause {
+	var clauses []ciscoMatchClause
+
+	// Extract community matches
+	for _, m := range ciscoMatchCommunityRe.FindAllStringSubmatch(cond, -1) {
+		clauses = append(clauses, ciscoMatchClause{Type: "community", Value: strings.TrimSpace(m[2])})
+	}
+	// Extract extcommunity soo matches
+	for _, m := range ciscoMatchExtCommunityRe.FindAllStringSubmatch(cond, -1) {
+		clauses = append(clauses, ciscoMatchClause{Type: "extcommunity-soo", Value: strings.TrimSpace(m[2])})
+	}
+	// Extract destination prefix-set matches
+	for _, m := range ciscoMatchDestRe.FindAllStringSubmatch(cond, -1) {
+		clauses = append(clauses, ciscoMatchClause{Type: "destination-prefix-set", Value: strings.TrimSpace(m[1])})
+	}
+	// Extract next-hop matches
+	for _, m := range ciscoMatchNextHopRe.FindAllStringSubmatch(cond, -1) {
+		clauses = append(clauses, ciscoMatchClause{Type: "next-hop", Value: strings.TrimSpace(m[1])})
+	}
+
+	return clauses
+}
+
 // ExtractRoutePoliciesCisco extracts route-policy definitions from Cisco IOS-XR config.
 func ExtractRoutePoliciesCisco(configText string) []model.RoutePolicy {
 	var result []model.RoutePolicy
@@ -715,41 +844,133 @@ func ExtractRoutePoliciesCisco(configText string) []model.RoutePolicy {
 			}
 			rawText := strings.Join(bodyLines, "\n")
 
-			// Create a single node capturing the policy body
-			node := model.RoutePolicyNode{
-				Sequence:     0,
-				MatchClauses: "[]",
-				ApplyClauses: "[]",
-			}
-
-			// Extract apply statements
-			var applies []string
-			applyRe := regexp.MustCompile(`(?i)^\s*apply\s+(\S+)`)
-			for _, bl := range bodyLines {
-				if am := applyRe.FindStringSubmatch(bl); am != nil {
-					applies = append(applies, am[1])
-				}
-			}
-			if len(applies) > 0 {
-				applyJSON, _ := json.Marshal(applies)
-				node.ApplyClauses = string(applyJSON)
-			}
-
-			// Determine overall action: pass, drop, or mixed
-			bodyText := strings.Join(bodyLines[1:], "\n") // exclude header
-			node.Action = inferCiscoPolicyAction(bodyText)
+			// Parse if/elseif/else blocks into separate nodes
+			nodes := parseCiscoPolicyBlocks(bodyLines[1:]) // skip header line
 
 			rp := model.RoutePolicy{
 				PolicyName: policyName,
 				VendorType: "route-policy",
 				RawText:    rawText,
-				Nodes:      []model.RoutePolicyNode{node},
+				Nodes:      nodes,
 			}
 			result = append(result, rp)
 			i = j
 		}
 	}
 	return result
+}
+
+// parseCiscoPolicyBlocks parses the body lines (between route-policy header and end-policy)
+// into RoutePolicyNode entries, one per if/elseif/else block.
+func parseCiscoPolicyBlocks(bodyLines []string) []model.RoutePolicyNode {
+	type block struct {
+		matchClauses []ciscoMatchClause
+		applyClauses []ciscoApplyClause
+		action       string
+	}
+
+	var blocks []block
+	var currentBlock *block
+	hasConditionals := false
+
+	for _, line := range bodyLines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.EqualFold(trimmed, "endif") || strings.EqualFold(trimmed, "end-policy") {
+			continue
+		}
+
+		// Check for if/elseif
+		if m := ciscoPolicyIfRe.FindStringSubmatch(line); m != nil {
+			hasConditionals = true
+			// Flush previous block if any
+			if currentBlock != nil {
+				blocks = append(blocks, *currentBlock)
+			}
+			matchClauses := parseCiscoMatchCondition(m[2])
+			currentBlock = &block{matchClauses: matchClauses}
+			continue
+		}
+
+		// Check for else
+		if ciscoPolicyElseRe.MatchString(line) {
+			hasConditionals = true
+			if currentBlock != nil {
+				blocks = append(blocks, *currentBlock)
+			}
+			currentBlock = &block{}
+			continue
+		}
+
+		// If we haven't seen any conditionals yet, create a default block
+		if currentBlock == nil {
+			currentBlock = &block{}
+		}
+
+		// Parse action/set lines within current block
+		if ciscoPolicyPassRe.MatchString(line) {
+			currentBlock.action = "permit"
+		} else if ciscoPolicyDropRe.MatchString(line) {
+			currentBlock.action = "deny"
+		} else if m := ciscoPolicySetRe.FindStringSubmatch(line); m != nil {
+			currentBlock.applyClauses = append(currentBlock.applyClauses, ciscoApplyClause{
+				Type:  strings.TrimSpace(m[1]),
+				Value: strings.TrimSpace(m[2]),
+			})
+		} else if m := ciscoPolicyApplyRe.FindStringSubmatch(line); m != nil {
+			currentBlock.applyClauses = append(currentBlock.applyClauses, ciscoApplyClause{
+				Type:  "apply",
+				Value: strings.TrimSpace(m[1]),
+			})
+		} else if m := ciscoPolicyPrependRe.FindStringSubmatch(line); m != nil {
+			currentBlock.applyClauses = append(currentBlock.applyClauses, ciscoApplyClause{
+				Type:  "prepend",
+				Value: strings.TrimSpace(m[1]),
+			})
+		}
+	}
+
+	// Flush last block
+	if currentBlock != nil {
+		blocks = append(blocks, *currentBlock)
+	}
+
+	// Convert to RoutePolicyNode entries
+	var nodes []model.RoutePolicyNode
+	for idx, b := range blocks {
+		matchJSON := "[]"
+		if len(b.matchClauses) > 0 {
+			j, _ := json.Marshal(b.matchClauses)
+			matchJSON = string(j)
+		}
+		applyJSON := "[]"
+		if len(b.applyClauses) > 0 {
+			j, _ := json.Marshal(b.applyClauses)
+			applyJSON = string(j)
+		}
+
+		seq := (idx + 1) * 10
+		if !hasConditionals {
+			seq = 0
+		}
+
+		node := model.RoutePolicyNode{
+			Sequence:     seq,
+			MatchClauses: matchJSON,
+			ApplyClauses: applyJSON,
+			Action:       b.action,
+		}
+		nodes = append(nodes, node)
+	}
+
+	if len(nodes) == 0 {
+		nodes = []model.RoutePolicyNode{{
+			Sequence:     0,
+			MatchClauses: "[]",
+			ApplyClauses: "[]",
+		}}
+	}
+
+	return nodes
 }
 
 // inferCiscoPolicyAction guesses the overall action from the policy body.

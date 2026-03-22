@@ -417,12 +417,19 @@ func TestExtractRoutePoliciesCisco_PolicyDetails(t *testing.T) {
 	if !containsStr(p1.RawText, "end-policy") {
 		t.Error("RawText missing 'end-policy'")
 	}
-	if len(p1.Nodes) != 1 {
-		t.Fatalf("expected 1 node, got %d", len(p1.Nodes))
+	if len(p1.Nodes) != 3 {
+		t.Fatalf("expected 3 nodes (if/elseif/else), got %d", len(p1.Nodes))
 	}
-	// Contains both pass and set, so action should include permit
-	if p1.Nodes[0].Action != "permit" {
-		t.Errorf("Action: got %q, want permit", p1.Nodes[0].Action)
+	// First node: if community matches-any → set local-preference 299
+	if p1.Nodes[0].MatchClauses == "[]" {
+		t.Error("Nodes[0].MatchClauses should not be empty")
+	}
+	if !containsStr(p1.Nodes[0].ApplyClauses, "local-preference") {
+		t.Errorf("Nodes[0] should set local-preference, got %q", p1.Nodes[0].ApplyClauses)
+	}
+	// Last node: else → pass → permit
+	if p1.Nodes[2].Action != "permit" {
+		t.Errorf("Nodes[2] Action: got %q, want permit", p1.Nodes[2].Action)
 	}
 }
 
@@ -440,24 +447,21 @@ func TestExtractRoutePoliciesCisco_ApplyClauses(t *testing.T) {
 		t.Fatal("rp_isp_in not found")
 	}
 
-	if len(p2.Nodes) != 1 {
-		t.Fatalf("expected 1 node, got %d", len(p2.Nodes))
+	if len(p2.Nodes) < 2 {
+		t.Fatalf("expected at least 2 nodes, got %d", len(p2.Nodes))
 	}
 
-	var applies []string
-	if err := json.Unmarshal([]byte(p2.Nodes[0].ApplyClauses), &applies); err != nil {
-		t.Fatalf("ApplyClauses JSON: %v", err)
+	// First node should have the apply clauses (pre-conditional block)
+	if !containsStr(p2.Nodes[0].ApplyClauses, "rp_ISP_DENY_DEFAULT_V4") {
+		t.Errorf("Nodes[0] ApplyClauses missing rp_ISP_DENY_DEFAULT_V4, got %q", p2.Nodes[0].ApplyClauses)
 	}
-	if len(applies) != 2 {
-		t.Errorf("expected 2 apply clauses, got %d", len(applies))
+	if !containsStr(p2.Nodes[0].ApplyClauses, "rp_ISP_FILTER_BOGONS") {
+		t.Errorf("Nodes[0] ApplyClauses missing rp_ISP_FILTER_BOGONS, got %q", p2.Nodes[0].ApplyClauses)
 	}
-	if len(applies) >= 2 {
-		if applies[0] != "rp_ISP_DENY_DEFAULT_V4" {
-			t.Errorf("apply[0]: got %q", applies[0])
-		}
-		if applies[1] != "rp_ISP_FILTER_BOGONS" {
-			t.Errorf("apply[1]: got %q", applies[1])
-		}
+
+	// Second node should have destination match clause
+	if !containsStr(p2.Nodes[1].MatchClauses, "destination-prefix-set") {
+		t.Errorf("Nodes[1] MatchClauses missing destination match, got %q", p2.Nodes[1].MatchClauses)
 	}
 }
 
