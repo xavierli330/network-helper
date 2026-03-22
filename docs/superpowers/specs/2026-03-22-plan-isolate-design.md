@@ -107,7 +107,7 @@ nethelper plan isolate cd-gx-0201-g17-h12516af-lc-01 --check
 - 所有互联接口 oper-status 为 Up ✓
 - 若以上任一不满足，输出警告但仍生成方案（由工程师决定是否继续）
 
-**基线持久化:** 预检查结果保存到 `scratch_entries` 表（JSON 格式，tag 为 `plan-baseline-<deviceID>-<timestamp>`），供阶段 4 变更后检查对比使用。
+**基线持久化:** 预检查结果保存到 `scratch_entries` 表（JSON 格式，`category='plan-baseline'`，`query='<deviceID>'`），供阶段 4 变更后检查通过 `WHERE category='plan-baseline' AND device_id=?` 加载对比。
 
 #### 阶段 2: 协议级隔离（排干流量）
 
@@ -173,7 +173,7 @@ func DiscoverLinks(db *store.DB, deviceID string) ([]Link, error)
 实现策略：
 - 策略 1（description 匹配）和策略 3（配置推断）直接查询数据库
 - 策略 2（子网匹配）通过调用 `graph.BuildFromDB(db)` 获取已有的 `CONNECTS_TO` 边，避免重复实现子网计算逻辑
-- 配置推断复用 `internal/parser/config_extract.go` 和 `config_bgp_huawei.go` / `config_bgp_h3c.go` 中已有的配置解析函数
+- 配置推断复用 `internal/parser/config_extract.go` 和 `config_bgp_huawei.go` 中已有的配置解析函数（H3C 解析在 `internal/parser/h3c/h3c.go` 中）
 
 **数据结构:**
 
@@ -240,9 +240,11 @@ type CommandGenerator interface {
 }
 ```
 
-BGP peer shutdown 的 PeerIP 解析策略：优先使用 `Link.PeerIP`；若为空，查询 `bgp_peers` 表中 `RemoteID` 匹配 `PeerDevice` router-id 的记录获取 peer IP；仍为空则查询 `protocol_neighbors` 表中 BGP 类型的邻居。
+BGP peer shutdown 的 PeerIP 解析策略：优先使用 `Link.PeerIP`；若为空，查询 `protocol_neighbors` 表中 `protocol='bgp'` 且 `remote_id` 匹配 `PeerDevice` router-id 的记录，取 `remote_address` 作为 peer IP。
 
 初始实现覆盖 Huawei VRP 和 H3C Comware（本次场景涉及的两个厂商）。Cisco IOS 和 Juniper 作为后续扩展。初始版本仅处理 global VRF，VRF-aware 隔离作为后续增强。
+
+注意：H3C 的 BGP 配置解析目前在 `internal/parser/h3c/h3c.go` 中实现，无独立的 `config_bgp_h3c.go`。如需增强 H3C 配置推断，可在本功能实现中按需提取。
 
 ### 代码结构
 
