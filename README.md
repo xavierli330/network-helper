@@ -1,18 +1,92 @@
 # nethelper
 
-网络工程师的排障效率工具 —— 解析多厂商设备日志，构建网络拓扑，追踪配置变更，积累排障经验。
+网络工程师的智能运维工具 —— 从日志解析到 Agent 闭环。
 
-## 特性
+```
+终端日志 → 自动解析 → 拓扑理解 → 变更方案生成 → Agent 自主排障
+```
 
-- **四厂商解析** — 华为 VRP、思科 IOS、华三 Comware、Juniper JUNOS
-- **自动监控** — 后台监控日志目录，新内容自动解析入库
-- **控制平面 + 数据平面** — RIB、FIB、LFIB 全覆盖，支持 MPLS/LDP/RSVP/SR
-- **内存图引擎** — 拓扑分析、端到端路径追踪、故障影响评估、单点故障检测
-- **FTS5 全文搜索** — 跨配置、排障记录、命令手册搜索
-- **配置变更追踪** — 自动 diff，随时对比历史版本
-- **排障笔记** — 结构化记录排障经验，越用越好
-- **LLM 增强**（可选）— AI 排障建议、配置解读、日志经验提取
-- **单文件迁移** — 所有数据在一个 SQLite 文件里，复制即迁移
+## 演进路线
+
+```
+Phase 0 (✅)          Phase 1 (🔧)          Phase 2               Phase 3
+CLI 工具              智能 CLI               Agent Loop            Network Agent
+─────────────── → ─────────────── → ─────────────── → ───────────────
+
+人执行命令            工具理解配置            agent 自主探索         可被调用的服务
+人看结果              生成精确方案            人描述需求即可         IM 通讯 / 经验复用
+人做判断              人审批执行              agent 闭环执行         多 agent 协作
+```
+
+### Phase 0: CLI 工具 ✅
+
+解析多厂商日志 → SQLite 存储 → CLI 查询 / 搜索 / 拓扑分析 / LLM 增强。
+
+- 四厂商解析（华为 VRP、思科 IOS、华三 Comware、Juniper JUNOS）
+- 控制平面 + 数据平面（RIB / FIB / LFIB，MPLS / LDP / RSVP / SR）
+- 内存图引擎（拓扑分析、路径追踪、影响评估、SPOF 检测）
+- FTS5 全文搜索、配置变更追踪、排障笔记
+- LLM 增强（可选）：AI 排障建议、配置解读
+
+### Phase 1: 智能 CLI 🔧 进行中
+
+让 CLI 不只是"展示数据"，而是"理解数据并生成可操作的方案"。
+
+| 特性 | 状态 | 说明 |
+|------|------|------|
+| `plan isolate` v2 | ✅ | 多维度拓扑发现（BGP peers + 接口 + 配置 + VRF），按 peer group 分步隔离，每步有检查点 |
+| 增量采集修复 | ✅ | 命令边界回溯，不再截断大配置 |
+| 多 session 并发 watch | 🔲 | 多台设备同时 log，互不干扰 |
+| 数据时效覆盖 | 🔲 | 重复命令后面覆盖前面（网络状态是变化的） |
+| `plan upgrade` | 🔲 | 隔离 → 升级 → 恢复 |
+| `plan cutover` | 🔲 | 链路/设备割接 |
+| OSPF/ISIS 隔离支持 | 🔲 | 非 BGP 设备的协议隔离命令生成 |
+
+### Phase 2: Agent Loop
+
+从"人执行 CLI"变成"agent 自己调用 CLI"。人只描述需求，agent loop 驱动探索。
+
+```
+用户: "LC-01 要做板卡更换，帮我准备变更方案"
+
+Agent Loop:
+  → nethelper show device LC-01              # 了解设备
+  → nethelper show interface --device LC-01  # 看接口
+  → nethelper plan isolate LC-01             # 生成方案
+  → 发现数据不够 → 提示用户采集更多信息
+  → 用户采集后 → nethelper plan isolate LC-01 --check
+  → 输出完整方案 + 预检查结果
+```
+
+| 特性 | 说明 |
+|------|------|
+| Agent Loop 核心 | LLM 决策 + tool calling（nethelper CLI 作为 tools） |
+| 排障对话 | 和 agent 聊排障 case，agent 调用 nethelper 查数据验证假设 |
+| 经验归档 | 排障聊透彻后，自动提取 → `note add` 结构化存储（症状、命令、发现、结论） |
+| 经验复用 | 下次遇到类似问题，先 `search log` 找历史经验再推理 |
+| MCP Server | nethelper 作为 MCP tool provider，可被 Claude Code / 其他 agent 调用 |
+
+### Phase 3: Network Agent（OpenClaw 形态）
+
+从单机 agent 变成可联网、可协作、有记忆的网络运维数字同事。
+
+| 特性 | 说明 |
+|------|------|
+| IM 通讯 | 接入 Discord / 企业微信 / Telegram，在群里接收排障请求 |
+| 长期记忆 | 跨会话积累网络拓扑认知和排障经验 |
+| 心跳巡检 | 定时自动检查网络状态，异常主动告警 |
+| 多 Agent 协作 | 网络 agent + 安全 agent + CMDB agent 协作处理变更 |
+| 被调用 | 作为其他 agent 的 tool（"帮我查一下 LC-01 的 BGP 邻居"） |
+
+### 跨阶段技术决策
+
+**多 session 并发：** Watcher 已支持多文件独立 offset 跟踪。需要增强的是同一设备来自不同文件的数据合并策略。
+
+**数据时效覆盖：** 接口/邻居等状态数据使用 UPSERT 语义（`ON CONFLICT DO UPDATE`），自然支持覆盖。需要增强的是重复命令的变化检测与标记。
+
+**经验固化闭环：** `diagnose`（对话排障）→ 确认根因 → `note add`（结构化归档）→ 下次 `diagnose` 先搜历史经验。CLI 阶段就能实现大部分，Agent Loop 阶段自动化这个闭环。
+
+---
 
 ## 安装
 
@@ -40,6 +114,9 @@ nethelper show route --device core-sw01
 
 # 4. 启动自动监控（终端回显保存到监控目录即自动解析）
 nethelper watch start
+
+# 5. 生成设备隔离变更方案
+nethelper plan isolate core-sw01
 ```
 
 ## 命令一览
@@ -61,6 +138,9 @@ nethelper
 │   ├── start       启动实时监控
 │   ├── stop        停止监控
 │   └── status      监控状态
+│
+├── plan        变更方案生成
+│   └── isolate     设备隔离方案（多维度拓扑发现 + 按 peer group 分步 + 检查点）
 │
 ├── trace       路径分析
 │   ├── path        端到端路径追踪 (--from A --to B)
@@ -138,8 +218,6 @@ llm:
 
 支持任何 OpenAI 兼容 API：Ollama、OpenAI、DeepSeek、通义千问、Kimi 等。
 
-详见 [配置指南](docs/configuration.md)。
-
 ## 数据存储
 
 所有数据在一个 SQLite 文件中：`~/.nethelper/nethelper.db`
@@ -168,6 +246,7 @@ internal/
 │   ├── cisco/
 │   ├── h3c/
 │   └── juniper/
+├── plan/         变更方案引擎（拓扑发现 + 命令生成）
 ├── store/        SQLite 存储层 + FTS5
 └── watcher/      fsnotify 文件监控
 ```
