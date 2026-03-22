@@ -9,7 +9,7 @@
 ## 演进路线
 
 ```
-Phase 0 (✅)          Phase 1 (🔧)          Phase 2               Phase 3
+Phase 0 (✅)          Phase 1 (✅)          Phase 2               Phase 3
 CLI 工具              智能 CLI               Agent Loop            Network Agent
 ─────────────── → ─────────────── → ─────────────── → ───────────────
 
@@ -28,7 +28,7 @@ CLI 工具              智能 CLI               Agent Loop            Network A
 - FTS5 全文搜索、配置变更追踪、排障笔记
 - LLM 增强（可选）：AI 排障建议、配置解读
 
-### Phase 1: 智能 CLI 🔧 进行中
+### Phase 1: 智能 CLI ✅ 完成
 
 让 CLI 不只是"展示数据"，而是"理解数据并生成可操作的方案"。
 
@@ -39,7 +39,7 @@ CLI 工具              智能 CLI               Agent Loop            Network A
 | 多 session 并发 watch | ✅ | Per-file mutex，多台设备同时 log 互不干扰 |
 | 数据时效覆盖 | ✅ | UPSERT 去重 + capture-time 条件更新 + config hash 去重 |
 | `plan upgrade` | ✅ | 隔离 → 升级（含厂商命令）→ 验证 → 恢复，8 阶段全流程 |
-| `plan cutover` | 🔲 | 链路/设备割接 |
+| `plan cutover` | ✅ | 链路割接：配置新口 → 切流量 → 关旧口，7 阶段 |
 | OSPF/ISIS 隔离支持 | ✅ | ISIS set-overload + OSPF stub-router + LDP per-interface disable |
 
 ### Phase 2: Agent Loop
@@ -141,7 +141,8 @@ nethelper
 │
 ├── plan        变更方案生成
 │   ├── isolate     设备隔离方案（多维度拓扑发现 + 按 peer group 分步 + 检查点）
-│   └── upgrade     设备升级方案（隔离 + 升级 + 验证 + 恢复，--version + --file）
+│   ├── upgrade     设备升级方案（隔离 + 升级 + 验证 + 恢复，--version + --file）
+│   └── cutover     链路割接方案（配置新口 + 切流量 + 关旧口，--old + --new）
 │
 ├── trace       路径分析
 │   ├── path        端到端路径追踪 (--from A --to B)
