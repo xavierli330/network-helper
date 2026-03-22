@@ -113,6 +113,88 @@ func Split(raw string, registry *Registry) []CommandBlock {
 	return blocks
 }
 
+// SplitWithOffset works like Split but only returns complete blocks — blocks
+// that are bounded by a prompt on BOTH sides. The last prompt match (which has
+// no following prompt) is considered potentially incomplete and excluded.
+//
+// It returns (completeBlocks, consumedBytes) where consumedBytes is the byte
+// offset in raw of the start of the last (potentially incomplete) prompt line.
+// If there are 0 or 1 prompt matches, it returns (nil, 0) — nothing is safe
+// to consume.
+func SplitWithOffset(raw string, registry *Registry) ([]CommandBlock, int) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, 0
+	}
+
+	lines := strings.Split(raw, "\n")
+	parsers := registry.Parsers()
+	var matches []promptMatch
+
+	// Phase 1: identical prompt-detection loop to Split.
+	for i, line := range lines {
+		trimmed := strings.TrimRight(line, "\r \t")
+		if trimmed == "" {
+			continue
+		}
+		ts, _ := extractTimestamp(trimmed)
+		stripped := stripTimestamp(trimmed)
+		for _, p := range parsers {
+			hostname, ok := p.DetectPrompt(stripped)
+			if !ok {
+				continue
+			}
+			cmd := extractCommand(stripped, p)
+			if cmd == "" {
+				continue
+			}
+			matches = append(matches, promptMatch{lineIndex: i, hostname: hostname, vendor: p.Vendor(), command: cmd, capturedAt: ts})
+			break
+		}
+	}
+
+	// Need at least 2 prompts to have one complete block.
+	if len(matches) <= 1 {
+		return nil, 0
+	}
+
+	// Build per-line byte offsets so we can convert a line index to a byte offset.
+	lineByteOffsets := make([]int, len(lines)+1)
+	off := 0
+	for i, line := range lines {
+		lineByteOffsets[i] = off
+		off += len(line) + 1 // +1 for the \n separator
+	}
+	lineByteOffsets[len(lines)] = len(raw)
+
+	// Phase 2: build blocks for matches[0..N-2] only; the last match is excluded
+	// because it has no following prompt and may be incomplete.
+	completeMatches := matches[:len(matches)-1]
+	var blocks []CommandBlock
+	for i, m := range completeMatches {
+		outputStart := m.lineIndex + 1
+		outputEnd := matches[i+1].lineIndex // next match (may be the excluded last one)
+		var outputLines []string
+		if outputStart < outputEnd {
+			for _, ol := range lines[outputStart:outputEnd] {
+				s := stripTimestamp(strings.TrimRight(ol, "\r"))
+				outputLines = append(outputLines, s)
+			}
+		}
+		output := strings.TrimRight(strings.Join(outputLines, "\n"), "\n\r \t")
+		blocks = append(blocks, CommandBlock{
+			Hostname:   m.hostname,
+			Vendor:     m.vendor,
+			Command:    m.command,
+			Output:     output,
+			CapturedAt: m.capturedAt,
+		})
+	}
+
+	// consumedBytes is the byte position where the last (incomplete) prompt begins.
+	consumedBytes := lineByteOffsets[matches[len(matches)-1].lineIndex]
+	return blocks, consumedBytes
+}
+
 // extractCommand gets the command text after the prompt pattern on a line.
 // For promptOnlyParser, uses regex loc. For full VendorParsers, uses heuristic with common delimiters.
 func extractCommand(line string, p VendorParser) string {

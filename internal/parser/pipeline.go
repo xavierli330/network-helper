@@ -16,6 +16,7 @@ type IngestResult struct {
 	BlocksParsed  int
 	BlocksFailed  int
 	BlocksSkipped int
+	BytesConsumed int
 }
 
 // Pipeline orchestrates split → detect → parse → store.
@@ -33,12 +34,28 @@ func NewPipeline(db *store.DB, registry *Registry) *Pipeline {
 // and persists the results into the database.
 func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 	var result IngestResult
-
 	blocks := Split(content, p.registry)
 	if len(blocks) == 0 {
 		return result, nil
 	}
+	result.BytesConsumed = len(content)
+	return p.processBlocks(sourceFile, blocks, result)
+}
 
+// IngestIncremental is like Ingest but uses SplitWithOffset to determine how
+// many bytes were actually consumed (up to the last complete command block).
+// Callers should advance their file offset by result.BytesConsumed.
+func (p *Pipeline) IngestIncremental(sourceFile, content string) (IngestResult, error) {
+	var result IngestResult
+	blocks, consumed := SplitWithOffset(content, p.registry)
+	result.BytesConsumed = consumed
+	if len(blocks) == 0 {
+		return result, nil
+	}
+	return p.processBlocks(sourceFile, blocks, result)
+}
+
+func (p *Pipeline) processBlocks(sourceFile string, blocks []CommandBlock, result IngestResult) (IngestResult, error) {
 	// Step 1: Initial ClassifyCommand pass using the vendor assigned by Split.
 	for i := range blocks {
 		b := &blocks[i]
