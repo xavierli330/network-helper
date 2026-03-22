@@ -18,6 +18,7 @@ func newPlanCmd() *cobra.Command {
 	}
 	p.AddCommand(newPlanIsolateCmd())
 	p.AddCommand(newPlanUpgradeCmd())
+	p.AddCommand(newPlanCutoverCmd())
 	return p
 }
 
@@ -234,6 +235,71 @@ func newPlanUpgradeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&output, "output", "", "write plan to file instead of stdout")
 	cmd.Flags().StringVar(&version, "version", "", "target software version (required)")
 	cmd.Flags().StringVar(&file, "file", "", "firmware file name on the device (required)")
+	return cmd
+}
+
+func newPlanCutoverCmd() *cobra.Command {
+	var (
+		format string
+		output string
+		oldIf  string
+		newIf  string
+	)
+	cmd := &cobra.Command{
+		Use:   "cutover <device-id>",
+		Short: "Generate a link migration change plan",
+		Long: `Generate a 7-phase change plan that migrates traffic from one interface to
+another on the same device (e.g. Eth-Trunk1 → Eth-Trunk200).
+
+Phases:
+  0  采集         — collect current state of old and new interfaces
+  1  预检查       — verify old interface has traffic, new interface is available
+  2  配置新接口   — configure new interface with IP/protocols copied from old
+  3  验证新口     — verify new interface is Up and protocols have established
+  4  切流量       — raise IGP cost on old interface to shift traffic to new
+  5  关旧口       — shutdown the old interface
+  6  变更后检查  — confirm new interface carries traffic; embedded rollback steps`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if oldIf == "" || newIf == "" {
+				return fmt.Errorf("--old and --new are required")
+			}
+			deviceID := strings.ToLower(args[0])
+
+			topo, err := plan.BuildTopology(db, deviceID)
+			if err != nil {
+				return fmt.Errorf("build topology for %q: %w", deviceID, err)
+			}
+
+			p := plan.GenerateCutoverPlan(topo, plan.CutoverParams{
+				OldInterface: oldIf,
+				NewInterface: newIf,
+			})
+
+			var rendered string
+			switch strings.ToLower(format) {
+			case "markdown", "md":
+				rendered = plan.RenderMarkdown(p)
+			default:
+				rendered = plan.RenderText(p)
+			}
+
+			if output != "" {
+				if err := os.WriteFile(output, []byte(rendered), 0o644); err != nil {
+					return fmt.Errorf("write output file: %w", err)
+				}
+				fmt.Fprintf(os.Stderr, "plan written to %s\n", output)
+			} else {
+				fmt.Print(rendered)
+			}
+
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&oldIf, "old", "", "Old interface to migrate traffic from (required)")
+	cmd.Flags().StringVar(&newIf, "new", "", "New interface to migrate traffic to (required)")
+	cmd.Flags().StringVar(&format, "format", "text", "Output format: text or markdown")
+	cmd.Flags().StringVar(&output, "output", "", "Write plan to file instead of stdout")
 	return cmd
 }
 
