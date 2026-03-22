@@ -1,0 +1,283 @@
+package plan
+
+import "fmt"
+
+// H3CGenerator generates CLI commands for H3C Comware devices.
+// Syntax is largely identical to Huawei VRP; the key difference is that
+// OSPF peer display uses "display ospf peer" (without the "brief" suffix).
+type H3CGenerator struct{}
+
+// CollectionCommands returns display commands to collect state from target and peer devices.
+func (g *H3CGenerator) CollectionCommands(target string, links []Link) []DeviceCommand {
+	protos := collectProtocols(links)
+
+	cmds := []string{
+		"display interface brief",
+		"display ip routing-table statistics",
+	}
+	if protos["ospf"] {
+		cmds = append(cmds, "display ospf peer")
+	}
+	if protos["bgp"] {
+		cmds = append(cmds, "display bgp peer")
+	}
+	if protos["ldp"] {
+		cmds = append(cmds, "display mpls ldp session")
+	}
+
+	result := []DeviceCommand{
+		{
+			DeviceID: target,
+			Vendor:   "h3c",
+			Commands: cmds,
+			Purpose:  "Collect baseline state from target device",
+		},
+	}
+
+	for _, peer := range uniquePeers(links) {
+		peerCmds := []string{
+			"display interface brief",
+			"display ip routing-table statistics",
+		}
+		peerProtos := make(map[string]bool)
+		for _, l := range links {
+			if l.PeerDevice == peer {
+				for _, p := range l.Protocols {
+					peerProtos[p] = true
+				}
+			}
+		}
+		if peerProtos["ospf"] {
+			peerCmds = append(peerCmds, "display ospf peer")
+		}
+		if peerProtos["bgp"] {
+			peerCmds = append(peerCmds, "display bgp peer")
+		}
+		if peerProtos["ldp"] {
+			peerCmds = append(peerCmds, "display mpls ldp session")
+		}
+		result = append(result, DeviceCommand{
+			DeviceID: peer,
+			Vendor:   "h3c",
+			Commands: peerCmds,
+			Purpose:  fmt.Sprintf("Collect baseline state from peer device %s", peer),
+		})
+	}
+
+	return result
+}
+
+// PreCheckCommands returns display commands to verify state on the target device before isolation.
+func (g *H3CGenerator) PreCheckCommands(target string, links []Link) []DeviceCommand {
+	protos := collectProtocols(links)
+
+	cmds := []string{
+		"display interface brief",
+		"display ip routing-table statistics",
+	}
+	if protos["ospf"] {
+		cmds = append(cmds, "display ospf peer")
+	}
+	if protos["bgp"] {
+		cmds = append(cmds, "display bgp peer")
+	}
+	if protos["ldp"] {
+		cmds = append(cmds, "display mpls ldp session")
+	}
+
+	return []DeviceCommand{
+		{
+			DeviceID: target,
+			Vendor:   "h3c",
+			Commands: cmds,
+			Purpose:  "Pre-check: verify current state on target device",
+		},
+	}
+}
+
+// ProtocolIsolateCommands returns configuration commands to isolate routing protocols on the target.
+func (g *H3CGenerator) ProtocolIsolateCommands(target string, links []Link) []DeviceCommand {
+	cmds := []string{"system-view"}
+
+	for _, l := range links {
+		for _, p := range l.Protocols {
+			switch p {
+			case "ospf":
+				cmds = append(cmds,
+					fmt.Sprintf("interface %s", l.LocalInterface),
+					"ospf cost 65535",
+					"quit",
+				)
+			case "bgp":
+				if l.PeerIP == "" {
+					continue
+				}
+				cmds = append(cmds,
+					"bgp",
+					fmt.Sprintf("peer %s ignore", l.PeerIP),
+					"quit",
+				)
+			case "ldp":
+				cmds = append(cmds,
+					fmt.Sprintf("interface %s", l.LocalInterface),
+					"undo mpls ldp",
+					"quit",
+				)
+			}
+		}
+	}
+
+	cmds = append(cmds, "return")
+
+	verifyCmd := []string{
+		"display ospf peer",
+		"display bgp peer",
+	}
+
+	return []DeviceCommand{
+		{
+			DeviceID: target,
+			Vendor:   "h3c",
+			Commands: cmds,
+			Purpose:  "Protocol isolation: raise OSPF cost, suppress BGP peers, disable LDP",
+		},
+		{
+			DeviceID: target,
+			Vendor:   "h3c",
+			Commands: verifyCmd,
+			Purpose:  "Verify protocol isolation took effect",
+		},
+	}
+}
+
+// InterfaceIsolateCommands shuts down each unique local interface involved in links.
+func (g *H3CGenerator) InterfaceIsolateCommands(target string, links []Link) []DeviceCommand {
+	seen := make(map[string]bool)
+	cmds := []string{"system-view"}
+
+	for _, l := range links {
+		if l.LocalInterface == "" || seen[l.LocalInterface] {
+			continue
+		}
+		seen[l.LocalInterface] = true
+		cmds = append(cmds,
+			fmt.Sprintf("interface %s", l.LocalInterface),
+			"shutdown",
+			"quit",
+		)
+	}
+
+	cmds = append(cmds, "return")
+
+	return []DeviceCommand{
+		{
+			DeviceID: target,
+			Vendor:   "h3c",
+			Commands: cmds,
+			Purpose:  "Interface isolation: shut down all links to target device",
+		},
+	}
+}
+
+// PostCheckCommands returns display commands to verify state on each peer device after isolation.
+func (g *H3CGenerator) PostCheckCommands(target string, links []Link) []DeviceCommand {
+	var result []DeviceCommand
+
+	for _, peer := range uniquePeers(links) {
+		peerProtos := make(map[string]bool)
+		for _, l := range links {
+			if l.PeerDevice == peer {
+				for _, p := range l.Protocols {
+					peerProtos[p] = true
+				}
+			}
+		}
+
+		cmds := []string{
+			"display interface brief",
+			"display ip routing-table statistics",
+		}
+		if peerProtos["ospf"] {
+			cmds = append(cmds, "display ospf peer")
+		}
+		if peerProtos["bgp"] {
+			cmds = append(cmds, "display bgp peer")
+		}
+		if peerProtos["ldp"] {
+			cmds = append(cmds, "display mpls ldp session")
+		}
+
+		result = append(result, DeviceCommand{
+			DeviceID: peer,
+			Vendor:   "h3c",
+			Commands: cmds,
+			Purpose:  fmt.Sprintf("Post-check: verify peer %s after isolation", peer),
+		})
+	}
+
+	return result
+}
+
+// RollbackCommands reverses protocol and interface isolation on the target device.
+func (g *H3CGenerator) RollbackCommands(target string, links []Link) []DeviceCommand {
+	ifaceCmds := []string{"system-view"}
+
+	seen := make(map[string]bool)
+	for _, l := range links {
+		if l.LocalInterface == "" || seen[l.LocalInterface] {
+			continue
+		}
+		seen[l.LocalInterface] = true
+		ifaceCmds = append(ifaceCmds,
+			fmt.Sprintf("interface %s", l.LocalInterface),
+			"undo shutdown",
+			"quit",
+		)
+	}
+	ifaceCmds = append(ifaceCmds, "return")
+
+	protoCmds := []string{"system-view"}
+	for _, l := range links {
+		for _, p := range l.Protocols {
+			switch p {
+			case "ospf":
+				protoCmds = append(protoCmds,
+					fmt.Sprintf("interface %s", l.LocalInterface),
+					"undo ospf cost",
+					"quit",
+				)
+			case "bgp":
+				if l.PeerIP == "" {
+					continue
+				}
+				protoCmds = append(protoCmds,
+					"bgp",
+					fmt.Sprintf("undo peer %s ignore", l.PeerIP),
+					"quit",
+				)
+			case "ldp":
+				protoCmds = append(protoCmds,
+					fmt.Sprintf("interface %s", l.LocalInterface),
+					"mpls ldp",
+					"quit",
+				)
+			}
+		}
+	}
+	protoCmds = append(protoCmds, "return")
+
+	return []DeviceCommand{
+		{
+			DeviceID: target,
+			Vendor:   "h3c",
+			Commands: ifaceCmds,
+			Purpose:  "Rollback: re-enable interfaces",
+		},
+		{
+			DeviceID: target,
+			Vendor:   "h3c",
+			Commands: protoCmds,
+			Purpose:  "Rollback: restore protocol settings",
+		},
+	}
+}
