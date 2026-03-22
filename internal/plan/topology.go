@@ -512,20 +512,20 @@ func extractIGPInfo(configText string) []IGPInfo {
 			continue
 		}
 
-		// Check if this is a top-level "isis <N>" block
+		// Check if this is a top-level "isis <N>" block (process ID must be numeric)
 		if strings.HasPrefix(strings.ToLower(firstLine), "isis ") {
 			parts := strings.Fields(firstLine)
-			if len(parts) >= 2 {
+			if len(parts) >= 2 && isNumeric(parts[1]) {
 				processID := parts[1]
 				getOrCreate("isis", processID) // ensure entry exists
 			}
 			continue
 		}
 
-		// Check if this is a top-level "ospf <N>" block
+		// Check if this is a top-level "ospf <N>" block (process ID must be numeric)
 		if strings.HasPrefix(strings.ToLower(firstLine), "ospf ") {
 			parts := strings.Fields(firstLine)
-			if len(parts) >= 2 {
+			if len(parts) >= 2 && isNumeric(parts[1]) {
 				processID := parts[1]
 				getOrCreate("ospf", processID) // ensure entry exists
 			}
@@ -569,4 +569,17 @@ func extractLDPInfo(configText string) (bool, []string) {
 	}
 
 	return len(ldpIfaces) > 0, ldpIfaces
+}
+
+// isNumeric returns true if s consists entirely of digits.
+func isNumeric(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
