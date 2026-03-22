@@ -86,53 +86,40 @@ func BuildTopology(db *store.DB, deviceID string) (DeviceTopology, error) {
 	topo.Hostname = dev.Hostname
 	topo.Vendor = dev.Vendor
 
-	// Step 2: get all snapshot IDs to search for BGP peers
-	// BGP peers may be on a different snapshot than the latest one
-	// (e.g., config re-ingestion creates a new snapshot)
-	snapIDs := allSnapshotIDs(db, deviceID)
-
-	// Step 3: get BGP peers and aggregate into PeerGroups
-	// Try each snapshot until we find one with BGP peers
+	// Step 2: get BGP peers and aggregate into PeerGroups
 	var localAS int
 	peerGroupMap := make(map[string]*PeerGroup)
 	var peerGroupOrder []string // preserve insertion order
 
-	for _, snapID := range snapIDs {
-		peers, err := db.GetBGPPeers(deviceID, snapID)
-		if err != nil || len(peers) == 0 {
-			continue
-		}
-		// Found peers on this snapshot — use them
-		if true {
-			for _, p := range peers {
-				if localAS == 0 && p.LocalAS != 0 {
-					localAS = p.LocalAS
-				}
-				pgName := p.PeerGroup
-				if pgName == "" {
-					pgName = p.PeerIP // use peer IP as group name if no group set
-				}
-				pg, exists := peerGroupMap[pgName]
-				if !exists {
-					pgType := "external"
-					if p.RemoteAS != 0 && p.LocalAS != 0 && p.RemoteAS == p.LocalAS {
-						pgType = "internal"
-					}
-					pg = &PeerGroup{
-						Name:    pgName,
-						Type:    pgType,
-						LocalAS: p.LocalAS,
-					}
-					peerGroupMap[pgName] = pg
-					peerGroupOrder = append(peerGroupOrder, pgName)
-				}
-				pg.Peers = append(pg.Peers, BGPPeerDetail{
-					PeerIP:      p.PeerIP,
-					RemoteAS:    p.RemoteAS,
-					Description: p.Description,
-				})
+	peers, err := db.GetLatestBGPPeers(deviceID)
+	if err == nil && len(peers) > 0 {
+		for _, p := range peers {
+			if localAS == 0 && p.LocalAS != 0 {
+				localAS = p.LocalAS
 			}
-			break // found peers, stop searching snapshots
+			pgName := p.PeerGroup
+			if pgName == "" {
+				pgName = p.PeerIP // use peer IP as group name if no group set
+			}
+			pg, exists := peerGroupMap[pgName]
+			if !exists {
+				pgType := "external"
+				if p.RemoteAS != 0 && p.LocalAS != 0 && p.RemoteAS == p.LocalAS {
+					pgType = "internal"
+				}
+				pg = &PeerGroup{
+					Name:    pgName,
+					Type:    pgType,
+					LocalAS: p.LocalAS,
+				}
+				peerGroupMap[pgName] = pg
+				peerGroupOrder = append(peerGroupOrder, pgName)
+			}
+			pg.Peers = append(pg.Peers, BGPPeerDetail{
+				PeerIP:      p.PeerIP,
+				RemoteAS:    p.RemoteAS,
+				Description: p.Description,
+			})
 		}
 	}
 	topo.LocalAS = localAS
@@ -443,23 +430,4 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return string(buf[pos:])
-}
-
-// allSnapshotIDs returns all snapshot IDs for a device, ordered by id DESC
-// (newest first). Used to search for BGP peers across multiple snapshots.
-func allSnapshotIDs(db *store.DB, deviceID string) []int {
-	rows, err := db.Query("SELECT id FROM snapshots WHERE device_id = ? ORDER BY id DESC", deviceID)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-	var ids []int
-	for rows.Next() {
-		var id int
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	return ids
 }
