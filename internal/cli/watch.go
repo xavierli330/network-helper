@@ -106,13 +106,13 @@ func newWatchStartCmd() *cobra.Command {
 						return
 					}
 
-					result, err := pipeline.Ingest(path, string(newData))
+					result, err := pipeline.IngestIncremental(path, string(newData))
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "ingest %s: %v\n", path, err)
 						return
 					}
 
-					newIng := model.LogIngestion{FilePath: path, LastOffset: info.Size(), ProcessedAt: time.Now()}
+					newIng := model.LogIngestion{FilePath: path, LastOffset: offset + int64(result.BytesConsumed), ProcessedAt: time.Now()}
 					db.UpsertIngestion(newIng)
 					fmt.Printf("[%s] Ingested %s (new=%d bytes, devices=%d, parsed=%d)\n",
 						time.Now().Format("15:04:05"), filepath.Base(path),
