@@ -74,16 +74,16 @@ Agent Loop:
 | 经验复用 | 下次遇到类似问题，先 `search log` 找历史经验再推理 |
 | MCP Server | nethelper 作为 MCP tool provider，可被 Claude Code / 其他 agent 调用 |
 
-### Phase 3: Network Agent（OpenClaw 形态）
+### Phase 3: Network Agent（OpenClaw 形态）🔧 进行中
 
 从单机 agent 变成可联网、可协作、有记忆的网络运维数字同事。
 
-| 特性 | 说明 |
-|------|------|
-| IM 通讯 | 接入 Discord / 企业微信 / Telegram，在群里接收排障请求 |
-| 长期记忆 | 跨会话积累网络拓扑认知和排障经验 |
-| 心跳巡检 | 定时自动检查网络状态，异常主动告警 |
-| 多 Agent 协作 | 网络 agent + 安全 agent + CMDB agent 协作处理变更 |
+| 特性 | 状态 | 说明 |
+|------|------|------|
+| 长期记忆 | ✅ | 向量 embedding + 余弦搜索，跨会话记忆自动注入 |
+| IM 通讯 | 🔲 | 接入 Discord / 企业微信 / Telegram |
+| 心跳巡检 | 🔲 | 定时自动检查网络状态，异常主动告警 |
+| 多 Agent 协作 | 🔲 | 网络 agent + 安全 agent + CMDB agent |
 | 被调用 | 作为其他 agent 的 tool（"帮我查一下 LC-01 的 BGP 邻居"） |
 
 ### 跨阶段技术决策
