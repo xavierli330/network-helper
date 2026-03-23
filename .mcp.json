@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nethelper": {
+      "command": "/Users/xavierli/Life/projects/network-helper/nethelper",
+      "args": ["mcp", "serve"]
+    }
+  }
+}

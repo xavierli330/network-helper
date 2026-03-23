@@ -42,9 +42,17 @@ CLI 工具              智能 CLI               Agent Loop            Network A
 | `plan cutover` | ✅ | 链路割接：配置新口 → 切流量 → 关旧口，7 阶段 |
 | OSPF/ISIS 隔离支持 | ✅ | ISIS set-overload + OSPF stub-router + LDP per-interface disable |
 
-### Phase 2: Agent Loop
+### Phase 2: Agent Loop 🔧 进行中
 
 从"人执行 CLI"变成"agent 自己调用 CLI"。人只描述需求，agent loop 驱动探索。
+
+| 特性 | 状态 | 说明 |
+|------|------|------|
+| MCP Server | ✅ | `nethelper mcp serve` — 20 个 MCP tools，Claude Code 直接调用 |
+| Agent Loop 核心 | 🔲 | LLM 决策 + tool calling |
+| 排障对话 | 🔲 | 和 agent 聊排障 case |
+| 经验归档 | 🔲 | 排障后自动提取结构化经验 |
+| 经验复用 | 🔲 | 下次排障先搜历史经验 |
 
 ```
 用户: "LC-01 要做板卡更换，帮我准备变更方案"
