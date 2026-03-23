@@ -4,6 +4,8 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	mcpmcp "github.com/mark3labs/mcp-go/mcp"
 	mcpserver "github.com/mark3labs/mcp-go/server"
@@ -75,10 +77,11 @@ func registerShowTools(s *mcpserver.MCPServer, db *store.DB) {
 		return mcpmcp.NewToolResultText(string(data)), nil
 	})
 
-	// 5. show_bgp_peers — list BGP peers for a device
+	// 5. show_bgp_peers — list BGP peers, summarized by default
 	s.AddTool(mcpmcp.NewTool("show_bgp_peers",
-		mcpmcp.WithDescription("List the latest BGP peers for a specific network device"),
-		mcpmcp.WithString("device_id", mcpmcp.Required(), mcpmcp.Description("The device ID whose BGP peers to retrieve")),
+		mcpmcp.WithDescription("List BGP peers for a device. Returns a per-group summary by default. Use peer_group param to see individual peers in a specific group."),
+		mcpmcp.WithString("device_id", mcpmcp.Required(), mcpmcp.Description("The device ID")),
+		mcpmcp.WithString("peer_group", mcpmcp.Description("Optional: show individual peers for this group only (e.g. 'LA1', 'QCDR')")),
 	), func(ctx context.Context, req mcpmcp.CallToolRequest) (*mcpmcp.CallToolResult, error) {
 		id := req.GetString("device_id", "")
 		if id == "" {
@@ -88,7 +91,65 @@ func registerShowTools(s *mcpserver.MCPServer, db *store.DB) {
 		if err != nil {
 			return mcpmcp.NewToolResultError(err.Error()), nil
 		}
-		data, _ := json.MarshalIndent(peers, "", "  ")
+
+		filterGroup := req.GetString("peer_group", "")
+
+		// If a specific group requested, return full detail for that group only
+		if filterGroup != "" {
+			var filtered []interface{}
+			for _, p := range peers {
+				if strings.EqualFold(p.PeerGroup, filterGroup) {
+					filtered = append(filtered, map[string]interface{}{
+						"peer_ip":     p.PeerIP,
+						"remote_as":   p.RemoteAS,
+						"description": p.Description,
+						"vrf":         p.VRF,
+					})
+				}
+			}
+			data, _ := json.MarshalIndent(filtered, "", "  ")
+			return mcpmcp.NewToolResultText(string(data)), nil
+		}
+
+		// Default: return per-group summary (much smaller)
+		type groupSummary struct {
+			PeerGroup string `json:"peer_group"`
+			PeerCount int    `json:"peer_count"`
+			RemoteASes string `json:"remote_as"`
+			SamplePeers []string `json:"sample_peers,omitempty"`
+		}
+		groups := make(map[string]*groupSummary)
+		var order []string
+		asMap := make(map[string]map[int]bool)
+		for _, p := range peers {
+			g := p.PeerGroup
+			if g == "" { g = "(ungrouped)" }
+			if _, ok := groups[g]; !ok {
+				groups[g] = &groupSummary{PeerGroup: g}
+				order = append(order, g)
+				asMap[g] = make(map[int]bool)
+			}
+			groups[g].PeerCount++
+			asMap[g][p.RemoteAS] = true
+			if len(groups[g].SamplePeers) < 3 {
+				desc := p.PeerIP
+				if p.Description != "" { desc = p.Description + " (" + p.PeerIP + ")" }
+				groups[g].SamplePeers = append(groups[g].SamplePeers, desc)
+			}
+		}
+		var result []groupSummary
+		for _, g := range order {
+			gs := groups[g]
+			asList := make([]int, 0, len(asMap[g]))
+			for as := range asMap[g] { asList = append(asList, as) }
+			if len(asList) == 1 {
+				gs.RemoteASes = fmt.Sprintf("%d", asList[0])
+			} else {
+				gs.RemoteASes = fmt.Sprintf("%d distinct ASes", len(asList))
+			}
+			result = append(result, *gs)
+		}
+		data, _ := json.MarshalIndent(result, "", "  ")
 		return mcpmcp.NewToolResultText(string(data)), nil
 	})
 
