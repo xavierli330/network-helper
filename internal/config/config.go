@@ -30,8 +30,33 @@ type FeishuChannelConfig struct {
 	Enabled   bool   `yaml:"enabled"`
 }
 
+type DiscordChannelConfig struct {
+	Token   string `yaml:"token"`
+	Enabled bool   `yaml:"enabled"`
+}
+
+type TelegramChannelConfig struct {
+	Token   string `yaml:"token"`
+	Enabled bool   `yaml:"enabled"`
+}
+
+type WeChatChannelConfig struct {
+	BridgeURL string `yaml:"bridge_url"`
+	Token     string `yaml:"token"`
+	Enabled   bool   `yaml:"enabled"`
+}
+
+type QQChannelConfig struct {
+	WSURL   string `yaml:"ws_url"`
+	Enabled bool   `yaml:"enabled"`
+}
+
 type ChannelsConfig struct {
-	Feishu FeishuChannelConfig `yaml:"feishu"`
+	Feishu   FeishuChannelConfig   `yaml:"feishu"`
+	Discord  DiscordChannelConfig  `yaml:"discord"`
+	Telegram TelegramChannelConfig `yaml:"telegram"`
+	WeChat   WeChatChannelConfig   `yaml:"wechat"`
+	QQ       QQChannelConfig       `yaml:"qq"`
 }
 
 type PermGroupConfig struct {

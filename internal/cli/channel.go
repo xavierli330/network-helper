@@ -10,7 +10,11 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xavierli/nethelper/internal/channel"
+	"github.com/xavierli/nethelper/internal/channel/discord"
 	"github.com/xavierli/nethelper/internal/channel/feishu"
+	"github.com/xavierli/nethelper/internal/channel/qq"
+	"github.com/xavierli/nethelper/internal/channel/telegram"
+	"github.com/xavierli/nethelper/internal/channel/wechat"
 	"github.com/xavierli/nethelper/internal/llm"
 )
 
@@ -25,6 +29,10 @@ func newChannelCmd() *cobra.Command {
 
 func newChannelStartCmd() *cobra.Command {
 	var feishuOnly bool
+	var discordOnly bool
+	var telegramOnly bool
+	var wechatOnly bool
+	var qqOnly bool
 
 	cmd := &cobra.Command{
 		Use:   "start",
@@ -60,8 +68,40 @@ func newChannelStartCmd() *cobra.Command {
 				channels = append(channels, feishu.New(fc.AppID, fc.AppSecret))
 			}
 
+			if cfg.Channels.Discord.Enabled || discordOnly {
+				dc := cfg.Channels.Discord
+				if dc.Token == "" {
+					return fmt.Errorf("discord: token required")
+				}
+				channels = append(channels, discord.New(dc.Token))
+			}
+
+			if cfg.Channels.Telegram.Enabled || telegramOnly {
+				tc := cfg.Channels.Telegram
+				if tc.Token == "" {
+					return fmt.Errorf("telegram: token required")
+				}
+				channels = append(channels, telegram.New(tc.Token))
+			}
+
+			if cfg.Channels.WeChat.Enabled || wechatOnly {
+				wc := cfg.Channels.WeChat
+				if wc.BridgeURL == "" {
+					return fmt.Errorf("wechat: bridge_url required")
+				}
+				channels = append(channels, wechat.New(wc.BridgeURL, wc.Token))
+			}
+
+			if cfg.Channels.QQ.Enabled || qqOnly {
+				qc := cfg.Channels.QQ
+				if qc.WSURL == "" {
+					return fmt.Errorf("qq: ws_url required")
+				}
+				channels = append(channels, qq.New(qc.WSURL))
+			}
+
 			if len(channels) == 0 {
-				return fmt.Errorf("no channels configured or enabled — set channels.feishu.enabled: true in config, or pass --feishu")
+				return fmt.Errorf("no channels configured or enabled — set channels.<platform>.enabled: true in config, or pass --feishu / --discord / --telegram / --wechat / --qq")
 			}
 
 			for _, ch := range channels {
@@ -98,6 +138,10 @@ func newChannelStartCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&feishuOnly, "feishu", false, "Start only the Feishu channel (ignores enabled flag in config)")
+	cmd.Flags().BoolVar(&discordOnly, "discord", false, "Start only the Discord channel (ignores enabled flag in config)")
+	cmd.Flags().BoolVar(&telegramOnly, "telegram", false, "Start only the Telegram channel (ignores enabled flag in config)")
+	cmd.Flags().BoolVar(&wechatOnly, "wechat", false, "Start only the WeChat bridge channel (ignores enabled flag in config)")
+	cmd.Flags().BoolVar(&qqOnly, "qq", false, "Start only the QQ channel (ignores enabled flag in config)")
 	return cmd
 }
 
