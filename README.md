@@ -81,7 +81,7 @@ Agent Loop:
 | 特性 | 状态 | 说明 |
 |------|------|------|
 | 长期记忆 | ✅ | 向量 embedding + 余弦搜索，跨会话记忆自动注入 |
-| IM 通讯 | ✅ | 飞书 WebSocket 已实现，Channel 接口支持扩展 Discord/Telegram/微信 |
+| IM 通讯 | ✅ | 飞书/Discord/Telegram/微信/QQ 五平台，Channel 接口 + 权限分组 |
 | 心跳巡检 | 🔲 | 定时自动检查网络状态，异常主动告警 |
 | 多 Agent 协作 | 🔲 | 网络 agent + 安全 agent + CMDB agent |
 | 被调用 | 作为其他 agent 的 tool（"帮我查一下 LC-01 的 BGP 邻居"） |

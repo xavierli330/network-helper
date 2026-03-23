@@ -67,7 +67,9 @@
       "WebFetch(domain:docs.openclaw.ai)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(./nethelper channel:*)"
+      "Bash(./nethelper channel:*)",
+      "Bash(kill -0 6259)",
+      "WebFetch(domain:docs.nexu.io)"
     ]
   },
   "enabledPlugins": {
