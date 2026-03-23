@@ -49,7 +49,7 @@ CLI 工具              智能 CLI               Agent Loop            Network A
 | 特性 | 状态 | 说明 |
 |------|------|------|
 | MCP Server | ✅ | `nethelper mcp serve` — 20 个 MCP tools，Claude Code 直接调用 |
-| Agent Loop 核心 | 🔲 | LLM 决策 + tool calling |
+| Agent Loop 核心 | ✅ | `nethelper agent chat` — LLM tool calling + 交互式 REPL |
 | 排障对话 | 🔲 | 和 agent 聊排障 case |
 | 经验归档 | 🔲 | 排障后自动提取结构化经验 |
 | 经验复用 | 🔲 | 下次排障先搜历史经验 |
