@@ -113,10 +113,45 @@ func newChannelStartCmd() *cobra.Command {
 				go func(c channel.Channel) {
 					log.Printf("[channel] starting %s", c.Name())
 					err := c.Start(ctx, func(msg channel.InMessage) {
-						response := router.Handle(ctx, msg)
-						if response != "" {
-							if sendErr := c.SendText(msg.ChatID, response); sendErr != nil {
-								log.Printf("[channel/%s] send error: %v", c.Name(), sendErr)
+						// Check if this channel supports streaming card updates.
+						sc, isStreaming := c.(channel.StreamingChannel)
+
+						if isStreaming {
+							// Send an immediate "thinking" card so the user gets
+							// instant feedback while the agent works.
+							msgID, sendErr := sc.SendInitCard(msg.ChatID, "⏳ 收到，正在思考...")
+							if sendErr != nil {
+								log.Printf("[channel/%s] init card error: %v", c.Name(), sendErr)
+								// Fall back to non-streaming behaviour.
+								response := router.Handle(ctx, msg)
+								if response != "" {
+									if sErr := c.SendText(msg.ChatID, response); sErr != nil {
+										log.Printf("[channel/%s] send error: %v", c.Name(), sErr)
+									}
+								}
+								return
+							}
+
+							// Run the agent; patch the card on each tool call.
+							response := router.HandleWithProgress(ctx, msg, func(status string) {
+								if uErr := sc.UpdateCard(msg.ChatID, msgID, status); uErr != nil {
+									log.Printf("[channel/%s] update card error: %v", c.Name(), uErr)
+								}
+							})
+
+							// Final update with the complete response.
+							if response != "" {
+								if uErr := sc.UpdateCard(msg.ChatID, msgID, response); uErr != nil {
+									log.Printf("[channel/%s] final card update error: %v", c.Name(), uErr)
+								}
+							}
+						} else {
+							// Non-streaming channel — original behaviour.
+							response := router.Handle(ctx, msg)
+							if response != "" {
+								if sendErr := c.SendText(msg.ChatID, response); sendErr != nil {
+									log.Printf("[channel/%s] send error: %v", c.Name(), sendErr)
+								}
 							}
 						}
 					})

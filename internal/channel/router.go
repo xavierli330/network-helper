@@ -140,6 +140,72 @@ func (r *Router) Handle(ctx context.Context, msg InMessage) string {
 	return response
 }
 
+// HandleWithProgress is like Handle but calls onProgress with status updates
+// during agent tool calls, enabling streaming card updates for channels that
+// support it (e.g. Feishu interactive cards).
+func (r *Router) HandleWithProgress(ctx context.Context, msg InMessage, onProgress func(status string)) string {
+	userKey := msg.UserKey()
+	if msg.IsGroup && !msg.MentionedBot {
+		return ""
+	}
+
+	group := r.permissions.Resolve(userKey)
+	if group == nil {
+		return "⚠️ 你没有权限使用此 bot。"
+	}
+
+	r.mu.Lock()
+	sess, exists := r.sessions[userKey]
+	if !exists || time.Since(sess.lastActive) > 30*time.Minute {
+		if exists {
+			sess.agent.SaveConversation(userKey)
+		}
+		reg := agent.NewRegistry()
+		agent.RegisterNethelperTools(reg, r.db, r.pipeline)
+		filtered := filterTools(reg, group)
+		ag := agent.New(r.llmRouter, filtered, r.embedder, r.db, agent.AgentOptions{
+			Logger:     r.sessionLogger,
+			UserKey:    userKey,
+			ContextCfg: r.contextCfg,
+		})
+		ag.LoadConversation(userKey)
+		sess = &userSession{agent: ag, group: group}
+		r.sessions[userKey] = sess
+	}
+	r.mu.Unlock()
+
+	sess.mu.Lock()
+	defer sess.mu.Unlock()
+	sess.lastActive = time.Now()
+
+	for _, f := range msg.Files {
+		if f.Type == "file" {
+			log.Printf("[%s] received file: %s (%s)", userKey, f.Name, f.URL)
+			return fmt.Sprintf("[收到文件: %s — 文件处理功能开发中]", f.Name)
+		}
+	}
+
+	toolCount := 0
+	response, err := sess.agent.Chat(ctx, msg.Text, func(name string, args map[string]interface{}) {
+		toolCount++
+		log.Printf("[%s] tool: %s", userKey, name)
+		if onProgress != nil {
+			status := fmt.Sprintf("⏳ 正在处理...\n\n🔧 调用工具: **%s** (%d)", name, toolCount)
+			onProgress(status)
+		}
+	})
+	if err != nil {
+		return fmt.Sprintf("❌ 错误: %v", err)
+	}
+
+	if len(response) > maxIMMessageLen {
+		response = response[:maxIMMessageLen] + "\n\n... (输出过长，已截断。完整内容请使用 `nethelper agent chat` 或 `nethelper plan isolate` 查看)"
+	}
+
+	sess.agent.SaveConversation(userKey)
+	return response
+}
+
 func filterTools(full *agent.Registry, group *PermissionGroup) *agent.Registry {
 	filtered := agent.NewRegistry()
 	for _, name := range full.Names() {

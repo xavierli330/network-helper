@@ -3,6 +3,7 @@ package feishu
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 
@@ -96,7 +97,13 @@ func (a *Adapter) sendPlainText(chatID, text string) error {
 // provided Markdown text.  Feishu cards support headers, bold, code blocks,
 // tables, and emoji — a superset of what plain-text messages can show.
 func (a *Adapter) sendCard(chatID, markdownText string) error {
-	card := map[string]interface{}{
+	_, err := a.SendInitCard(chatID, markdownText)
+	return err
+}
+
+// buildCard creates the interactive card JSON with Markdown content.
+func buildCard(markdownText string) map[string]interface{} {
+	return map[string]interface{}{
 		"config": map[string]interface{}{
 			"wide_screen_mode": true,
 		},
@@ -107,9 +114,15 @@ func (a *Adapter) sendCard(chatID, markdownText string) error {
 			},
 		},
 	}
+}
+
+// SendInitCard sends an interactive card message and returns the message ID.
+// This satisfies the channel.StreamingChannel interface.
+func (a *Adapter) SendInitCard(chatID, text string) (string, error) {
+	card := buildCard(text)
 	content, err := json.Marshal(card)
 	if err != nil {
-		return err
+		return "", err
 	}
 	req := larkim.NewCreateMessageReqBuilder().
 		ReceiveIdType(larkim.ReceiveIdTypeChatId).
@@ -119,7 +132,31 @@ func (a *Adapter) sendCard(chatID, markdownText string) error {
 			Content(string(content)).
 			Build()).
 		Build()
-	_, err = a.client.Im.Message.Create(a.ctx, req)
+	resp, err := a.client.Im.Message.Create(a.ctx, req)
+	if err != nil {
+		return "", err
+	}
+	if resp != nil && resp.Data != nil && resp.Data.MessageId != nil {
+		return *resp.Data.MessageId, nil
+	}
+	return "", fmt.Errorf("feishu: no message_id in create response")
+}
+
+// UpdateCard patches an existing card message with new Markdown content.
+// This satisfies the channel.StreamingChannel interface.
+func (a *Adapter) UpdateCard(chatID, messageID, text string) error {
+	card := buildCard(text)
+	content, err := json.Marshal(card)
+	if err != nil {
+		return err
+	}
+	req := larkim.NewPatchMessageReqBuilder().
+		MessageId(messageID).
+		Body(larkim.NewPatchMessageReqBodyBuilder().
+			Content(string(content)).
+			Build()).
+		Build()
+	_, err = a.client.Im.Message.Patch(a.ctx, req)
 	return err
 }
 
