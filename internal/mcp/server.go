@@ -18,10 +18,10 @@ func NewServer(db *store.DB, pipeline *parser.Pipeline, llmRouter *llm.Router) *
 
 	// Tools will be registered by Tasks 2-6
 	registerShowTools(s, db)
-	// registerAnalysisTools(s, db)
-	// registerPlanTools(s, db)
-	// registerSearchTools(s, db)
-	// registerWriteTools(s, db, pipeline, llmRouter)
+	registerAnalysisTools(s, db)
+	registerPlanTools(s, db)
+	registerSearchTools(s, db)
+	registerWriteTools(s, db, pipeline, llmRouter)
 
 	return s
 }
