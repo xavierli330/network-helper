@@ -61,7 +61,8 @@
       "mcp__nethelper__show_bgp_peers",
       "mcp__nethelper__show_neighbors",
       "mcp__nethelper__show_interfaces",
-      "mcp__nethelper__search_config"
+      "mcp__nethelper__search_config",
+      "Bash(./nethelper agent:*)"
     ]
   },
   "enabledPlugins": {
