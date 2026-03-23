@@ -69,7 +69,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(./nethelper channel:*)",
       "Bash(kill -0 6259)",
-      "WebFetch(domain:docs.nexu.io)"
+      "WebFetch(domain:docs.nexu.io)",
+      "Bash(git -C /Users/xavierli/Life/projects/network-helper status)",
+      "Bash(git -C /Users/xavierli/Life/projects/network-helper diff)"
     ]
   },
   "enabledPlugins": {
