@@ -53,7 +53,9 @@
       "Bash(while ! grep -q '\"\"stop_reason\"\":\"\"end_turn\"\"' /private/tmp/claude-501/-Users-xavierli-Life-projects-network-helper/c340432b-4111-44b6-8e5e-338b3f536ed7/tasks/ae47dbee12a694d3c.output)",
       "Bash(do sleep:*)",
       "Bash(done)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "mcp__nethelper__show_topology",
+      "mcp__nethelper__show_devices"
     ]
   },
   "enabledPlugins": {

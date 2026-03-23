@@ -7,6 +7,7 @@ import (
 
 	mcpmcp "github.com/mark3labs/mcp-go/mcp"
 	mcpserver "github.com/mark3labs/mcp-go/server"
+	"github.com/xavierli/nethelper/internal/plan"
 	"github.com/xavierli/nethelper/internal/store"
 )
 
@@ -91,34 +92,68 @@ func registerShowTools(s *mcpserver.MCPServer, db *store.DB) {
 		return mcpmcp.NewToolResultText(string(data)), nil
 	})
 
-	// 6. show_topology — summary of all devices and their neighbor counts
+	// 6. show_topology — topology inferred from config (BGP peers, interface descriptions, subnets)
 	s.AddTool(mcpmcp.NewTool("show_topology",
-		mcpmcp.WithDescription("Show a topology summary: all devices with their neighbor counts"),
+		mcpmcp.WithDescription("Show network topology: per-device interconnections inferred from BGP config, interface descriptions, and subnet matching. Shows peer groups, LAGs, protocols, and SPOF status."),
 	), func(ctx context.Context, req mcpmcp.CallToolRequest) (*mcpmcp.CallToolResult, error) {
 		devices, err := db.ListDevices()
 		if err != nil {
 			return mcpmcp.NewToolResultError(err.Error()), nil
 		}
 
-		type deviceSummary struct {
-			ID            string `json:"id"`
-			Hostname      string `json:"hostname"`
-			Vendor        string `json:"vendor"`
-			NeighborCount int    `json:"neighbor_count"`
+		type peerGroupSummary struct {
+			Name     string `json:"name"`
+			Role     string `json:"role"`
+			PeerCount int   `json:"peer_count"`
+		}
+		type lagSummary struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		}
+		type deviceTopo struct {
+			ID         string             `json:"id"`
+			Hostname   string             `json:"hostname"`
+			Vendor     string             `json:"vendor"`
+			LocalAS    int                `json:"local_as,omitempty"`
+			Protocols  []string           `json:"protocols,omitempty"`
+			PeerGroups []peerGroupSummary `json:"peer_groups,omitempty"`
+			LAGs       []lagSummary       `json:"lags,omitempty"`
+			PhysicalLinks int             `json:"physical_links"`
+			IsSPOF     bool               `json:"is_spof"`
 		}
 
-		summary := make([]deviceSummary, 0, len(devices))
+		var result []deviceTopo
 		for _, d := range devices {
-			neighbors, _ := db.GetLatestNeighbors(d.ID)
-			summary = append(summary, deviceSummary{
+			topo, err := plan.BuildTopology(db, d.ID)
+			if err != nil {
+				result = append(result, deviceTopo{
+					ID: d.ID, Hostname: d.Hostname, Vendor: d.Vendor,
+				})
+				continue
+			}
+			dt := deviceTopo{
 				ID:            d.ID,
 				Hostname:      d.Hostname,
 				Vendor:        d.Vendor,
-				NeighborCount: len(neighbors),
-			})
+				LocalAS:       topo.LocalAS,
+				Protocols:     topo.Protocols,
+				PhysicalLinks: len(topo.PhysicalLinks),
+				IsSPOF:        topo.IsSPOF,
+			}
+			for _, pg := range topo.PeerGroups {
+				dt.PeerGroups = append(dt.PeerGroups, peerGroupSummary{
+					Name: pg.Name, Role: string(pg.Role), PeerCount: len(pg.Peers),
+				})
+			}
+			for _, lag := range topo.LAGs {
+				dt.LAGs = append(dt.LAGs, lagSummary{
+					Name: lag.Name, Description: lag.Description,
+				})
+			}
+			result = append(result, dt)
 		}
 
-		data, _ := json.MarshalIndent(summary, "", "  ")
+		data, _ := json.MarshalIndent(result, "", "  ")
 		return mcpmcp.NewToolResultText(string(data)), nil
 	})
 
