@@ -9,7 +9,7 @@
 ## 演进路线
 
 ```
-Phase 0 (✅)          Phase 1 (✅)          Phase 2               Phase 3
+Phase 0 (✅)          Phase 1 (✅)          Phase 2 (✅)          Phase 3
 CLI 工具              智能 CLI               Agent Loop            Network Agent
 ─────────────── → ─────────────── → ─────────────── → ───────────────
 
@@ -42,7 +42,7 @@ CLI 工具              智能 CLI               Agent Loop            Network A
 | `plan cutover` | ✅ | 链路割接：配置新口 → 切流量 → 关旧口，7 阶段 |
 | OSPF/ISIS 隔离支持 | ✅ | ISIS set-overload + OSPF stub-router + LDP per-interface disable |
 
-### Phase 2: Agent Loop 🔧 进行中
+### Phase 2: Agent Loop ✅ 完成
 
 从"人执行 CLI"变成"agent 自己调用 CLI"。人只描述需求，agent loop 驱动探索。
 
@@ -50,9 +50,9 @@ CLI 工具              智能 CLI               Agent Loop            Network A
 |------|------|------|
 | MCP Server | ✅ | `nethelper mcp serve` — 20 个 MCP tools，Claude Code 直接调用 |
 | Agent Loop 核心 | ✅ | `nethelper agent chat` — LLM tool calling + 交互式 REPL |
-| 排障对话 | 🔲 | 和 agent 聊排障 case |
-| 经验归档 | 🔲 | 排障后自动提取结构化经验 |
-| 经验复用 | 🔲 | 下次排障先搜历史经验 |
+| 排障对话 | ✅ | agent chat 多轮对话，自动调用工具查数据验证假设 |
+| 经验归档 | ✅ | agent 排障结束后主动提议归档（system prompt 引导） |
+| 经验复用 | ✅ | agent 收到问题后自动先搜历史经验（system prompt 引导） |
 
 ```
 用户: "LC-01 要做板卡更换，帮我准备变更方案"
