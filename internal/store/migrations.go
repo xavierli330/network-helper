@@ -313,4 +313,13 @@ var migrations = []string{
 		session_id TEXT NOT NULL DEFAULT ''
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_memory_category ON memory_entries(category)`,
+
+	// Conversation persistence: stores full message history per IM user key.
+	`CREATE TABLE IF NOT EXISTS conversations (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_key TEXT NOT NULL,
+		messages TEXT NOT NULL DEFAULT '[]',
+		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_key)`,
 }

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -47,12 +48,13 @@ const systemPrompt = `你是 nethelper 网络运维助手。你可以调用工�
 
 // Agent orchestrates the LLM + tool calling loop.
 type Agent struct {
-	router    *llm.Router
-	registry  *Registry
-	embedder  llm.Embedder // optional: nil disables memory features
-	db        *store.DB    // optional: nil disables memory features
-	messages  []llm.Message
-	sessionID string
+	router         *llm.Router
+	registry       *Registry
+	embedder       llm.Embedder // optional: nil disables memory features
+	db             *store.DB    // optional: nil disables memory features
+	messages       []llm.Message
+	sessionID      string
+	memoryInjected bool // Issue #4: inject memory only once per session
 }
 
 // New creates an Agent. embedder and db may be nil to disable vector memory.
@@ -74,11 +76,27 @@ func generateSessionID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
+const maxContextMessages = 40 // keep recent N messages (system + conversations)
+
+// compactContext trims old messages if context is getting too long.
+// Keeps: system prompt (first message) + last (maxContextMessages-1) messages.
+func (a *Agent) compactContext() {
+	if len(a.messages) <= maxContextMessages {
+		return
+	}
+	keep := a.messages[len(a.messages)-(maxContextMessages-1):]
+	a.messages = append([]llm.Message{a.messages[0]}, keep...)
+}
+
 // Chat sends a user message and runs the agent loop until LLM produces a final text response.
 // It calls onToolCall for each tool invocation (for REPL display).
 func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name string, args map[string]interface{})) (string, error) {
-	// Inject relevant memories before the user message
-	if a.embedder != nil && a.db != nil {
+	// Issue #2: trim context if it has grown too large
+	a.compactContext()
+
+	// Issue #4: inject relevant memories only once per session (not every message)
+	if !a.memoryInjected && a.embedder != nil && a.db != nil {
+		a.memoryInjected = true
 		embedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		vec, err := a.embedder.Embed(embedCtx, userInput)
 		cancel()
@@ -199,6 +217,36 @@ func (a *Agent) SaveMemory(ctx context.Context) {
 // Reset clears conversation history (keeps system prompt).
 func (a *Agent) Reset() {
 	a.messages = a.messages[:1] // keep system prompt
+	a.memoryInjected = false
+}
+
+// SaveConversation persists current messages to DB so they survive session expiry / process restart.
+func (a *Agent) SaveConversation(userKey string) {
+	if a.db == nil {
+		return
+	}
+	data, _ := json.Marshal(a.messages)
+	a.db.Exec(
+		`INSERT INTO conversations (user_key, messages, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(user_key) DO UPDATE SET messages=excluded.messages, updated_at=CURRENT_TIMESTAMP`,
+		userKey, string(data),
+	)
+}
+
+// LoadConversation restores messages from DB, replacing the default system-only history.
+func (a *Agent) LoadConversation(userKey string) {
+	if a.db == nil {
+		return
+	}
+	var data string
+	err := a.db.QueryRow(`SELECT messages FROM conversations WHERE user_key = ?`, userKey).Scan(&data)
+	if err != nil {
+		return
+	}
+	var msgs []llm.Message
+	if json.Unmarshal([]byte(data), &msgs) == nil && len(msgs) > 0 {
+		a.messages = msgs
+	}
 }
 
 // formatConversation renders the message history as plain text for the summarizer.
