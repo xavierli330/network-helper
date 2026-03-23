@@ -83,6 +83,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newScratchClearCmd())
 	root.AddCommand(newPlanCmd())
 	root.AddCommand(newMCPCmd())
+	root.AddCommand(newAgentCmd())
 
 	return root
 }
