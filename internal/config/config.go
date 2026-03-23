@@ -59,6 +59,21 @@ type ChannelsConfig struct {
 	QQ       QQChannelConfig       `yaml:"qq"`
 }
 
+// ContextConfig controls how the agent compresses its message history.
+type ContextConfig struct {
+	// MaxTokenBudget is the total character budget for all messages (rough proxy
+	// for tokens at ~4 chars/token). Defaults to 50000 (~12K tokens).
+	MaxTokenBudget int `yaml:"max_token_budget"`
+	// ToolResultMaxLen is the maximum length kept for a single tool result.
+	// Content beyond this is replaced with a truncation notice. Defaults to 2000.
+	ToolResultMaxLen int `yaml:"tool_result_max_len"`
+	// EnableSummary, when true, asks the LLM to produce a rolling summary instead
+	// of simply dropping the oldest messages (not yet implemented, reserved).
+	EnableSummary bool `yaml:"enable_summary"`
+	// SummaryProvider names the LLM provider to use for rolling summaries.
+	SummaryProvider string `yaml:"summary_provider"`
+}
+
 type PermGroupConfig struct {
 	Users []string `yaml:"users"`
 	Tools []string `yaml:"tools"`
@@ -76,6 +91,7 @@ type Config struct {
 	Embedding   EmbeddingConfig   `yaml:"embedding"`
 	Channels    ChannelsConfig    `yaml:"channels"`
 	Permissions PermissionsConfig `yaml:"permissions"`
+	Context     ContextConfig     `yaml:"context"`
 }
 
 func DefaultDataDir() string {

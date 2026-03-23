@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/xavierli/nethelper/internal/agent"
+	"github.com/xavierli/nethelper/internal/config"
 	"github.com/xavierli/nethelper/internal/llm"
 	"github.com/xavierli/nethelper/internal/parser"
 	"github.com/xavierli/nethelper/internal/store"
@@ -19,13 +20,15 @@ import (
 const maxIMMessageLen = 3000
 
 type Router struct {
-	db          *store.DB
-	pipeline    *parser.Pipeline
-	llmRouter   *llm.Router
-	embedder    llm.Embedder
-	permissions *PermissionConfig
-	mu          sync.Mutex
-	sessions    map[string]*userSession
+	db            *store.DB
+	pipeline      *parser.Pipeline
+	llmRouter     *llm.Router
+	embedder      llm.Embedder
+	permissions   *PermissionConfig
+	mu            sync.Mutex
+	sessions      map[string]*userSession
+	sessionLogger *agent.SessionLogger
+	contextCfg    config.ContextConfig
 }
 
 // userSession holds per-user state. mu serialises concurrent messages from the
@@ -38,17 +41,31 @@ type userSession struct {
 	mu         sync.Mutex // serialize messages for this user
 }
 
-func NewRouter(db *store.DB, pipeline *parser.Pipeline, llmRouter *llm.Router, embedder llm.Embedder, perms *PermissionConfig) *Router {
+func NewRouter(db *store.DB, pipeline *parser.Pipeline, llmRouter *llm.Router, embedder llm.Embedder, perms *PermissionConfig, opts ...RouterOptions) *Router {
+	var opt RouterOptions
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 	r := &Router{
-		db:          db,
-		pipeline:    pipeline,
-		llmRouter:   llmRouter,
-		embedder:    embedder,
-		permissions: perms,
-		sessions:    make(map[string]*userSession),
+		db:            db,
+		pipeline:      pipeline,
+		llmRouter:     llmRouter,
+		embedder:      embedder,
+		permissions:   perms,
+		sessions:      make(map[string]*userSession),
+		sessionLogger: opt.SessionLogger,
+		contextCfg:    opt.ContextCfg,
 	}
 	go r.cleanupLoop()
 	return r
+}
+
+// RouterOptions carries optional configuration for the channel Router.
+type RouterOptions struct {
+	// SessionLogger, when non-nil, records JSONL audit events for every user session.
+	SessionLogger *agent.SessionLogger
+	// ContextCfg controls agent context compression. Zero value uses agent defaults.
+	ContextCfg config.ContextConfig
 }
 
 func (r *Router) Handle(ctx context.Context, msg InMessage) string {
@@ -74,7 +91,11 @@ func (r *Router) Handle(ctx context.Context, msg InMessage) string {
 		reg := agent.NewRegistry()
 		agent.RegisterNethelperTools(reg, r.db, r.pipeline)
 		filtered := filterTools(reg, group)
-		ag := agent.New(r.llmRouter, filtered, r.embedder, r.db)
+		ag := agent.New(r.llmRouter, filtered, r.embedder, r.db, agent.AgentOptions{
+			Logger:     r.sessionLogger,
+			UserKey:    userKey,
+			ContextCfg: r.contextCfg,
+		})
 		// Issue #3: restore conversation history so context survives restarts
 		ag.LoadConversation(userKey)
 		sess = &userSession{agent: ag, group: group}

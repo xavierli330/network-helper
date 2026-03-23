@@ -64,13 +64,22 @@ func (a *Adapter) Stop() error {
 	return nil
 }
 
-// SendText sends a plain-text message to the given chat_id.
+// SendText sends a message to the given chat_id. If the text contains Markdown
+// indicators it is sent as an interactive card (which Feishu renders with full
+// Markdown support); otherwise it is sent as a plain-text message.
 func (a *Adapter) SendText(chatID, text string) error {
+	if containsMarkdown(text) {
+		return a.sendCard(chatID, text)
+	}
+	return a.sendPlainText(chatID, text)
+}
+
+// sendPlainText sends a plain text message.
+func (a *Adapter) sendPlainText(chatID, text string) error {
 	content, err := json.Marshal(map[string]string{"text": text})
 	if err != nil {
 		return err
 	}
-
 	req := larkim.NewCreateMessageReqBuilder().
 		ReceiveIdType(larkim.ReceiveIdTypeChatId).
 		Body(larkim.NewCreateMessageReqBodyBuilder().
@@ -79,9 +88,51 @@ func (a *Adapter) SendText(chatID, text string) error {
 			Content(string(content)).
 			Build()).
 		Build()
-
 	_, err = a.client.Im.Message.Create(a.ctx, req)
 	return err
+}
+
+// sendCard sends an interactive card message whose single element renders the
+// provided Markdown text.  Feishu cards support headers, bold, code blocks,
+// tables, and emoji — a superset of what plain-text messages can show.
+func (a *Adapter) sendCard(chatID, markdownText string) error {
+	card := map[string]interface{}{
+		"config": map[string]interface{}{
+			"wide_screen_mode": true,
+		},
+		"elements": []interface{}{
+			map[string]interface{}{
+				"tag":     "markdown",
+				"content": markdownText,
+			},
+		},
+	}
+	content, err := json.Marshal(card)
+	if err != nil {
+		return err
+	}
+	req := larkim.NewCreateMessageReqBuilder().
+		ReceiveIdType(larkim.ReceiveIdTypeChatId).
+		Body(larkim.NewCreateMessageReqBodyBuilder().
+			ReceiveId(chatID).
+			MsgType(larkim.MsgTypeInteractive).
+			Content(string(content)).
+			Build()).
+		Build()
+	_, err = a.client.Im.Message.Create(a.ctx, req)
+	return err
+}
+
+// containsMarkdown reports whether text contains common Markdown formatting
+// indicators that Feishu can render inside an interactive card element.
+func containsMarkdown(text string) bool {
+	indicators := []string{"# ", "**", "```", "| ", "- [", "- ✅", "- ⚠️", "## "}
+	for _, ind := range indicators {
+		if strings.Contains(text, ind) {
+			return true
+		}
+	}
+	return false
 }
 
 // onMessage is the event handler for im.message.receive_v1.

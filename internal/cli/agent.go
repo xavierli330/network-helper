@@ -38,8 +38,13 @@ func newAgentChatCmd() *cobra.Command {
 			reg := agent.NewRegistry()
 			agent.RegisterNethelperTools(reg, db, pipeline)
 
-			// Create agent with optional vector memory support
-			ag := agent.New(llmRouter, reg, embedder, db)
+			// Create agent with optional vector memory support and JSONL session logging.
+			sessionLogger := agent.NewSessionLogger(cfg.DataDir)
+			ag := agent.New(llmRouter, reg, embedder, db, agent.AgentOptions{
+				Logger:     sessionLogger,
+				UserKey:    "repl",
+				ContextCfg: cfg.Context,
+			})
 
 			// Run REPL
 			return agent.RunREPL(context.Background(), ag)

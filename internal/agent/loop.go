@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xavierli/nethelper/internal/config"
 	"github.com/xavierli/nethelper/internal/llm"
 	"github.com/xavierli/nethelper/internal/memory"
 	"github.com/xavierli/nethelper/internal/store"
@@ -46,6 +47,19 @@ const systemPrompt = `你是 nethelper 网络运维助手。你可以调用工�
 - 不要凭空猜测——用工具查到的数据说话
 - 工具返回的数据可能很长，总结关键信息给用户，不要原样输出`
 
+// AgentOptions carries optional configuration for an Agent.
+// Use the zero value for sensible defaults (no logging, default context limits).
+type AgentOptions struct {
+	// Logger, when non-nil, writes JSONL audit events for this agent's user.
+	Logger *SessionLogger
+	// UserKey is the stable identifier of the user who owns this session
+	// (e.g. Feishu open_id, Discord user ID).  Used as the log file key.
+	UserKey string
+	// ContextCfg controls the multi-strategy context compression engine.
+	// Zero value applies built-in defaults (50 000 char budget, 2 000 char tool cap).
+	ContextCfg config.ContextConfig
+}
+
 // Agent orchestrates the LLM + tool calling loop.
 type Agent struct {
 	router         *llm.Router
@@ -55,16 +69,34 @@ type Agent struct {
 	messages       []llm.Message
 	sessionID      string
 	memoryInjected bool // Issue #4: inject memory only once per session
+	logger         *SessionLogger
+	userKey        string
+	contextCfg     config.ContextConfig
 }
 
 // New creates an Agent. embedder and db may be nil to disable vector memory.
-func New(router *llm.Router, registry *Registry, embedder llm.Embedder, db *store.DB) *Agent {
+// opts is variadic so callers that don't need options can call New(r, reg, e, db).
+func New(router *llm.Router, registry *Registry, embedder llm.Embedder, db *store.DB, opts ...AgentOptions) *Agent {
+	var opt AgentOptions
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+	// Apply defaults for zero-value context config fields.
+	if opt.ContextCfg.MaxTokenBudget == 0 {
+		opt.ContextCfg.MaxTokenBudget = 50000
+	}
+	if opt.ContextCfg.ToolResultMaxLen == 0 {
+		opt.ContextCfg.ToolResultMaxLen = 2000
+	}
 	return &Agent{
-		router:    router,
-		registry:  registry,
-		embedder:  embedder,
-		db:        db,
-		sessionID: generateSessionID(),
+		router:     router,
+		registry:   registry,
+		embedder:   embedder,
+		db:         db,
+		sessionID:  generateSessionID(),
+		logger:     opt.Logger,
+		userKey:    opt.UserKey,
+		contextCfg: opt.ContextCfg,
 		messages: []llm.Message{
 			{Role: "system", Content: systemPrompt},
 		},
@@ -76,16 +108,39 @@ func generateSessionID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
-const maxContextMessages = 40 // keep recent N messages (system + conversations)
-
-// compactContext trims old messages if context is getting too long.
-// Keeps: system prompt (first message) + last (maxContextMessages-1) messages.
+// compactContext applies a multi-strategy context compression pipeline.
+//
+// Strategy 1 — Tool result truncation: any tool message whose content exceeds
+// cfg.ToolResultMaxLen is trimmed to keep the first and last halves joined by
+// a truncation notice.  This prevents a single chatty tool from monopolising
+// the context window.
+//
+// Strategy 2 — Token budget eviction: if the total character count of all
+// messages still exceeds cfg.MaxTokenBudget, the oldest non-system messages
+// (starting at index 1) are removed one at a time until the budget is met or
+// only three messages remain (system + 1 user/assistant pair).
 func (a *Agent) compactContext() {
-	if len(a.messages) <= maxContextMessages {
-		return
+	cfg := a.contextCfg
+
+	// Strategy 1: truncate oversized tool results.
+	for i := range a.messages {
+		if a.messages[i].Role == "tool" && len(a.messages[i].Content) > cfg.ToolResultMaxLen {
+			content := a.messages[i].Content
+			half := cfg.ToolResultMaxLen / 2
+			a.messages[i].Content = content[:half] + "\n...(truncated)...\n" + content[len(content)-half:]
+		}
 	}
-	keep := a.messages[len(a.messages)-(maxContextMessages-1):]
-	a.messages = append([]llm.Message{a.messages[0]}, keep...)
+
+	// Strategy 2: evict oldest messages when total length exceeds budget.
+	totalLen := 0
+	for _, m := range a.messages {
+		totalLen += len(m.Content)
+	}
+	for totalLen > cfg.MaxTokenBudget && len(a.messages) > 3 {
+		removed := a.messages[1]
+		a.messages = append(a.messages[:1], a.messages[2:]...)
+		totalLen -= len(removed.Content)
+	}
 }
 
 // Chat sends a user message and runs the agent loop until LLM produces a final text response.
@@ -93,6 +148,12 @@ func (a *Agent) compactContext() {
 func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name string, args map[string]interface{})) (string, error) {
 	// Issue #2: trim context if it has grown too large
 	a.compactContext()
+
+	// Log the incoming user message.
+	a.logger.Log(a.userKey, SessionEvent{
+		Type:    "user",
+		Content: userInput,
+	})
 
 	// Issue #4: inject relevant memories only once per session (not every message)
 	if !a.memoryInjected && a.embedder != nil && a.db != nil {
@@ -109,6 +170,10 @@ func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name
 					sb.WriteString(fmt.Sprintf("- [%s] %s\n", m.CreatedAt.Format("2006-01-02"), m.Content))
 				}
 				a.messages = append(a.messages, llm.Message{Role: "system", Content: sb.String()})
+				a.logger.Log(a.userKey, SessionEvent{
+					Type:    "memory",
+					Content: sb.String(),
+				})
 			}
 		}
 		// Silently ignore embedding errors — memory is an enhancement, not critical
@@ -123,6 +188,10 @@ func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name
 			Tools:    a.registry.ToolDefs(),
 		})
 		if err != nil {
+			a.logger.Log(a.userKey, SessionEvent{
+				Type:    "error",
+				Content: err.Error(),
+			})
 			return "", fmt.Errorf("LLM error: %w", err)
 		}
 
@@ -140,8 +209,16 @@ func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name
 					onToolCall(tc.Name, tc.Arguments)
 				}
 
+				// Log the tool call.
+				a.logger.Log(a.userKey, SessionEvent{
+					Type:     "tool_call",
+					ToolName: tc.Name,
+					ToolArgs: tc.Arguments,
+				})
+
 				tool, ok := a.registry.Get(tc.Name)
 				var result string
+				toolStart := time.Now()
 				if !ok {
 					result = fmt.Sprintf("Unknown tool: %s", tc.Name)
 				} else {
@@ -151,11 +228,20 @@ func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name
 						result = fmt.Sprintf("Error: %v", execErr)
 					}
 				}
+				toolDuration := time.Since(toolStart).Milliseconds()
 
 				// Truncate very long results to avoid context overflow
 				if len(result) > 8000 {
 					result = result[:8000] + "\n... (truncated)"
 				}
+
+				// Log the tool result.
+				a.logger.Log(a.userKey, SessionEvent{
+					Type:       "tool_result",
+					ToolName:   tc.Name,
+					Content:    result,
+					DurationMs: toolDuration,
+				})
 
 				a.messages = append(a.messages, llm.Message{
 					Role:       "tool",
@@ -169,6 +255,13 @@ func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name
 
 		// No tool calls → final answer
 		a.messages = append(a.messages, llm.Message{Role: "assistant", Content: resp.Content})
+
+		// Log the final assistant response.
+		a.logger.Log(a.userKey, SessionEvent{
+			Type:    "assistant",
+			Content: resp.Content,
+		})
+
 		return resp.Content, nil
 	}
 

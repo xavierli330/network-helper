@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/xavierli/nethelper/internal/agent"
 	"github.com/xavierli/nethelper/internal/channel"
 	"github.com/xavierli/nethelper/internal/channel/discord"
 	"github.com/xavierli/nethelper/internal/channel/feishu"
@@ -53,7 +54,11 @@ func newChannelStartCmd() *cobra.Command {
 			}
 
 			// Create the channel router that dispatches messages to agent sessions.
-			router := channel.NewRouter(db, pipeline, llmRouter, embedder, perms)
+			sessionLogger := agent.NewSessionLogger(cfg.DataDir)
+			router := channel.NewRouter(db, pipeline, llmRouter, embedder, perms, channel.RouterOptions{
+				SessionLogger: sessionLogger,
+				ContextCfg:    cfg.Context,
+			})
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
