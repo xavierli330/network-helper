@@ -62,7 +62,11 @@
       "mcp__nethelper__show_neighbors",
       "mcp__nethelper__show_interfaces",
       "mcp__nethelper__search_config",
-      "Bash(./nethelper agent:*)"
+      "Bash(./nethelper agent:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.openclaw.ai)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   },
   "enabledPlugins": {
