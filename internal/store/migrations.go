@@ -302,4 +302,15 @@ var migrations = []string{
 
 	// config_snapshots hash column
 	`ALTER TABLE config_snapshots ADD COLUMN content_hash TEXT NOT NULL DEFAULT ''`,
+
+	// Vector memory: persists agent conversation summaries across sessions
+	`CREATE TABLE IF NOT EXISTS memory_entries (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		category TEXT NOT NULL DEFAULT 'conversation',
+		content TEXT NOT NULL DEFAULT '',
+		embedding BLOB,
+		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		session_id TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_memory_category ON memory_entries(category)`,
 }

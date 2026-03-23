@@ -3,8 +3,12 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/xavierli/nethelper/internal/llm"
+	"github.com/xavierli/nethelper/internal/memory"
+	"github.com/xavierli/nethelper/internal/store"
 )
 
 const systemPrompt = `你是 nethelper 网络运维助手。你可以调用工具来查询网络数据、分析拓扑、生成变更方案、记录排障经验。
@@ -43,24 +47,55 @@ const systemPrompt = `你是 nethelper 网络运维助手。你可以调用工�
 
 // Agent orchestrates the LLM + tool calling loop.
 type Agent struct {
-	router   *llm.Router
-	registry *Registry
-	messages []llm.Message
+	router    *llm.Router
+	registry  *Registry
+	embedder  llm.Embedder // optional: nil disables memory features
+	db        *store.DB    // optional: nil disables memory features
+	messages  []llm.Message
+	sessionID string
 }
 
-func New(router *llm.Router, registry *Registry) *Agent {
+// New creates an Agent. embedder and db may be nil to disable vector memory.
+func New(router *llm.Router, registry *Registry, embedder llm.Embedder, db *store.DB) *Agent {
 	return &Agent{
-		router:   router,
-		registry: registry,
+		router:    router,
+		registry:  registry,
+		embedder:  embedder,
+		db:        db,
+		sessionID: generateSessionID(),
 		messages: []llm.Message{
 			{Role: "system", Content: systemPrompt},
 		},
 	}
 }
 
+// generateSessionID returns a simple nanosecond-based session identifier.
+func generateSessionID() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano())
+}
+
 // Chat sends a user message and runs the agent loop until LLM produces a final text response.
 // It calls onToolCall for each tool invocation (for REPL display).
 func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name string, args map[string]interface{})) (string, error) {
+	// Inject relevant memories before the user message
+	if a.embedder != nil && a.db != nil {
+		embedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		vec, err := a.embedder.Embed(embedCtx, userInput)
+		cancel()
+		if err == nil {
+			memories, _ := memory.Search(a.db, vec, 3)
+			if len(memories) > 0 {
+				var sb strings.Builder
+				sb.WriteString("## 相关历史记忆\n")
+				for _, m := range memories {
+					sb.WriteString(fmt.Sprintf("- [%s] %s\n", m.CreatedAt.Format("2006-01-02"), m.Content))
+				}
+				a.messages = append(a.messages, llm.Message{Role: "system", Content: sb.String()})
+			}
+		}
+		// Silently ignore embedding errors — memory is an enhancement, not critical
+	}
+
 	a.messages = append(a.messages, llm.Message{Role: "user", Content: userInput})
 
 	maxIterations := 20 // safety limit
@@ -122,7 +157,67 @@ func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name
 	return "", fmt.Errorf("agent loop exceeded %d iterations", maxIterations)
 }
 
+// SaveMemory summarizes the current conversation with the LLM, embeds the
+// summary, and stores it as a memory entry. It is a best-effort operation —
+// any error is silently discarded.
+func (a *Agent) SaveMemory(ctx context.Context) {
+	if a.embedder == nil || a.db == nil {
+		return
+	}
+	// Need at least system + user + assistant (3 messages) to be worth saving
+	if len(a.messages) <= 2 {
+		return
+	}
+
+	// Ask LLM to produce a concise summary of the conversation
+	summary, err := a.router.Chat(ctx, llm.CapAnalyze, llm.ChatRequest{
+		Messages: []llm.Message{
+			{
+				Role:    "system",
+				Content: "用一两句话总结以下对话的关键内容（设备名、操作、结论）。只输出总结，不要其他内容。",
+			},
+			{
+				Role:    "user",
+				Content: formatConversation(a.messages),
+			},
+		},
+	})
+	if err != nil {
+		return
+	}
+
+	embedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	vec, err := a.embedder.Embed(embedCtx, summary.Content)
+	cancel()
+	if err != nil {
+		return
+	}
+
+	_ = memory.Insert(a.db, "conversation", summary.Content, a.sessionID, vec)
+}
+
 // Reset clears conversation history (keeps system prompt).
 func (a *Agent) Reset() {
 	a.messages = a.messages[:1] // keep system prompt
+}
+
+// formatConversation renders the message history as plain text for the summarizer.
+// It skips system messages and the injected memory block to keep the input clean.
+func formatConversation(messages []llm.Message) string {
+	var sb strings.Builder
+	for _, m := range messages {
+		switch m.Role {
+		case "user":
+			sb.WriteString("User: ")
+			sb.WriteString(m.Content)
+			sb.WriteString("\n")
+		case "assistant":
+			if m.Content != "" {
+				sb.WriteString("Assistant: ")
+				sb.WriteString(m.Content)
+				sb.WriteString("\n")
+			}
+		}
+	}
+	return sb.String()
 }

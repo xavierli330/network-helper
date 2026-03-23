@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xavierli/nethelper/internal/agent"
+	"github.com/xavierli/nethelper/internal/llm"
 )
 
 func newAgentCmd() *cobra.Command {
@@ -27,12 +28,18 @@ func newAgentChatCmd() *cobra.Command {
 				return fmt.Errorf("LLM not configured — add llm section to ~/.nethelper/config.yaml")
 			}
 
+			// Build embedder from config (nil if not configured)
+			var embedder llm.Embedder
+			if cfg != nil {
+				embedder = llm.BuildEmbedder(cfg.Embedding)
+			}
+
 			// Build tool registry
 			reg := agent.NewRegistry()
 			agent.RegisterNethelperTools(reg, db, pipeline)
 
-			// Create agent
-			ag := agent.New(llmRouter, reg)
+			// Create agent with optional vector memory support
+			ag := agent.New(llmRouter, reg, embedder, db)
 
 			// Run REPL
 			return agent.RunREPL(context.Background(), ag)

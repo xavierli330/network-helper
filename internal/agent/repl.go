@@ -17,6 +17,7 @@ func RunREPL(ctx context.Context, ag *Agent) error {
 	for {
 		fmt.Print("nethelper> ")
 		if !scanner.Scan() {
+			ag.SaveMemory(ctx)
 			break
 		}
 		input := strings.TrimSpace(scanner.Text())
@@ -24,6 +25,7 @@ func RunREPL(ctx context.Context, ag *Agent) error {
 			continue
 		}
 		if input == "exit" || input == "quit" {
+			ag.SaveMemory(ctx)
 			fmt.Println("再见！")
 			return nil
 		}
