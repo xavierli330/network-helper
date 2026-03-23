@@ -36,7 +36,12 @@ func (p *Pipeline) Ingest(sourceFile, content string) (IngestResult, error) {
 	var result IngestResult
 	blocks := Split(content, p.registry)
 	if len(blocks) == 0 {
-		return result, nil
+		// No prompts found — try detecting raw config file (no terminal prompts)
+		if block, ok := detectRawConfig(content); ok {
+			blocks = []CommandBlock{block}
+		} else {
+			return result, nil
+		}
 	}
 	result.BytesConsumed = len(content)
 	return p.processBlocks(sourceFile, blocks, result)
@@ -331,6 +336,67 @@ func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult
 	}
 
 	return nil
+}
+
+// detectRawConfig checks if content looks like a raw config file (no terminal prompts).
+// It detects Huawei VRP and H3C Comware config formats and extracts the hostname.
+// Returns a synthetic CommandBlock if detected.
+func detectRawConfig(content string) (CommandBlock, bool) {
+	lines := strings.SplitN(content, "\n", 30)
+
+	var hostname, vendor string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lower := strings.ToLower(trimmed)
+
+		// Huawei VRP: "sysname XXX" (no leading space)
+		if strings.HasPrefix(lower, "sysname ") {
+			hostname = strings.TrimSpace(trimmed[len("sysname "):])
+			if vendor == "" {
+				vendor = "huawei"
+			}
+		}
+		// H3C Comware: " sysname XXX" (with leading space) or "sysname XXX"
+		if strings.HasPrefix(strings.TrimLeft(lower, " "), "sysname ") {
+			parts := strings.Fields(trimmed)
+			if len(parts) >= 2 {
+				hostname = parts[len(parts)-1]
+			}
+		}
+		// Detect vendor from signatures
+		if strings.HasPrefix(lower, "version 7.") || strings.HasPrefix(lower, "mdc admin id") {
+			vendor = "h3c"
+		}
+		if strings.HasPrefix(trimmed, "!Software Version V") {
+			vendor = "huawei"
+		}
+	}
+
+	if hostname == "" {
+		return CommandBlock{}, false
+	}
+	if vendor == "" {
+		vendor = "huawei" // default
+	}
+
+	// Strip the first line if it's "dis cur..." / "display cur..."
+	configText := content
+	firstLine := strings.TrimSpace(lines[0])
+	if strings.HasPrefix(strings.ToLower(firstLine), "dis") {
+		idx := strings.Index(content, "\n")
+		if idx > 0 {
+			configText = content[idx+1:]
+		}
+	}
+
+	return CommandBlock{
+		Hostname: hostname,
+		Vendor:   vendor,
+		Command:  "display current-configuration",
+		Output:   configText,
+		CmdType:  model.CmdConfig,
+	}, true
 }
 
 // isBulkTableCommand returns true for commands that produce large table outputs

@@ -55,7 +55,9 @@
       "Bash(done)",
       "Bash(ls:*)",
       "mcp__nethelper__show_topology",
-      "mcp__nethelper__show_devices"
+      "mcp__nethelper__show_devices",
+      "Bash(for f:*)",
+      "Bash(do)"
     ]
   },
   "enabledPlugins": {
