@@ -50,28 +50,104 @@ func (p *OpenAIProvider) Supports(cap Capability) bool {
 	return true // OpenAI-compatible APIs support all capabilities
 }
 
+// openAIMessage is the wire format for a single chat message.
+// Content is a pointer to allow null (required when tool_calls are present).
+type openAIMessage struct {
+	Role       string           `json:"role"`
+	Content    *string          `json:"content"`                // nullable when tool_calls are present
+	ToolCalls  []openAIToolCall `json:"tool_calls,omitempty"`   // for assistant messages with tool calls
+	ToolCallID string           `json:"tool_call_id,omitempty"` // for role="tool" result messages
+	Name       string           `json:"name,omitempty"`
+}
+
+// openAIToolCall is a single tool invocation in an assistant message.
+type openAIToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"` // always "function"
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"` // JSON-encoded string, not an object
+	} `json:"function"`
+}
+
+// openAITool describes a callable tool in the request.
+type openAITool struct {
+	Type     string         `json:"type"` // always "function"
+	Function openAIFunction `json:"function"`
+}
+
+type openAIFunction struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Parameters  map[string]interface{} `json:"parameters"`
+}
+
 type openAIRequest struct {
-	Model       string    `json:"model"`
-	Messages    []Message `json:"messages"`
-	Temperature float64   `json:"temperature,omitempty"`
-	MaxTokens   int       `json:"max_tokens,omitempty"`
+	Model       string          `json:"model"`
+	Messages    []openAIMessage `json:"messages"`
+	Tools       []openAITool    `json:"tools,omitempty"`
+	Temperature float64         `json:"temperature,omitempty"`
+	MaxTokens   int             `json:"max_tokens,omitempty"`
 }
 
 type openAIResponse struct {
 	Choices []struct {
 		Message struct {
-			Content string `json:"content"`
+			Content   *string          `json:"content"`
+			ToolCalls []openAIToolCall  `json:"tool_calls,omitempty"`
 		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error,omitempty"`
 }
 
+// toOpenAIMessages converts our unified Message slice to the OpenAI wire format,
+// handling nullable content and tool call / tool result shapes.
+func toOpenAIMessages(msgs []Message) []openAIMessage {
+	result := make([]openAIMessage, 0, len(msgs))
+	for _, m := range msgs {
+		om := openAIMessage{
+			Role:       m.Role,
+			ToolCallID: m.ToolCallID,
+			Name:       m.Name,
+		}
+		switch {
+		case m.Role == "tool":
+			// Tool result message: content is the result text.
+			om.Content = &m.Content
+		case len(m.ToolCalls) > 0:
+			// Assistant message requesting tool calls; content may be empty/null.
+			if m.Content != "" {
+				om.Content = &m.Content
+			}
+			for _, tc := range m.ToolCalls {
+				argsJSON, _ := json.Marshal(tc.Arguments)
+				om.ToolCalls = append(om.ToolCalls, openAIToolCall{
+					ID:   tc.ID,
+					Type: "function",
+					Function: struct {
+						Name      string `json:"name"`
+						Arguments string `json:"arguments"`
+					}{
+						Name:      tc.Name,
+						Arguments: string(argsJSON),
+					},
+				})
+			}
+		default:
+			om.Content = &m.Content
+		}
+		result = append(result, om)
+	}
+	return result
+}
+
 func (p *OpenAIProvider) Chat(ctx context.Context, req ChatRequest) (ChatResponse, error) {
 	apiReq := openAIRequest{
 		Model:       p.model,
-		Messages:    req.Messages,
+		Messages:    toOpenAIMessages(req.Messages),
 		Temperature: req.Temperature,
 		MaxTokens:   req.MaxTokens,
 	}
@@ -80,6 +156,21 @@ func (p *OpenAIProvider) Chat(ctx context.Context, req ChatRequest) (ChatRespons
 	}
 	if apiReq.MaxTokens == 0 {
 		apiReq.MaxTokens = 2048
+	}
+
+	// Map ToolDef → openAITool
+	if len(req.Tools) > 0 {
+		apiReq.Tools = make([]openAITool, len(req.Tools))
+		for i, t := range req.Tools {
+			apiReq.Tools[i] = openAITool{
+				Type: "function",
+				Function: openAIFunction{
+					Name:        t.Name,
+					Description: t.Description,
+					Parameters:  t.Parameters,
+				},
+			}
+		}
 	}
 
 	body, err := json.Marshal(apiReq)
@@ -121,5 +212,26 @@ func (p *OpenAIProvider) Chat(ctx context.Context, req ChatRequest) (ChatRespons
 		return ChatResponse{}, fmt.Errorf("no choices in response")
 	}
 
-	return ChatResponse{Content: apiResp.Choices[0].Message.Content}, nil
+	choice := apiResp.Choices[0]
+	chatResp := ChatResponse{}
+
+	if choice.Message.Content != nil {
+		chatResp.Content = *choice.Message.Content
+	}
+
+	if len(choice.Message.ToolCalls) > 0 {
+		chatResp.StopReason = "tool_use"
+		for _, tc := range choice.Message.ToolCalls {
+			var args map[string]interface{}
+			// Arguments is a JSON string; unmarshal it into a map.
+			_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
+			chatResp.ToolCalls = append(chatResp.ToolCalls, ToolCall{
+				ID:        tc.ID,
+				Name:      tc.Function.Name,
+				Arguments: args,
+			})
+		}
+	}
+
+	return chatResp, nil
 }
