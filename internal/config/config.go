@@ -24,12 +24,33 @@ type EmbeddingConfig struct {
 	Providers map[string]LLMProviderConfig `yaml:"providers"`
 }
 
+type FeishuChannelConfig struct {
+	AppID     string `yaml:"app_id"`
+	AppSecret string `yaml:"app_secret"`
+	Enabled   bool   `yaml:"enabled"`
+}
+
+type ChannelsConfig struct {
+	Feishu FeishuChannelConfig `yaml:"feishu"`
+}
+
+type PermGroupConfig struct {
+	Users []string `yaml:"users"`
+	Tools []string `yaml:"tools"`
+}
+
+type PermissionsConfig struct {
+	Groups map[string]PermGroupConfig `yaml:"groups"`
+}
+
 type Config struct {
-	DataDir   string          `yaml:"data_dir"`
-	DBPath    string          `yaml:"db_path"`
-	WatchDirs []string        `yaml:"watch_dirs"`
-	LLM       LLMConfig       `yaml:"llm"`
-	Embedding EmbeddingConfig `yaml:"embedding"`
+	DataDir     string            `yaml:"data_dir"`
+	DBPath      string            `yaml:"db_path"`
+	WatchDirs   []string          `yaml:"watch_dirs"`
+	LLM         LLMConfig         `yaml:"llm"`
+	Embedding   EmbeddingConfig   `yaml:"embedding"`
+	Channels    ChannelsConfig    `yaml:"channels"`
+	Permissions PermissionsConfig `yaml:"permissions"`
 }
 
 func DefaultDataDir() string {

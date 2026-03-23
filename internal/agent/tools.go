@@ -49,6 +49,10 @@ func (r *Registry) Get(name string) (Tool, bool) {
 	return t, ok
 }
 
+func (r *Registry) Names() []string {
+	return r.order
+}
+
 func (r *Registry) ToolDefs() []llm.ToolDef {
 	defs := make([]llm.ToolDef, 0, len(r.order))
 	for _, name := range r.order {
