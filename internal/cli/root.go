@@ -84,6 +84,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newPlanCmd())
 	root.AddCommand(newMCPCmd())
 	root.AddCommand(newAgentCmd())
+	root.AddCommand(newChannelCmd())
 
 	return root
 }
