@@ -76,7 +76,8 @@
       "WebFetch(domain:blog.csdn.net)",
       "Bash(find ~/go/pkg/mod/github.com/larksuite/oapi-sdk-go/v3@* -path */cardkit* -name *.go)",
       "WebFetch(domain:open.feishu.cn)",
-      "Bash(./nethelper heartbeat:*)"
+      "Bash(./nethelper heartbeat:*)",
+      "WebFetch(domain:ima.qq.com)"
     ]
   },
   "enabledPlugins": {
