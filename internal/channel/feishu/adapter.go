@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
@@ -25,6 +26,10 @@ type Adapter struct {
 	handler   channel.MessageHandler
 	ctx       context.Context
 	cancel    context.CancelFunc
+
+	// dedup: prevent processing the same message twice (Feishu retries on slow handlers)
+	seenMu  sync.Mutex
+	seenIDs map[string]bool
 }
 
 func New(appID, appSecret string) *Adapter {
@@ -32,6 +37,7 @@ func New(appID, appSecret string) *Adapter {
 		appID:     appID,
 		appSecret: appSecret,
 		client:    lark.NewClient(appID, appSecret),
+		seenIDs:   make(map[string]bool),
 	}
 }
 
@@ -203,6 +209,24 @@ func (a *Adapter) onMessage(ctx context.Context, event *larkim.P2MessageReceiveV
 	msg := ev.Message
 	if msg == nil {
 		return nil
+	}
+
+	// Dedup: Feishu may redeliver events if handler is slow.
+	// Use message_id to detect duplicates.
+	msgID := derefStr(msg.MessageId)
+	if msgID != "" {
+		a.seenMu.Lock()
+		if a.seenIDs[msgID] {
+			a.seenMu.Unlock()
+			log.Printf("[feishu] skipping duplicate message: %s", msgID)
+			return nil
+		}
+		a.seenIDs[msgID] = true
+		// Keep map bounded — clear old entries if too large
+		if len(a.seenIDs) > 1000 {
+			a.seenIDs = map[string]bool{msgID: true}
+		}
+		a.seenMu.Unlock()
 	}
 
 	msgType := derefStr(msg.MessageType)
