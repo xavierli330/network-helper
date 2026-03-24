@@ -10,6 +10,7 @@ import (
 	"github.com/xavierli/nethelper/internal/agent"
 	"github.com/xavierli/nethelper/internal/config"
 	"github.com/xavierli/nethelper/internal/llm"
+	"github.com/xavierli/nethelper/internal/memory"
 	"github.com/xavierli/nethelper/internal/parser"
 	"github.com/xavierli/nethelper/internal/store"
 )
@@ -20,16 +21,17 @@ import (
 const maxIMMessageLen = 3000
 
 type Router struct {
-	db            *store.DB
-	pipeline      *parser.Pipeline
-	llmRouter     *llm.Router
-	embedder      llm.Embedder
-	permissions   *PermissionConfig
-	mu            sync.Mutex
-	sessions      map[string]*userSession
-	sessionLogger *agent.SessionLogger
-	contextCfg    config.ContextConfig
-	dataDir       string
+	db               *store.DB
+	pipeline         *parser.Pipeline
+	llmRouter        *llm.Router
+	embedder         llm.Embedder
+	permissions      *PermissionConfig
+	mu               sync.Mutex
+	sessions         map[string]*userSession
+	sessionLogger    *agent.SessionLogger
+	contextCfg       config.ContextConfig
+	dataDir          string
+	knowledgeSources []memory.KnowledgeSource
 }
 
 // userSession holds per-user state. mu serialises concurrent messages from the
@@ -48,15 +50,16 @@ func NewRouter(db *store.DB, pipeline *parser.Pipeline, llmRouter *llm.Router, e
 		opt = opts[0]
 	}
 	r := &Router{
-		db:            db,
-		pipeline:      pipeline,
-		llmRouter:     llmRouter,
-		embedder:      embedder,
-		permissions:   perms,
-		sessions:      make(map[string]*userSession),
-		sessionLogger: opt.SessionLogger,
-		contextCfg:    opt.ContextCfg,
-		dataDir:       opt.DataDir,
+		db:               db,
+		pipeline:         pipeline,
+		llmRouter:        llmRouter,
+		embedder:         embedder,
+		permissions:      perms,
+		sessions:         make(map[string]*userSession),
+		sessionLogger:    opt.SessionLogger,
+		contextCfg:       opt.ContextCfg,
+		dataDir:          opt.DataDir,
+		knowledgeSources: opt.KnowledgeSources,
 	}
 	go r.cleanupLoop()
 	return r
@@ -71,6 +74,11 @@ type RouterOptions struct {
 	// DataDir is the directory containing SOUL.md, IDENTITY.md and TOOLS.md.
 	// Passed through to each agent session so prompts can be customised on disk.
 	DataDir string
+	// KnowledgeSources is the list of pluggable knowledge providers (HTTP APIs,
+	// etc.) to search during memory injection.  The caller builds these from
+	// config.Knowledge.Sources; the local embedding store is added automatically
+	// inside agent.New() via DataDir.
+	KnowledgeSources []memory.KnowledgeSource
 }
 
 func (r *Router) Handle(ctx context.Context, msg InMessage) string {
@@ -97,38 +105,39 @@ func (r *Router) Handle(ctx context.Context, msg InMessage) string {
 		agent.RegisterNethelperTools(reg, r.db, r.pipeline)
 		filtered := filterTools(reg, group)
 		ag := agent.New(r.llmRouter, filtered, r.embedder, r.db, agent.AgentOptions{
-			Logger:     r.sessionLogger,
-			UserKey:    userKey,
-			ContextCfg: r.contextCfg,
-			DataDir:    r.dataDir,
-		})
-		// Issue #3: restore conversation history so context survives restarts
-		ag.LoadConversation(userKey)
-		sess = &userSession{agent: ag, group: group}
-		r.sessions[userKey] = sess
-	}
-	r.mu.Unlock()
-
-	// Issue #1: lock the per-user session mutex so that two messages from the
-	// same user are processed sequentially, eliminating the data race on
-	// agent.messages.
-	sess.mu.Lock()
-	defer sess.mu.Unlock()
-	sess.lastActive = time.Now()
-
-	// Issue #6: handle attached files before processing the text message.
-	// Full download + ingest will be added when channel adapters expose a
-	// download API; for now we acknowledge receipt and log the reference.
-	for _, f := range msg.Files {
-		if f.Type == "file" {
-			log.Printf("[%s] received file: %s (%s)", userKey, f.Name, f.URL)
-			return fmt.Sprintf("[收到文件: %s — 文件处理功能开发中]", f.Name)
+				Logger:           r.sessionLogger,
+				UserKey:          userKey,
+				ContextCfg:       r.contextCfg,
+				DataDir:          r.dataDir,
+				KnowledgeSources: r.knowledgeSources,
+			})
+			// Issue #3: restore conversation history so context survives restarts
+			ag.LoadConversation(userKey)
+			sess = &userSession{agent: ag, group: group}
+			r.sessions[userKey] = sess
 		}
-	}
+		r.mu.Unlock()
 
-	response, err := sess.agent.Chat(ctx, msg.Text, func(name string, args map[string]interface{}) {
-		log.Printf("[%s] tool: %s", userKey, name)
-	})
+		// Issue #1: lock the per-user session mutex so that two messages from the
+		// same user are processed sequentially, eliminating the data race on
+		// agent.messages.
+		sess.mu.Lock()
+		defer sess.mu.Unlock()
+		sess.lastActive = time.Now()
+
+		// Issue #6: handle attached files before processing the text message.
+		// Full download + ingest will be added when channel adapters expose a
+		// download API; for now we acknowledge receipt and log the reference.
+		for _, f := range msg.Files {
+			if f.Type == "file" {
+				log.Printf("[%s] received file: %s (%s)", userKey, f.Name, f.URL)
+				return fmt.Sprintf("[收到文件: %s — 文件处理功能开发中]", f.Name)
+			}
+		}
+
+		response, err := sess.agent.Chat(ctx, msg.Text, func(name string, args map[string]interface{}) {
+			log.Printf("[%s] tool: %s", userKey, name)
+		})
 	if err != nil {
 		return fmt.Sprintf("❌ 错误: %v", err)
 	}
@@ -170,37 +179,38 @@ func (r *Router) HandleWithProgress(ctx context.Context, msg InMessage, onProgre
 		agent.RegisterNethelperTools(reg, r.db, r.pipeline)
 		filtered := filterTools(reg, group)
 		ag := agent.New(r.llmRouter, filtered, r.embedder, r.db, agent.AgentOptions{
-			Logger:     r.sessionLogger,
-			UserKey:    userKey,
-			ContextCfg: r.contextCfg,
-			DataDir:    r.dataDir,
+				Logger:           r.sessionLogger,
+				UserKey:          userKey,
+				ContextCfg:       r.contextCfg,
+				DataDir:          r.dataDir,
+				KnowledgeSources: r.knowledgeSources,
+			})
+			ag.LoadConversation(userKey)
+			sess = &userSession{agent: ag, group: group}
+			r.sessions[userKey] = sess
+		}
+		r.mu.Unlock()
+
+		sess.mu.Lock()
+		defer sess.mu.Unlock()
+		sess.lastActive = time.Now()
+
+		for _, f := range msg.Files {
+			if f.Type == "file" {
+				log.Printf("[%s] received file: %s (%s)", userKey, f.Name, f.URL)
+				return fmt.Sprintf("[收到文件: %s — 文件处理功能开发中]", f.Name)
+			}
+		}
+
+		toolCount := 0
+		response, err := sess.agent.Chat(ctx, msg.Text, func(name string, args map[string]interface{}) {
+			toolCount++
+			log.Printf("[%s] tool: %s", userKey, name)
+			if onProgress != nil {
+				status := fmt.Sprintf("⏳ 正在处理...\n\n🔧 调用工具: **%s** (%d)", name, toolCount)
+				onProgress(status)
+			}
 		})
-		ag.LoadConversation(userKey)
-		sess = &userSession{agent: ag, group: group}
-		r.sessions[userKey] = sess
-	}
-	r.mu.Unlock()
-
-	sess.mu.Lock()
-	defer sess.mu.Unlock()
-	sess.lastActive = time.Now()
-
-	for _, f := range msg.Files {
-		if f.Type == "file" {
-			log.Printf("[%s] received file: %s (%s)", userKey, f.Name, f.URL)
-			return fmt.Sprintf("[收到文件: %s — 文件处理功能开发中]", f.Name)
-		}
-	}
-
-	toolCount := 0
-	response, err := sess.agent.Chat(ctx, msg.Text, func(name string, args map[string]interface{}) {
-		toolCount++
-		log.Printf("[%s] tool: %s", userKey, name)
-		if onProgress != nil {
-			status := fmt.Sprintf("⏳ 正在处理...\n\n🔧 调用工具: **%s** (%d)", name, toolCount)
-			onProgress(status)
-		}
-	})
 	if err != nil {
 		return fmt.Sprintf("❌ 错误: %v", err)
 	}

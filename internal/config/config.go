@@ -92,6 +92,21 @@ type PermissionsConfig struct {
 	Groups map[string]PermGroupConfig `yaml:"groups"`
 }
 
+// KnowledgeSourceConfig describes a single pluggable knowledge source.
+type KnowledgeSourceConfig struct {
+	Type    string `yaml:"type"`    // "local" | "http"
+	Name    string `yaml:"name"`    // display name used in SearchResult.Source prefix
+	Path    string `yaml:"path"`    // for "local": directory path (default: <data_dir>/knowledge)
+	URL     string `yaml:"url"`     // for "http": API base URL
+	Token   string `yaml:"token"`   // for "http": optional Bearer auth token
+	Enabled bool   `yaml:"enabled"` // when false the source is skipped at startup
+}
+
+// KnowledgeConfig groups all knowledge source definitions.
+type KnowledgeConfig struct {
+	Sources []KnowledgeSourceConfig `yaml:"sources"`
+}
+
 type Config struct {
 	DataDir     string            `yaml:"data_dir"`
 	DBPath      string            `yaml:"db_path"`
@@ -102,6 +117,7 @@ type Config struct {
 	Permissions PermissionsConfig `yaml:"permissions"`
 	Context     ContextConfig     `yaml:"context"`
 	Heartbeat   HeartbeatConfig   `yaml:"heartbeat"`
+	Knowledge   KnowledgeConfig   `yaml:"knowledge"`
 }
 
 func DefaultDataDir() string {

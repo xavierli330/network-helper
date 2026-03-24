@@ -57,9 +57,10 @@ func newChannelStartCmd() *cobra.Command {
 			// Create the channel router that dispatches messages to agent sessions.
 			sessionLogger := agent.NewSessionLogger(cfg.DataDir)
 			router := channel.NewRouter(db, pipeline, llmRouter, embedder, perms, channel.RouterOptions{
-				SessionLogger: sessionLogger,
-				ContextCfg:    cfg.Context,
-				DataDir:       cfg.DataDir,
+				SessionLogger:    sessionLogger,
+				ContextCfg:       cfg.Context,
+				DataDir:          cfg.DataDir,
+				KnowledgeSources: buildKnowledgeSources(cfg),
 			})
 
 			ctx, cancel := context.WithCancel(context.Background())

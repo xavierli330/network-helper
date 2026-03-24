@@ -6,8 +6,39 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xavierli/nethelper/internal/agent"
+	"github.com/xavierli/nethelper/internal/config"
 	"github.com/xavierli/nethelper/internal/llm"
+	"github.com/xavierli/nethelper/internal/memory"
 )
+
+// buildKnowledgeSources constructs the list of HTTP-backed KnowledgeSource
+// instances described by cfg.Knowledge.Sources.  The local source is handled
+// separately inside agent.New() using the DataDir + embedder, so only "http"
+// type entries are returned here.
+func buildKnowledgeSources(cfg *config.Config) []memory.KnowledgeSource {
+	if cfg == nil {
+		return nil
+	}
+	var sources []memory.KnowledgeSource
+	for _, sc := range cfg.Knowledge.Sources {
+		if !sc.Enabled {
+			continue
+		}
+		switch sc.Type {
+		case "http":
+			if sc.URL == "" {
+				continue
+			}
+			name := sc.Name
+			if name == "" {
+				name = sc.URL
+			}
+			sources = append(sources, memory.NewHTTPKnowledgeSource(name, sc.URL, sc.Token))
+		// "local" is handled by agent.New() via DataDir; skip here.
+		}
+	}
+	return sources
+}
 
 func newAgentCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -41,10 +72,11 @@ func newAgentChatCmd() *cobra.Command {
 			// Create agent with optional vector memory support and JSONL session logging.
 			sessionLogger := agent.NewSessionLogger(cfg.DataDir)
 			ag := agent.New(llmRouter, reg, embedder, db, agent.AgentOptions{
-				Logger:     sessionLogger,
-				UserKey:    "repl",
-				ContextCfg: cfg.Context,
-				DataDir:    cfg.DataDir,
+				Logger:           sessionLogger,
+				UserKey:          "repl",
+				ContextCfg:       cfg.Context,
+				DataDir:          cfg.DataDir,
+				KnowledgeSources: buildKnowledgeSources(cfg),
 			})
 
 			// Run REPL

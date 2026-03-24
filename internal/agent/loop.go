@@ -132,6 +132,12 @@ type AgentOptions struct {
 	// When non-empty, EnsureDefaultFiles is called and the system prompt is
 	// assembled from those files (with per-file fallback to built-in defaults).
 	DataDir string
+	// KnowledgeSources is the list of pluggable knowledge providers to search
+	// during memory injection. The caller assembles these from config so that
+	// HTTP-backed sources (iWiki, IMA, …) can be registered alongside the
+	// default local embedding store.
+	// When nil, only the local KnowledgeBase is used (backward-compatible).
+	KnowledgeSources []memory.KnowledgeSource
 }
 
 // Agent orchestrates the LLM + tool calling loop.
@@ -140,7 +146,7 @@ type Agent struct {
 	registry       *Registry
 	embedder       llm.Embedder // optional: nil disables memory features
 	db             *store.DB    // optional: nil disables memory features
-	knowledgeBase  *memory.KnowledgeBase
+	aggregator     *memory.Aggregator
 	messages       []llm.Message
 	sessionID      string
 	memoryInjected bool // Issue #4: inject memory only once per session
@@ -172,24 +178,30 @@ func New(router *llm.Router, registry *Registry, embedder llm.Embedder, db *stor
 		prompt = LoadSystemPrompt(opt.DataDir)
 	}
 
-	// Load external knowledge base from ~/.nethelper/knowledge/*.md (best-effort).
-	var kb *memory.KnowledgeBase
+	// Build knowledge aggregator.
+	// Start with extra sources supplied by the caller (HTTP APIs, etc.).
+	agg := memory.NewAggregator()
+	for _, src := range opt.KnowledgeSources {
+		agg.AddSource(src)
+	}
+	// Always append the local embedding-based knowledge base when available.
 	if opt.DataDir != "" && embedder != nil {
 		knowledgeDir := filepath.Join(opt.DataDir, "knowledge")
 		os.MkdirAll(knowledgeDir, 0755)
-		kb = memory.LoadKnowledge(context.Background(), knowledgeDir, embedder, db)
+		kb := memory.LoadKnowledge(context.Background(), knowledgeDir, embedder, db)
+		agg.AddSource(memory.NewLocalKnowledgeAdapter(kb, embedder))
 	}
 
 	return &Agent{
-		router:        router,
-		registry:      registry,
-		embedder:      embedder,
-		db:            db,
-		knowledgeBase: kb,
-		sessionID:     generateSessionID(),
-		logger:        opt.Logger,
-		userKey:       opt.UserKey,
-		contextCfg:    opt.ContextCfg,
+		router:     router,
+		registry:   registry,
+		embedder:   embedder,
+		db:         db,
+		aggregator: agg,
+		sessionID:  generateSessionID(),
+		logger:     opt.Logger,
+		userKey:    opt.UserKey,
+		contextCfg: opt.ContextCfg,
 		messages: []llm.Message{
 			{Role: "system", Content: prompt},
 		},
@@ -268,13 +280,13 @@ func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name
 				}
 			}
 
-			// Search knowledge base
-			if a.knowledgeBase != nil {
-				kbResults := a.knowledgeBase.Search(vec, 2)
+			// Search all pluggable knowledge sources (local + HTTP) in parallel
+			if a.aggregator != nil && a.aggregator.Len() > 0 {
+				kbResults := a.aggregator.SearchAll(ctx, userInput, 3)
 				if len(kbResults) > 0 {
 					sb.WriteString("\n## 相关知识库\n")
 					for _, k := range kbResults {
-						sb.WriteString(fmt.Sprintf("**[%s]**\n%s\n\n", k.Source, k.Content))
+						sb.WriteString(fmt.Sprintf("**[%s]** %s\n%s\n\n", k.Source, k.Title, truncate(k.Content, 500)))
 					}
 				}
 			}
@@ -472,4 +484,13 @@ func formatConversation(messages []llm.Message) string {
 		}
 	}
 	return sb.String()
+}
+
+// truncate returns s truncated to at most maxLen runes, appending "…" when cut.
+func truncate(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen]) + "…"
 }
