@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xavierli/nethelper/internal/agent"
@@ -163,6 +164,48 @@ func newChannelStartCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Channels started: %d\nPress Ctrl+C to stop.\n", len(channels))
+
+			// Co-start heartbeat patrol alongside channels if configured.
+			if cfg.Heartbeat.Enabled {
+				hbCfg := cfg.Heartbeat
+				hbInterval, err := time.ParseDuration(hbCfg.Interval)
+				if err != nil || hbInterval < time.Minute {
+					log.Printf("[channel] invalid heartbeat interval %q, defaulting to 30m", hbCfg.Interval)
+					hbInterval = 30 * time.Minute
+				}
+				hbPrompt := hbCfg.Prompt
+				if hbPrompt == "" {
+					hbPrompt = defaultHeartbeatPrompt
+				}
+				hbNewAgentFn := func() *agent.Agent {
+					reg := agent.NewRegistry()
+					agent.RegisterNethelperTools(reg, db, pipeline)
+					return agent.New(llmRouter, reg, embedder, db, agent.AgentOptions{
+						Logger:     sessionLogger,
+						UserKey:    "heartbeat",
+						ContextCfg: cfg.Context,
+						DataDir:    cfg.DataDir,
+					})
+				}
+				var hbAlertFn agent.AlertFunc
+				if hbCfg.Channel != "" && hbCfg.ChatID != "" {
+					hbCh := createChannelByName(hbCfg.Channel)
+					if hbCh != nil {
+						go func() {
+							if startErr := hbCh.Start(ctx, nil); startErr != nil {
+								log.Printf("[heartbeat] channel %s start error: %v", hbCfg.Channel, startErr)
+							}
+						}()
+						time.Sleep(2 * time.Second)
+						chatID := hbCfg.ChatID
+						hbAlertFn = func(text string) error {
+							return hbCh.SendText(chatID, text)
+						}
+					}
+				}
+				go agent.RunHeartbeat(ctx, hbInterval, hbPrompt, hbNewAgentFn, sessionLogger, hbAlertFn)
+				fmt.Printf("Heartbeat patrol started (every %s)\n", hbInterval)
+			}
 
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

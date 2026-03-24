@@ -85,6 +85,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newMCPCmd())
 	root.AddCommand(newAgentCmd())
 	root.AddCommand(newChannelCmd())
+	root.AddCommand(newHeartbeatCmd())
 
 	return root
 }

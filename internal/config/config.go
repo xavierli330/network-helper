@@ -59,6 +59,15 @@ type ChannelsConfig struct {
 	QQ       QQChannelConfig       `yaml:"qq"`
 }
 
+// HeartbeatConfig controls the periodic network patrol scheduler.
+type HeartbeatConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Interval string `yaml:"interval"` // e.g. "30m", "1h"
+	Prompt   string `yaml:"prompt"`   // agent prompt for each check
+	Channel  string `yaml:"channel"`  // optional: "feishu", "discord", etc.
+	ChatID   string `yaml:"chat_id"`  // optional: where to push alerts
+}
+
 // ContextConfig controls how the agent compresses its message history.
 type ContextConfig struct {
 	// MaxTokenBudget is the total character budget for all messages (rough proxy
@@ -92,6 +101,7 @@ type Config struct {
 	Channels    ChannelsConfig    `yaml:"channels"`
 	Permissions PermissionsConfig `yaml:"permissions"`
 	Context     ContextConfig     `yaml:"context"`
+	Heartbeat   HeartbeatConfig   `yaml:"heartbeat"`
 }
 
 func DefaultDataDir() string {
