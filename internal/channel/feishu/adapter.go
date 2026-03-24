@@ -211,22 +211,22 @@ func (a *Adapter) updateCardKitCard(cardID, markdownText string, streaming bool)
 		},
 	}
 
-	// If finalizing (streaming=false), update settings to turn off streaming
+	// If finalizing (streaming=false), add settings update to turn off streaming + change header
 	if !streaming {
 		actions = append(actions, map[string]interface{}{
 			"action": "partial_update_setting",
 			"params": map[string]interface{}{
-				"config": map[string]interface{}{
-					"streaming_mode": false,
-				},
-			},
-		})
-		// Update header color to green (done)
-		actions = append(actions, map[string]interface{}{
-			"action": "partial_update_setting",
-			"params": map[string]interface{}{
-				"header": map[string]interface{}{
-					"template": "green",
+				"settings": map[string]interface{}{
+					"config": map[string]interface{}{
+						"streaming_mode": false,
+					},
+					"header": map[string]interface{}{
+						"template": "green",
+						"title": map[string]interface{}{
+							"tag":     "plain_text",
+							"content": "nethelper ✅",
+						},
+					},
 				},
 			},
 		})
