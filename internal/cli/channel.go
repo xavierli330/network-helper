@@ -58,6 +58,7 @@ func newChannelStartCmd() *cobra.Command {
 			router := channel.NewRouter(db, pipeline, llmRouter, embedder, perms, channel.RouterOptions{
 				SessionLogger: sessionLogger,
 				ContextCfg:    cfg.Context,
+				DataDir:       cfg.DataDir,
 			})
 
 			ctx, cancel := context.WithCancel(context.Background())

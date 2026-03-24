@@ -44,6 +44,7 @@ func newAgentChatCmd() *cobra.Command {
 				Logger:     sessionLogger,
 				UserKey:    "repl",
 				ContextCfg: cfg.Context,
+				DataDir:    cfg.DataDir,
 			})
 
 			// Run REPL

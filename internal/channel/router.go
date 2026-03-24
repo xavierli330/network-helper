@@ -29,6 +29,7 @@ type Router struct {
 	sessions      map[string]*userSession
 	sessionLogger *agent.SessionLogger
 	contextCfg    config.ContextConfig
+	dataDir       string
 }
 
 // userSession holds per-user state. mu serialises concurrent messages from the
@@ -55,6 +56,7 @@ func NewRouter(db *store.DB, pipeline *parser.Pipeline, llmRouter *llm.Router, e
 		sessions:      make(map[string]*userSession),
 		sessionLogger: opt.SessionLogger,
 		contextCfg:    opt.ContextCfg,
+		dataDir:       opt.DataDir,
 	}
 	go r.cleanupLoop()
 	return r
@@ -66,6 +68,9 @@ type RouterOptions struct {
 	SessionLogger *agent.SessionLogger
 	// ContextCfg controls agent context compression. Zero value uses agent defaults.
 	ContextCfg config.ContextConfig
+	// DataDir is the directory containing SOUL.md, IDENTITY.md and TOOLS.md.
+	// Passed through to each agent session so prompts can be customised on disk.
+	DataDir string
 }
 
 func (r *Router) Handle(ctx context.Context, msg InMessage) string {
@@ -95,6 +100,7 @@ func (r *Router) Handle(ctx context.Context, msg InMessage) string {
 			Logger:     r.sessionLogger,
 			UserKey:    userKey,
 			ContextCfg: r.contextCfg,
+			DataDir:    r.dataDir,
 		})
 		// Issue #3: restore conversation history so context survives restarts
 		ag.LoadConversation(userKey)
@@ -167,6 +173,7 @@ func (r *Router) HandleWithProgress(ctx context.Context, msg InMessage, onProgre
 			Logger:     r.sessionLogger,
 			UserKey:    userKey,
 			ContextCfg: r.contextCfg,
+			DataDir:    r.dataDir,
 		})
 		ag.LoadConversation(userKey)
 		sess = &userSession{agent: ag, group: group}
