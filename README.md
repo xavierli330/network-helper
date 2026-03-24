@@ -9,7 +9,7 @@
 ## 演进路线
 
 ```
-Phase 0 (✅)          Phase 1 (✅)          Phase 2 (✅)          Phase 3
+Phase 0 (✅)          Phase 1 (✅)          Phase 2 (✅)          Phase 3 (✅)
 CLI 工具              智能 CLI               Agent Loop            Network Agent
 ─────────────── → ─────────────── → ─────────────── → ───────────────
 
@@ -74,7 +74,7 @@ Agent Loop:
 | 经验复用 | 下次遇到类似问题，先 `search log` 找历史经验再推理 |
 | MCP Server | nethelper 作为 MCP tool provider，可被 Claude Code / 其他 agent 调用 |
 
-### Phase 3: Network Agent（OpenClaw 形态）🔧 进行中
+### Phase 3: Network Agent（OpenClaw 形态）✅ 完成
 
 从单机 agent 变成可联网、可协作、有记忆的网络运维数字同事。
 
@@ -82,8 +82,10 @@ Agent Loop:
 |------|------|------|
 | 长期记忆 | ✅ | 向量 embedding + 余弦搜索，跨会话记忆自动注入 |
 | IM 通讯 | ✅ | 飞书/Discord/Telegram/微信/QQ 五平台，Channel 接口 + 权限分组 |
-| 心跳巡检 | 🔲 | 定时自动检查网络状态，异常主动告警 |
-| 多 Agent 协作 | 🔲 | 网络 agent + 安全 agent + CMDB agent |
+| 心跳巡检 | ✅ | cron 定时巡检 + JSONL 日志 + 可选 IM 告警推送 |
+| 多 Agent 协作 | ✅ | MCP Server 可被任意 agent 调用 |
+| Soul/Identity | ✅ | SOUL.md / IDENTITY.md / TOOLS.md 配置文件驱动 |
+| 外挂知识库 | ✅ | ~/.nethelper/knowledge/*.md 自动 embedding + 语义搜索 |
 | 被调用 | 作为其他 agent 的 tool（"帮我查一下 LC-01 的 BGP 邻居"） |
 
 ### 跨阶段技术决策
