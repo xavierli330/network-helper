@@ -74,7 +74,8 @@
       "Bash(git -C /Users/xavierli/Life/projects/network-helper diff)",
       "WebFetch(domain:bytedance.larkoffice.com)",
       "WebFetch(domain:blog.csdn.net)",
-      "Bash(find ~/go/pkg/mod/github.com/larksuite/oapi-sdk-go/v3@* -path */cardkit* -name *.go)"
+      "Bash(find ~/go/pkg/mod/github.com/larksuite/oapi-sdk-go/v3@* -path */cardkit* -name *.go)",
+      "WebFetch(domain:open.feishu.cn)"
     ]
   },
   "enabledPlugins": {

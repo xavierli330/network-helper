@@ -6,20 +6,17 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync/atomic"
-	"time"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher"
-	larkcardkit "github.com/larksuite/oapi-sdk-go/v3/service/cardkit/v1"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	larkws "github.com/larksuite/oapi-sdk-go/v3/ws"
 
 	"github.com/xavierli/nethelper/internal/channel"
 )
 
-// Adapter implements channel.Channel and channel.StreamingChannel for Feishu (Lark).
+// Adapter implements channel.Channel and channel.StreamingChannel for Feishu.
 type Adapter struct {
 	appID     string
 	appSecret string
@@ -62,12 +59,11 @@ func (a *Adapter) Stop() error {
 	return nil
 }
 
-// ---------- Sending messages ----------
+// ---------- Sending ----------
 
-// SendText sends a plain text or card message depending on content.
 func (a *Adapter) SendText(chatID, text string) error {
 	if containsMarkdown(text) {
-		return a.sendCardViaCardKit(chatID, text)
+		return a.sendCard(chatID, text, "green")
 	}
 	return a.sendPlainText(chatID, text)
 }
@@ -86,99 +82,15 @@ func (a *Adapter) sendPlainText(chatID, text string) error {
 	return err
 }
 
-// sendCardViaCardKit creates a CardKit card, then sends it as a share_card message.
-func (a *Adapter) sendCardViaCardKit(chatID, markdownText string) error {
-	cardID, err := a.createCardKitCard(markdownText, false)
-	if err != nil {
-		// Fallback to plain text
-		return a.sendPlainText(chatID, markdownText)
-	}
-	return a.sendCardByID(chatID, cardID)
+// sendCard sends an inline interactive card and returns the message_id.
+func (a *Adapter) sendCard(chatID, markdownText, headerColor string) error {
+	_, err := a.sendCardGetID(chatID, markdownText, headerColor)
+	return err
 }
 
-// ---------- StreamingChannel interface ----------
-
-// SendInitCard creates a streaming CardKit card with "thinking" text, sends it, and returns the card_id.
-func (a *Adapter) SendInitCard(chatID, text string) (string, error) {
-	// Create a streaming-mode card
-	cardID, err := a.createCardKitCard(text, true)
-	if err != nil {
-		return "", fmt.Errorf("create cardkit card: %w", err)
-	}
-
-	// Send card to chat
-	if err := a.sendCardByID(chatID, cardID); err != nil {
-		return "", fmt.Errorf("send card: %w", err)
-	}
-
-	return cardID, nil
-}
-
-// UpdateCard updates an existing CardKit card with new Markdown content.
-// cardID is the card_id returned by SendInitCard (NOT message_id).
-func (a *Adapter) UpdateCard(chatID, cardID, text string) error {
-	return a.updateCardKitCard(cardID, text, true)
-}
-
-// FinalizeCard sends the final update and turns off streaming mode.
-func (a *Adapter) FinalizeCard(cardID, text string) error {
-	return a.updateCardKitCard(cardID, text, false)
-}
-
-// ---------- CardKit operations ----------
-
-var cardSeq int64 // global sequence counter for batch updates
-
-// createCardKitCard creates a card via CardKit API and returns card_id.
-func (a *Adapter) createCardKitCard(markdownText string, streaming bool) (string, error) {
-	cardData := map[string]interface{}{
-		"config": map[string]interface{}{
-			"streaming_mode": streaming,
-		},
-		"header": map[string]interface{}{
-			"title": map[string]interface{}{
-				"tag":     "plain_text",
-				"content": "nethelper",
-			},
-			"template": "blue",
-		},
-		"body": map[string]interface{}{
-			"tag": "div",
-			"elements": []interface{}{
-				map[string]interface{}{
-					"tag":        "markdown",
-					"content":    markdownText,
-					"element_id": "md_content",
-				},
-			},
-		},
-	}
-
-	dataJSON, _ := json.Marshal(cardData)
-
-	req := larkcardkit.NewCreateCardReqBuilder().
-		Body(larkcardkit.NewCreateCardReqBodyBuilder().
-			Type("card_json").
-			Data(string(dataJSON)).
-			Build()).
-		Build()
-
-	resp, err := a.client.Cardkit.V1.Card.Create(a.ctx, req)
-	if err != nil {
-		return "", err
-	}
-	if !resp.Success() {
-		return "", fmt.Errorf("cardkit create failed: code=%d msg=%s", resp.Code, resp.Msg)
-	}
-	if resp.Data == nil || resp.Data.CardId == nil {
-		return "", fmt.Errorf("cardkit create: no card_id")
-	}
-	return *resp.Data.CardId, nil
-}
-
-// sendCardByID sends a card message referencing an existing card_id.
-func (a *Adapter) sendCardByID(chatID, cardID string) error {
-	content, _ := json.Marshal(map[string]string{"type": "card_id", "data": cardID})
+func (a *Adapter) sendCardGetID(chatID, markdownText, headerColor string) (string, error) {
+	card := buildCardJSON(markdownText, headerColor)
+	content, _ := json.Marshal(card)
 
 	req := larkim.NewCreateMessageReqBuilder().
 		ReceiveIdType(larkim.ReceiveIdTypeChatId).
@@ -188,69 +100,84 @@ func (a *Adapter) sendCardByID(chatID, cardID string) error {
 			Content(string(content)).
 			Build()).
 		Build()
-	_, err := a.client.Im.Message.Create(a.ctx, req)
-	return err
+
+	resp, err := a.client.Im.Message.Create(a.ctx, req)
+	if err != nil {
+		return "", err
+	}
+	if resp != nil && resp.Data != nil && resp.Data.MessageId != nil {
+		return *resp.Data.MessageId, nil
+	}
+	return "", fmt.Errorf("no message_id in response")
 }
 
-// updateCardKitCard updates card content via BatchUpdate.
-func (a *Adapter) updateCardKitCard(cardID, markdownText string, streaming bool) error {
-	seq := atomic.AddInt64(&cardSeq, 1)
+// ---------- StreamingChannel interface ----------
 
-	// Build actions: update the markdown element + optionally toggle streaming
-	actions := []map[string]interface{}{
-		{
-			"action": "update_element",
-			"params": map[string]interface{}{
-				"element_id": "md_content",
-				"element": map[string]interface{}{
-					"tag":        "markdown",
-					"content":    markdownText,
-					"element_id": "md_content",
-				},
-			},
-		},
-	}
+// SendInitCard sends a "thinking" card and returns the message_id.
+func (a *Adapter) SendInitCard(chatID, text string) (string, error) {
+	return a.sendCardGetID(chatID, text, "blue")
+}
 
-	// If finalizing (streaming=false), add settings update to turn off streaming + change header
-	if !streaming {
-		actions = append(actions, map[string]interface{}{
-			"action": "partial_update_setting",
-			"params": map[string]interface{}{
-				"settings": map[string]interface{}{
-					"config": map[string]interface{}{
-						"streaming_mode": false,
-					},
-					"header": map[string]interface{}{
-						"template": "green",
-						"title": map[string]interface{}{
-							"tag":     "plain_text",
-							"content": "nethelper ✅",
-						},
-					},
-				},
-			},
-		})
-	}
+// UpdateCard patches an existing card message with new content.
+func (a *Adapter) UpdateCard(chatID, messageID, text string) error {
+	card := buildCardJSON(text, "blue")
+	content, _ := json.Marshal(card)
 
-	actionsJSON, _ := json.Marshal(actions)
-
-	req := larkcardkit.NewBatchUpdateCardReqBuilder().
-		CardId(cardID).
-		Body(larkcardkit.NewBatchUpdateCardReqBodyBuilder().
-			Sequence(int(seq)).
-			Actions(string(actionsJSON)).
-			Uuid(fmt.Sprintf("%s-%d", cardID, seq)).
+	req := larkim.NewPatchMessageReqBuilder().
+		MessageId(messageID).
+		Body(larkim.NewPatchMessageReqBodyBuilder().
+			Content(string(content)).
 			Build()).
 		Build()
 
-	resp, err := a.client.Cardkit.V1.Card.BatchUpdate(a.ctx, req)
-	if err != nil {
-		return err
+	_, err := a.client.Im.Message.Patch(a.ctx, req)
+	return err
+}
+
+// FinalizeCard patches the card with final content and green header.
+func (a *Adapter) FinalizeCard(messageID, text string) error {
+	card := buildCardJSON(text, "green")
+	content, _ := json.Marshal(card)
+
+	req := larkim.NewPatchMessageReqBuilder().
+		MessageId(messageID).
+		Body(larkim.NewPatchMessageReqBodyBuilder().
+			Content(string(content)).
+			Build()).
+		Build()
+
+	_, err := a.client.Im.Message.Patch(a.ctx, req)
+	return err
+}
+
+// ---------- Card JSON builder ----------
+
+func buildCardJSON(markdownText, headerColor string) map[string]interface{} {
+	headerTitle := "nethelper"
+	if headerColor == "blue" {
+		headerTitle = "nethelper ⏳"
+	} else if headerColor == "green" {
+		headerTitle = "nethelper ✅"
 	}
-	if !resp.Success() {
-		return fmt.Errorf("cardkit batch_update failed: code=%d msg=%s", resp.Code, resp.Msg)
+
+	return map[string]interface{}{
+		"config": map[string]interface{}{
+			"wide_screen_mode": true,
+		},
+		"header": map[string]interface{}{
+			"title": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": headerTitle,
+			},
+			"template": headerColor,
+		},
+		"elements": []interface{}{
+			map[string]interface{}{
+				"tag":     "markdown",
+				"content": markdownText,
+			},
+		},
 	}
-	return nil
 }
 
 // ---------- Markdown detection ----------
@@ -286,7 +213,6 @@ func (a *Adapter) onMessage(ctx context.Context, event *larkim.P2MessageReceiveV
 
 	rawContent := derefStr(msg.Content)
 	text := extractText(rawContent)
-
 	chatID := derefStr(msg.ChatId)
 	chatType := derefStr(msg.ChatType)
 	isGroup := chatType == "group" || chatType == "topic_group"
@@ -357,6 +283,3 @@ func derefStr(s *string) string {
 	}
 	return *s
 }
-
-// Ensure Adapter is unused import safe
-var _ = time.Now
