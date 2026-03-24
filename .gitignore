@@ -1,2 +1,9 @@
 .superpowers/
 .claude/worktrees/
+.claude/settings.local.json
+*.db
+*.log
+nethelper
+!cmd/nethelper/
+dist/
+build/
