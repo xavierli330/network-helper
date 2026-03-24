@@ -33,13 +33,15 @@ type Channel interface {
 	SendText(chatID string, text string) error
 }
 
-// StreamingChannel extends Channel with message update capability.
+// StreamingChannel extends Channel with card create/update/finalize capability.
 // Channels that support this can show real-time progress by sending an initial
 // "thinking" card and patching it as the agent calls tools.
 type StreamingChannel interface {
 	Channel
-	// SendInitCard sends an initial "thinking" card and returns its message ID.
-	SendInitCard(chatID string, text string) (messageID string, err error)
-	// UpdateCard updates an existing card message with new content.
-	UpdateCard(chatID string, messageID string, text string) error
+	// SendInitCard creates a streaming card and returns its ID (card_id, not message_id).
+	SendInitCard(chatID string, text string) (cardID string, err error)
+	// UpdateCard updates card content while keeping streaming mode active.
+	UpdateCard(chatID string, cardID string, text string) error
+	// FinalizeCard sends the final update, turns off streaming mode, and marks the card as done.
+	FinalizeCard(cardID string, text string) error
 }

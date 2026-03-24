@@ -6,18 +6,20 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher"
+	larkcardkit "github.com/larksuite/oapi-sdk-go/v3/service/cardkit/v1"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	larkws "github.com/larksuite/oapi-sdk-go/v3/ws"
 
 	"github.com/xavierli/nethelper/internal/channel"
 )
 
-// Adapter implements channel.Channel for Feishu (Lark) via WebSocket long-connection.
-// No public IP is required — it uses Feishu's persistent WebSocket endpoint.
+// Adapter implements channel.Channel and channel.StreamingChannel for Feishu (Lark).
 type Adapter struct {
 	appID     string
 	appSecret string
@@ -28,7 +30,6 @@ type Adapter struct {
 	cancel    context.CancelFunc
 }
 
-// New creates a new Feishu adapter with the given app credentials.
 func New(appID, appSecret string) *Adapter {
 	return &Adapter{
 		appID:     appID,
@@ -37,11 +38,8 @@ func New(appID, appSecret string) *Adapter {
 	}
 }
 
-// Name returns the channel name.
 func (a *Adapter) Name() string { return "feishu" }
 
-// Start connects to Feishu via WebSocket and begins processing messages.
-// It blocks until the context is cancelled or a fatal error occurs.
 func (a *Adapter) Start(ctx context.Context, handler channel.MessageHandler) error {
 	a.handler = handler
 	a.ctx, a.cancel = context.WithCancel(ctx)
@@ -57,7 +55,6 @@ func (a *Adapter) Start(ctx context.Context, handler channel.MessageHandler) err
 	return a.wsClient.Start(a.ctx)
 }
 
-// Stop cancels the context, which causes the WebSocket connection to close.
 func (a *Adapter) Stop() error {
 	if a.cancel != nil {
 		a.cancel()
@@ -65,22 +62,18 @@ func (a *Adapter) Stop() error {
 	return nil
 }
 
-// SendText sends a message to the given chat_id. If the text contains Markdown
-// indicators it is sent as an interactive card (which Feishu renders with full
-// Markdown support); otherwise it is sent as a plain-text message.
+// ---------- Sending messages ----------
+
+// SendText sends a plain text or card message depending on content.
 func (a *Adapter) SendText(chatID, text string) error {
 	if containsMarkdown(text) {
-		return a.sendCard(chatID, text)
+		return a.sendCardViaCardKit(chatID, text)
 	}
 	return a.sendPlainText(chatID, text)
 }
 
-// sendPlainText sends a plain text message.
 func (a *Adapter) sendPlainText(chatID, text string) error {
-	content, err := json.Marshal(map[string]string{"text": text})
-	if err != nil {
-		return err
-	}
+	content, _ := json.Marshal(map[string]string{"text": text})
 	req := larkim.NewCreateMessageReqBuilder().
 		ReceiveIdType(larkim.ReceiveIdTypeChatId).
 		Body(larkim.NewCreateMessageReqBodyBuilder().
@@ -89,41 +82,104 @@ func (a *Adapter) sendPlainText(chatID, text string) error {
 			Content(string(content)).
 			Build()).
 		Build()
-	_, err = a.client.Im.Message.Create(a.ctx, req)
+	_, err := a.client.Im.Message.Create(a.ctx, req)
 	return err
 }
 
-// sendCard sends an interactive card message whose single element renders the
-// provided Markdown text.  Feishu cards support headers, bold, code blocks,
-// tables, and emoji — a superset of what plain-text messages can show.
-func (a *Adapter) sendCard(chatID, markdownText string) error {
-	_, err := a.SendInitCard(chatID, markdownText)
-	return err
+// sendCardViaCardKit creates a CardKit card, then sends it as a share_card message.
+func (a *Adapter) sendCardViaCardKit(chatID, markdownText string) error {
+	cardID, err := a.createCardKitCard(markdownText, false)
+	if err != nil {
+		// Fallback to plain text
+		return a.sendPlainText(chatID, markdownText)
+	}
+	return a.sendCardByID(chatID, cardID)
 }
 
-// buildCard creates the interactive card JSON with Markdown content.
-func buildCard(markdownText string) map[string]interface{} {
-	return map[string]interface{}{
+// ---------- StreamingChannel interface ----------
+
+// SendInitCard creates a streaming CardKit card with "thinking" text, sends it, and returns the card_id.
+func (a *Adapter) SendInitCard(chatID, text string) (string, error) {
+	// Create a streaming-mode card
+	cardID, err := a.createCardKitCard(text, true)
+	if err != nil {
+		return "", fmt.Errorf("create cardkit card: %w", err)
+	}
+
+	// Send card to chat
+	if err := a.sendCardByID(chatID, cardID); err != nil {
+		return "", fmt.Errorf("send card: %w", err)
+	}
+
+	return cardID, nil
+}
+
+// UpdateCard updates an existing CardKit card with new Markdown content.
+// cardID is the card_id returned by SendInitCard (NOT message_id).
+func (a *Adapter) UpdateCard(chatID, cardID, text string) error {
+	return a.updateCardKitCard(cardID, text, true)
+}
+
+// FinalizeCard sends the final update and turns off streaming mode.
+func (a *Adapter) FinalizeCard(cardID, text string) error {
+	return a.updateCardKitCard(cardID, text, false)
+}
+
+// ---------- CardKit operations ----------
+
+var cardSeq int64 // global sequence counter for batch updates
+
+// createCardKitCard creates a card via CardKit API and returns card_id.
+func (a *Adapter) createCardKitCard(markdownText string, streaming bool) (string, error) {
+	cardData := map[string]interface{}{
 		"config": map[string]interface{}{
-			"wide_screen_mode": true,
+			"streaming_mode": streaming,
 		},
-		"elements": []interface{}{
-			map[string]interface{}{
-				"tag":     "markdown",
-				"content": markdownText,
+		"header": map[string]interface{}{
+			"title": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": "nethelper",
+			},
+			"template": "blue",
+		},
+		"body": map[string]interface{}{
+			"tag": "div",
+			"elements": []interface{}{
+				map[string]interface{}{
+					"tag":        "markdown",
+					"content":    markdownText,
+					"element_id": "md_content",
+				},
 			},
 		},
 	}
-}
 
-// SendInitCard sends an interactive card message and returns the message ID.
-// This satisfies the channel.StreamingChannel interface.
-func (a *Adapter) SendInitCard(chatID, text string) (string, error) {
-	card := buildCard(text)
-	content, err := json.Marshal(card)
+	dataJSON, _ := json.Marshal(cardData)
+
+	req := larkcardkit.NewCreateCardReqBuilder().
+		Body(larkcardkit.NewCreateCardReqBodyBuilder().
+			Type("card_json").
+			Data(string(dataJSON)).
+			Build()).
+		Build()
+
+	resp, err := a.client.Cardkit.V1.Card.Create(a.ctx, req)
 	if err != nil {
 		return "", err
 	}
+	if !resp.Success() {
+		return "", fmt.Errorf("cardkit create failed: code=%d msg=%s", resp.Code, resp.Msg)
+	}
+	if resp.Data == nil || resp.Data.CardId == nil {
+		return "", fmt.Errorf("cardkit create: no card_id")
+	}
+	return *resp.Data.CardId, nil
+}
+
+// sendCardByID sends a card message referencing an existing card_id.
+func (a *Adapter) sendCardByID(chatID, cardID string) error {
+	content, _ := json.Marshal(map[string]string{"type": "card_id", "data": cardID})
+
 	req := larkim.NewCreateMessageReqBuilder().
 		ReceiveIdType(larkim.ReceiveIdTypeChatId).
 		Body(larkim.NewCreateMessageReqBodyBuilder().
@@ -132,36 +188,73 @@ func (a *Adapter) SendInitCard(chatID, text string) (string, error) {
 			Content(string(content)).
 			Build()).
 		Build()
-	resp, err := a.client.Im.Message.Create(a.ctx, req)
-	if err != nil {
-		return "", err
-	}
-	if resp != nil && resp.Data != nil && resp.Data.MessageId != nil {
-		return *resp.Data.MessageId, nil
-	}
-	return "", fmt.Errorf("feishu: no message_id in create response")
-}
-
-// UpdateCard patches an existing card message with new Markdown content.
-// This satisfies the channel.StreamingChannel interface.
-func (a *Adapter) UpdateCard(chatID, messageID, text string) error {
-	card := buildCard(text)
-	content, err := json.Marshal(card)
-	if err != nil {
-		return err
-	}
-	req := larkim.NewPatchMessageReqBuilder().
-		MessageId(messageID).
-		Body(larkim.NewPatchMessageReqBodyBuilder().
-			Content(string(content)).
-			Build()).
-		Build()
-	_, err = a.client.Im.Message.Patch(a.ctx, req)
+	_, err := a.client.Im.Message.Create(a.ctx, req)
 	return err
 }
 
-// containsMarkdown reports whether text contains common Markdown formatting
-// indicators that Feishu can render inside an interactive card element.
+// updateCardKitCard updates card content via BatchUpdate.
+func (a *Adapter) updateCardKitCard(cardID, markdownText string, streaming bool) error {
+	seq := atomic.AddInt64(&cardSeq, 1)
+
+	// Build actions: update the markdown element + optionally toggle streaming
+	actions := []map[string]interface{}{
+		{
+			"action": "update_element",
+			"params": map[string]interface{}{
+				"element_id": "md_content",
+				"element": map[string]interface{}{
+					"tag":        "markdown",
+					"content":    markdownText,
+					"element_id": "md_content",
+				},
+			},
+		},
+	}
+
+	// If finalizing (streaming=false), update settings to turn off streaming
+	if !streaming {
+		actions = append(actions, map[string]interface{}{
+			"action": "partial_update_setting",
+			"params": map[string]interface{}{
+				"config": map[string]interface{}{
+					"streaming_mode": false,
+				},
+			},
+		})
+		// Update header color to green (done)
+		actions = append(actions, map[string]interface{}{
+			"action": "partial_update_setting",
+			"params": map[string]interface{}{
+				"header": map[string]interface{}{
+					"template": "green",
+				},
+			},
+		})
+	}
+
+	actionsJSON, _ := json.Marshal(actions)
+
+	req := larkcardkit.NewBatchUpdateCardReqBuilder().
+		CardId(cardID).
+		Body(larkcardkit.NewBatchUpdateCardReqBodyBuilder().
+			Sequence(int(seq)).
+			Actions(string(actionsJSON)).
+			Uuid(fmt.Sprintf("%s-%d", cardID, seq)).
+			Build()).
+		Build()
+
+	resp, err := a.client.Cardkit.V1.Card.BatchUpdate(a.ctx, req)
+	if err != nil {
+		return err
+	}
+	if !resp.Success() {
+		return fmt.Errorf("cardkit batch_update failed: code=%d msg=%s", resp.Code, resp.Msg)
+	}
+	return nil
+}
+
+// ---------- Markdown detection ----------
+
 func containsMarkdown(text string) bool {
 	indicators := []string{"# ", "**", "```", "| ", "- [", "- ✅", "- ⚠️", "## "}
 	for _, ind := range indicators {
@@ -172,70 +265,54 @@ func containsMarkdown(text string) bool {
 	return false
 }
 
-// onMessage is the event handler for im.message.receive_v1.
+// ---------- Message reception ----------
+
 func (a *Adapter) onMessage(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
 	if event == nil || event.Event == nil {
 		return nil
 	}
 
 	ev := event.Event
-
-	// --- Extract message fields ---
 	msg := ev.Message
 	if msg == nil {
 		return nil
 	}
 
-	// Only handle text messages.
 	msgType := derefStr(msg.MessageType)
 	if msgType != larkim.MsgTypeText {
 		log.Printf("[feishu] ignoring non-text message type: %s", msgType)
 		return nil
 	}
 
-	// Parse JSON content: {"text": "..."}
 	rawContent := derefStr(msg.Content)
 	text := extractText(rawContent)
 
 	chatID := derefStr(msg.ChatId)
-	chatType := derefStr(msg.ChatType) // "p2p" or "group"
+	chatType := derefStr(msg.ChatType)
 	isGroup := chatType == "group" || chatType == "topic_group"
 
-	// --- Extract sender open_id ---
 	var userID string
 	if ev.Sender != nil && ev.Sender.SenderId != nil {
 		userID = derefStr(ev.Sender.SenderId.OpenId)
 	}
 
-	// --- Detect @mentions ---
 	mentionedBot := false
 	if isGroup {
 		for _, m := range msg.Mentions {
 			if m == nil {
 				continue
 			}
-			// The bot mention key is typically "@_user_1" but we check if any
-			// mention's sender_type is "app" or name matches the bot name.
-			// In practice, Feishu sets the mention key to "@_user_N". We check
-			// whether the mentioned entity is an app by looking for a non-empty
-			// Key field and no open_id (bots don't have open_ids).
 			key := derefStr(m.Key)
 			if strings.HasPrefix(key, "@_") {
-				// Any @mention in the content — include them all.
-				// The router will receive this and decide based on MentionedBot.
 				mentionedBot = true
 				break
 			}
 		}
 	} else {
-		// In P2P (direct message), always treat as mentioned.
 		mentionedBot = true
 	}
 
-	// Strip @mentions from the text so the LLM gets clean input.
 	cleanText := stripMentions(text)
-
-	// Determine reply-to message ID for threading context.
 	replyTo := derefStr(msg.ParentId)
 
 	inMsg := channel.InMessage{
@@ -254,8 +331,6 @@ func (a *Adapter) onMessage(ctx context.Context, event *larkim.P2MessageReceiveV
 	return nil
 }
 
-// extractText parses the Feishu text message JSON content.
-// Text messages have the form: {"text": "hello @bot"}
 func extractText(raw string) string {
 	var m map[string]string
 	if err := json.Unmarshal([]byte(raw), &m); err != nil {
@@ -264,9 +339,6 @@ func extractText(raw string) string {
 	return m["text"]
 }
 
-// stripMentions removes @mention tokens (e.g. "@someone ") from message text.
-// Feishu includes literal "@name " strings in text content alongside the
-// Mentions array; we strip them so the LLM sees clean user input.
 func stripMentions(text string) string {
 	parts := strings.Fields(text)
 	var clean []string
@@ -276,15 +348,15 @@ func stripMentions(text string) string {
 		}
 		clean = append(clean, p)
 	}
-	result := strings.Join(clean, " ")
-	result = strings.TrimSpace(result)
-	return result
+	return strings.TrimSpace(strings.Join(clean, " "))
 }
 
-// derefStr safely dereferences a *string, returning "" for nil.
 func derefStr(s *string) string {
 	if s == nil {
 		return ""
 	}
 	return *s
 }
+
+// Ensure Adapter is unused import safe
+var _ = time.Now

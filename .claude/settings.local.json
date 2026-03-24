@@ -71,7 +71,10 @@
       "Bash(kill -0 6259)",
       "WebFetch(domain:docs.nexu.io)",
       "Bash(git -C /Users/xavierli/Life/projects/network-helper status)",
-      "Bash(git -C /Users/xavierli/Life/projects/network-helper diff)"
+      "Bash(git -C /Users/xavierli/Life/projects/network-helper diff)",
+      "WebFetch(domain:bytedance.larkoffice.com)",
+      "WebFetch(domain:blog.csdn.net)",
+      "Bash(find ~/go/pkg/mod/github.com/larksuite/oapi-sdk-go/v3@* -path */cardkit* -name *.go)"
     ]
   },
   "enabledPlugins": {

@@ -139,10 +139,10 @@ func newChannelStartCmd() *cobra.Command {
 								}
 							})
 
-							// Final update with the complete response.
+							// Final update — turn off streaming, mark done (header → green).
 							if response != "" {
-								if uErr := sc.UpdateCard(msg.ChatID, msgID, response); uErr != nil {
-									log.Printf("[channel/%s] final card update error: %v", c.Name(), uErr)
+								if uErr := sc.FinalizeCard(msgID, response); uErr != nil {
+									log.Printf("[channel/%s] finalize card error: %v", c.Name(), uErr)
 								}
 							}
 						} else {
