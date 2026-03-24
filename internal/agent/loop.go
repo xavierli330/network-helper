@@ -103,6 +103,7 @@ func EnsureDefaultFiles(dataDir string) {
 	writeIfNotExist(filepath.Join(dataDir, "SOUL.md"), defaultSoul)
 	writeIfNotExist(filepath.Join(dataDir, "IDENTITY.md"), defaultIdentity)
 	writeIfNotExist(filepath.Join(dataDir, "TOOLS.md"), defaultTools)
+	os.MkdirAll(filepath.Join(dataDir, "knowledge"), 0755)
 }
 
 // LoadSystemPrompt reads SOUL.md, IDENTITY.md and TOOLS.md from dataDir and
@@ -139,6 +140,7 @@ type Agent struct {
 	registry       *Registry
 	embedder       llm.Embedder // optional: nil disables memory features
 	db             *store.DB    // optional: nil disables memory features
+	knowledgeBase  *memory.KnowledgeBase
 	messages       []llm.Message
 	sessionID      string
 	memoryInjected bool // Issue #4: inject memory only once per session
@@ -170,15 +172,24 @@ func New(router *llm.Router, registry *Registry, embedder llm.Embedder, db *stor
 		prompt = LoadSystemPrompt(opt.DataDir)
 	}
 
+	// Load external knowledge base from ~/.nethelper/knowledge/*.md (best-effort).
+	var kb *memory.KnowledgeBase
+	if opt.DataDir != "" && embedder != nil {
+		knowledgeDir := filepath.Join(opt.DataDir, "knowledge")
+		os.MkdirAll(knowledgeDir, 0755)
+		kb = memory.LoadKnowledge(context.Background(), knowledgeDir, embedder, db)
+	}
+
 	return &Agent{
-		router:     router,
-		registry:   registry,
-		embedder:   embedder,
-		db:         db,
-		sessionID:  generateSessionID(),
-		logger:     opt.Logger,
-		userKey:    opt.UserKey,
-		contextCfg: opt.ContextCfg,
+		router:        router,
+		registry:      registry,
+		embedder:      embedder,
+		db:            db,
+		knowledgeBase: kb,
+		sessionID:     generateSessionID(),
+		logger:        opt.Logger,
+		userKey:       opt.UserKey,
+		contextCfg:    opt.ContextCfg,
 		messages: []llm.Message{
 			{Role: "system", Content: prompt},
 		},
@@ -238,19 +249,37 @@ func (a *Agent) Chat(ctx context.Context, userInput string, onToolCall func(name
 	})
 
 	// Issue #4: inject relevant memories only once per session (not every message)
-	if !a.memoryInjected && a.embedder != nil && a.db != nil {
+	if !a.memoryInjected && a.embedder != nil {
 		a.memoryInjected = true
 		embedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		vec, err := a.embedder.Embed(embedCtx, userInput)
 		cancel()
 		if err == nil {
-			memories, _ := memory.Search(a.db, vec, 3)
-			if len(memories) > 0 {
-				var sb strings.Builder
-				sb.WriteString("## 相关历史记忆\n")
-				for _, m := range memories {
-					sb.WriteString(fmt.Sprintf("- [%s] %s\n", m.CreatedAt.Format("2006-01-02"), m.Content))
+			var sb strings.Builder
+
+			// Search conversation memory
+			if a.db != nil {
+				memories, _ := memory.Search(a.db, vec, 3)
+				if len(memories) > 0 {
+					sb.WriteString("## 相关历史记忆\n")
+					for _, m := range memories {
+						sb.WriteString(fmt.Sprintf("- [%s] %s\n", m.CreatedAt.Format("2006-01-02"), m.Content))
+					}
 				}
+			}
+
+			// Search knowledge base
+			if a.knowledgeBase != nil {
+				kbResults := a.knowledgeBase.Search(vec, 2)
+				if len(kbResults) > 0 {
+					sb.WriteString("\n## 相关知识库\n")
+					for _, k := range kbResults {
+						sb.WriteString(fmt.Sprintf("**[%s]**\n%s\n\n", k.Source, k.Content))
+					}
+				}
+			}
+
+			if sb.Len() > 0 {
 				a.messages = append(a.messages, llm.Message{Role: "system", Content: sb.String()})
 				a.logger.Log(a.userKey, SessionEvent{
 					Type:    "memory",

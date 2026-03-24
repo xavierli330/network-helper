@@ -322,4 +322,15 @@ var migrations = []string{
 		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`,
 	`CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_key)`,
+
+	// Knowledge base cache: stores embeddings for local .md knowledge files.
+	`CREATE TABLE IF NOT EXISTS knowledge_cache (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		file_path TEXT NOT NULL,
+		file_hash TEXT NOT NULL,
+		content TEXT NOT NULL,
+		embedding BLOB,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_knowledge_file ON knowledge_cache(file_path, file_hash)`,
 }
