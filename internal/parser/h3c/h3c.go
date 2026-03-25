@@ -83,3 +83,11 @@ func inferInterfaceType(name string) model.InterfaceType {
 	default: return model.IfTypePhysical
 	}
 }
+
+// SupportedCmdTypes returns all CommandType values handled by the H3C parser.
+// Stub — real schema added in Tasks 3–4.
+func (p *Parser) SupportedCmdTypes() []model.CommandType { return nil }
+
+// FieldSchema returns field definitions for the given CommandType.
+// Stub — real schema added in Tasks 3–4.
+func (p *Parser) FieldSchema(model.CommandType) []model.FieldDef { return nil }

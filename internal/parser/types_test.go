@@ -12,6 +12,8 @@ func (m *mockParser) ClassifyCommand(cmd string) model.CommandType { return mode
 func (m *mockParser) ParseOutput(cmdType model.CommandType, raw string) (model.ParseResult, error) {
 	return model.ParseResult{}, nil
 }
+func (m *mockParser) SupportedCmdTypes() []model.CommandType { return nil }
+func (m *mockParser) FieldSchema(model.CommandType) []FieldDef { return nil }
 
 func TestRegisterAndGetParser(t *testing.T) {
 	r := NewRegistry()

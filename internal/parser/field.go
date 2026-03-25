@@ -1,21 +1,17 @@
 package parser
 
-// FieldType is the set of legal field value kinds.
-type FieldType string
+import "github.com/xavierli/nethelper/internal/model"
 
+// FieldType and FieldDef are defined in internal/model and re-exported here
+// as type aliases so that existing parser-package references compile unchanged.
+type FieldType = model.FieldType
+type FieldDef = model.FieldDef
+
+// Re-export the FieldType constants so callers using parser.FieldTypeString etc.
+// continue to work.
 const (
-	FieldTypeString FieldType = "string"
-	FieldTypeInt    FieldType = "int"
-	FieldTypeFloat  FieldType = "float"
-	FieldTypeBool   FieldType = "bool"
+	FieldTypeString = model.FieldTypeString
+	FieldTypeInt    = model.FieldTypeInt
+	FieldTypeFloat  = model.FieldTypeFloat
+	FieldTypeBool   = model.FieldTypeBool
 )
-
-// FieldDef describes one output field produced by a parsed command.
-type FieldDef struct {
-	Name        string    // snake_case identifier, e.g. "phy_status"
-	Type        FieldType // one of the FieldType constants
-	Description string    // human-readable description
-	Example     string    // representative value, e.g. "up"
-	Derived     bool      // true if computed from other fields
-	DerivedFrom []string  // source field names; non-nil only when Derived is true
-}
