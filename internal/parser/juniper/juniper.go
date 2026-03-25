@@ -65,9 +65,53 @@ func inferInterfaceType(name string) model.InterfaceType {
 }
 
 // SupportedCmdTypes returns all CommandType values handled by the Juniper parser.
-// Stub — real schema added in Tasks 3–4.
-func (p *Parser) SupportedCmdTypes() []model.CommandType { return nil }
+func (p *Parser) SupportedCmdTypes() []model.CommandType {
+	base := []model.CommandType{
+		model.CmdInterface,
+		model.CmdNeighbor,
+		model.CmdRIB,
+		model.CmdLFIB,
+		model.CmdTunnel,
+		model.CmdConfig,
+		model.CmdConfigSet,
+		// CmdFIB: not classified by Juniper parser
+		// CmdSRMapping: not classified by Juniper parser
+	}
+	return append(base, generatedCmdTypes()...)
+}
 
 // FieldSchema returns field definitions for the given CommandType.
-// Stub — real schema added in Tasks 3–4.
-func (p *Parser) FieldSchema(_ model.CommandType) []model.FieldDef { return nil }
+func (p *Parser) FieldSchema(cmdType model.CommandType) []model.FieldDef {
+	switch cmdType {
+	case model.CmdInterface:
+		return []model.FieldDef{
+			{Name: "name",       Type: model.FieldTypeString, Description: "Interface name", Example: "ge-0/0/0.0"},
+			{Name: "status",     Type: model.FieldTypeString, Description: "Link status (up/down/admin-down)", Example: "up"},
+			{Name: "ip_address", Type: model.FieldTypeString, Description: "IPv4 address (inet)", Example: "10.0.0.1"},
+		}
+	case model.CmdNeighbor:
+		return []model.FieldDef{
+			{Name: "protocol",        Type: model.FieldTypeString, Description: "Routing protocol", Example: "ospf"},
+			{Name: "remote_address",  Type: model.FieldTypeString, Description: "Neighbor IP address", Example: "10.0.0.2"},
+			{Name: "local_interface", Type: model.FieldTypeString, Description: "Local interface toward neighbor", Example: "ge-0/0/0.0"},
+			{Name: "state",           Type: model.FieldTypeString, Description: "Neighbor state", Example: "full"},
+			{Name: "remote_id",       Type: model.FieldTypeString, Description: "Neighbor router-ID", Example: "10.0.0.2"},
+		}
+	case model.CmdRIB:
+		return []model.FieldDef{
+			{Name: "prefix",             Type: model.FieldTypeString, Description: "Route prefix", Example: "10.0.0.0"},
+			{Name: "mask_len",           Type: model.FieldTypeInt,    Description: "Prefix length", Example: "24"},
+			{Name: "protocol",           Type: model.FieldTypeString, Description: "Routing protocol", Example: "ospf"},
+			{Name: "next_hop",           Type: model.FieldTypeString, Description: "Next-hop address", Example: "10.1.0.1"},
+			{Name: "outgoing_interface", Type: model.FieldTypeString, Description: "Outgoing interface", Example: "ge-0/0/0.0"},
+			{Name: "preference",         Type: model.FieldTypeInt,    Description: "Administrative distance", Example: "10"},
+			{Name: "metric",             Type: model.FieldTypeInt,    Description: "Route metric", Example: "2"},
+		}
+	case model.CmdConfig, model.CmdConfigSet:
+		return []model.FieldDef{
+			{Name: "config_text", Type: model.FieldTypeString, Description: "Device configuration text", Example: "set interfaces ge-0/0/0 unit 0"},
+		}
+	default:
+		return generatedFieldSchema(cmdType)
+	}
+}

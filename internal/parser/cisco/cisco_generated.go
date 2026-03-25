@@ -21,3 +21,18 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 	}
 	return model.ParseResult{Type: cmdType, RawText: raw}, nil
 }
+
+// generatedCmdTypes returns CommandType values for all approved Rule Studio rules.
+func generatedCmdTypes() []model.CommandType {
+	return []model.CommandType{
+		// GENERATED CMDTYPES — do not edit this comment
+	}
+}
+
+// generatedFieldSchema returns FieldDef slices for Rule Studio generated parsers.
+func generatedFieldSchema(cmdType model.CommandType) []model.FieldDef {
+	switch cmdType {
+	// GENERATED FIELD CASES — do not edit this comment
+	}
+	return nil
+}
