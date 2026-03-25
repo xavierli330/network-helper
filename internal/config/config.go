@@ -94,12 +94,15 @@ type PermissionsConfig struct {
 
 // KnowledgeSourceConfig describes a single pluggable knowledge source.
 type KnowledgeSourceConfig struct {
-	Type    string `yaml:"type"`    // "local" | "http"
-	Name    string `yaml:"name"`    // display name used in SearchResult.Source prefix
-	Path    string `yaml:"path"`    // for "local": directory path (default: <data_dir>/knowledge)
-	URL     string `yaml:"url"`     // for "http": API base URL
-	Token   string `yaml:"token"`   // for "http": optional Bearer auth token
-	Enabled bool   `yaml:"enabled"` // when false the source is skipped at startup
+	Type     string `yaml:"type"`      // "local" | "http" | "ima"
+	Name     string `yaml:"name"`      // display name used in SearchResult.Source prefix
+	Path     string `yaml:"path"`      // for "local": directory path (default: <data_dir>/knowledge)
+	URL      string `yaml:"url"`       // for "http": API base URL
+	Token    string `yaml:"token"`     // for "http": optional Bearer auth token
+	ClientID string `yaml:"client_id"` // for "ima": IMA client ID
+	APIKey   string `yaml:"api_key"`   // for "ima": IMA API key
+	KBID     string `yaml:"kb_id"`     // for "ima": knowledge base ID
+	Enabled  bool   `yaml:"enabled"`   // when false the source is skipped at startup
 }
 
 // KnowledgeConfig groups all knowledge source definitions.

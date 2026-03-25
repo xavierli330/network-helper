@@ -100,6 +100,10 @@ nethelper
 │   ├── log           搜索排障记录
 │   └── command       搜索命令手册
 │
+├── knowledge     知识库查询（无 LLM，可追溯）
+│   ├── search        直接搜索知识源
+│   └── sources       列出配置的知识源
+│
 ├── check         健康检查
 │   ├── loop          环路检测
 │   └── spof          单点故障检测
@@ -192,6 +196,47 @@ llm:
 ```
 
 编辑这些文件即可自定义 agent 行为，无需重新编译。
+
+## 知识库查询（可追溯、无 LLM）
+
+对于生产环境，需要**数据可追溯、可验证**，避免 LLM 幻觉：
+
+```bash
+# 直接查询 IMA 知识库（不经过 LLM）
+nethelper knowledge search "骨干网排障" --source ima
+
+# 查询本地知识库
+nethelper knowledge search "MPLS配置" --source local
+
+# 查询所有源
+nethelper knowledge search "BGP故障" --all
+
+# 查看配置的知识源
+nethelper knowledge sources
+```
+
+**特点：**
+- 直接返回原始搜索结果
+- 显示数据来源（IMA/本地/HTTP）
+- 显示相关性分数
+- 无 LLM 生成或改写
+
+配置知识源（`~/.nethelper/config.yaml`）：
+```yaml
+knowledge:
+  sources:
+    - type: ima
+      name: ima-network-kb
+      enabled: true
+      client_id: "your_client_id"
+      api_key: "your_api_key"
+      kb_id: "your_kb_id"
+    - type: http
+      name: company-wiki
+      enabled: true
+      url: "https://wiki.example.com/api"
+      token: "optional_token"
+```
 
 ## 文档
 

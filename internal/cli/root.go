@@ -22,7 +22,13 @@ var (
 	db        *store.DB
 	pipeline  *parser.Pipeline
 	llmRouter *llm.Router
+	version   = "dev" // 默认版本号，可通过 SetVersion 覆盖
 )
+
+// SetVersion 设置版本号，由 main 包在构建时注入
+func SetVersion(v string) {
+	version = v
+}
 
 func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
@@ -86,6 +92,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newAgentCmd())
 	root.AddCommand(newChannelCmd())
 	root.AddCommand(newHeartbeatCmd())
+	root.AddCommand(newKnowledgeCmd())
 
 	return root
 }
@@ -95,7 +102,7 @@ func newVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("nethelper v0.1.0")
+			fmt.Printf("nethelper %s\n", version)
 		},
 	}
 }

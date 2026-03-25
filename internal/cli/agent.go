@@ -11,10 +11,9 @@ import (
 	"github.com/xavierli/nethelper/internal/memory"
 )
 
-// buildKnowledgeSources constructs the list of HTTP-backed KnowledgeSource
-// instances described by cfg.Knowledge.Sources.  The local source is handled
-// separately inside agent.New() using the DataDir + embedder, so only "http"
-// type entries are returned here.
+// buildKnowledgeSources constructs the list of external KnowledgeSource
+// instances described by cfg.Knowledge.Sources. The local source is handled
+// separately inside agent.New() using the DataDir + embedder.
 func buildKnowledgeSources(cfg *config.Config) []memory.KnowledgeSource {
 	if cfg == nil {
 		return nil
@@ -34,7 +33,18 @@ func buildKnowledgeSources(cfg *config.Config) []memory.KnowledgeSource {
 				name = sc.URL
 			}
 			sources = append(sources, memory.NewHTTPKnowledgeSource(name, sc.URL, sc.Token))
-		// "local" is handled by agent.New() via DataDir; skip here.
+		case "ima":
+			if sc.ClientID == "" || sc.APIKey == "" || sc.KBID == "" {
+				continue
+			}
+			name := sc.Name
+			if name == "" {
+				name = "ima"
+			}
+			src := memory.NewIMAKnowledgeSource(sc.ClientID, sc.APIKey, sc.KBID, name)
+			if src != nil {
+				sources = append(sources, src)
+			}
 		}
 	}
 	return sources

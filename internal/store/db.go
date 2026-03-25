@@ -33,6 +33,18 @@ func Open(dbPath string) (*DB, error) {
 		sqlDB.Close()
 		return nil, fmt.Errorf("enable foreign keys: %w", err)
 	}
+	if _, err := sqlDB.Exec("PRAGMA synchronous=NORMAL"); err != nil {
+		sqlDB.Close()
+		return nil, fmt.Errorf("set synchronous mode: %w", err)
+	}
+	if _, err := sqlDB.Exec("PRAGMA cache_size=-64000"); err != nil {
+		sqlDB.Close()
+		return nil, fmt.Errorf("set cache size: %w", err)
+	}
+	if _, err := sqlDB.Exec("PRAGMA temp_store=MEMORY"); err != nil {
+		sqlDB.Close()
+		return nil, fmt.Errorf("set temp store: %w", err)
+	}
 	db := &DB{DB: sqlDB, path: dbPath}
 	if err := db.migrate(); err != nil {
 		sqlDB.Close()

@@ -101,3 +101,28 @@ Uses `github.com/ncruces/go-sqlite3` (CGo-free, WASM via wazero — no system SQ
 ## Adding a New LLM Provider Protocol
 
 Implement `llm.Provider` interface in `internal/llm/`, add selection logic in `router.go`'s `createProvider`.
+
+## Knowledge Sources (`internal/memory/`)
+
+The knowledge system supports pluggable sources via the `KnowledgeSource` interface:
+
+```go
+type KnowledgeSource interface {
+    Name() string
+    Search(ctx context.Context, query string, topK int) ([]SearchResult, error)
+}
+```
+
+**Built-in sources:**
+- `localKnowledgeAdapter` - Local embedding-based search (requires embedder)
+- `HTTPKnowledgeSource` - External HTTP API search
+- `IMAKnowledgeSource` - Tencent IMA knowledge base search
+
+**Adding a new source:**
+1. Implement `KnowledgeSource` interface in `internal/memory/source_<name>.go`
+2. Add config fields in `internal/config/config.go` `KnowledgeSourceConfig`
+3. Register in `internal/cli/agent.go` `buildKnowledgeSources()`
+4. Add CLI command in `internal/cli/knowledge.go` if needed
+
+**Direct knowledge search (no LLM):**
+Use `nethelper knowledge search` for verifiable, traceable results without LLM processing.
