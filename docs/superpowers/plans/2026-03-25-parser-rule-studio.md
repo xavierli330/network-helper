@@ -29,9 +29,11 @@
 | `internal/studio/server.go` | Embedded HTTP server, route registration, `ListenAndServe` |
 | `internal/studio/handlers.go` | HTTP handlers — list, editor, sandbox, approve, API endpoints. All HTML inline (no separate template files) |
 | `internal/studio/static/htmx.min.js` | Vendored HTMX (download once, committed) |
+| `internal/studio/server_test.go` | Unit tests for HTTP server routing |
 | `internal/codegen/generator.go` | Code Generator: schema→Go file, test file, `_generated.go` patch, git+PR |
 | `internal/codegen/generator_test.go` | Unit tests for template output |
 | `internal/parser/huawei/huawei_generated.go` | One-time stub: `classifyGenerated()` + `parseGenerated()` for Huawei |
+| `internal/parser/huawei/generated_test.go` | Baseline test: ClassifyCommand fallback hook wired |
 | `internal/parser/cisco/cisco_generated.go` | Same stub for Cisco |
 | `internal/parser/h3c/h3c_generated.go` | Same stub for H3C |
 | `internal/parser/juniper/juniper_generated.go` | Same stub for Juniper |
@@ -142,6 +144,7 @@ Append to the `migrations` slice in `internal/store/migrations.go`:
     sample_inputs    TEXT NOT NULL DEFAULT '[]',
     expected_outputs TEXT,
     confidence       REAL,
+    occurrence_count INTEGER NOT NULL DEFAULT 0,
     status           TEXT NOT NULL DEFAULT 'draft'
                      CHECK(status IN ('draft','testing','approved','rejected')),
     approved_by      TEXT,
@@ -314,6 +317,7 @@ type PendingRule struct {
 	SampleInputs    string
 	ExpectedOutputs string
 	Confidence      float64
+	OccurrenceCount int
 	Status          string
 	ApprovedBy      string
 	ApprovedAt      *time.Time
@@ -391,10 +395,10 @@ func (db *DB) UpdateUnknownOutputStatus(vendor, commandNorm, status string) erro
 func (db *DB) CreatePendingRule(r PendingRule) (int, error) {
 	res, err := db.Exec(`
 		INSERT INTO pending_rules (vendor, command_pattern, output_type, schema_yaml, go_code_draft,
-			sample_inputs, expected_outputs, confidence, status)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			sample_inputs, expected_outputs, confidence, occurrence_count, status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.Vendor, r.CommandPattern, r.OutputType, r.SchemaYAML, r.GoCodeDraft,
-		r.SampleInputs, r.ExpectedOutputs, r.Confidence, r.Status)
+		r.SampleInputs, r.ExpectedOutputs, r.Confidence, r.OccurrenceCount, r.Status)
 	if err != nil {
 		return 0, err
 	}
@@ -409,27 +413,28 @@ func (db *DB) GetPendingRule(id int) (PendingRule, error) {
 		SELECT id, vendor, command_pattern, output_type,
 			COALESCE(schema_yaml,''), COALESCE(go_code_draft,''),
 			sample_inputs, COALESCE(expected_outputs,''), COALESCE(confidence,0),
-			status, COALESCE(approved_by,''), approved_at,
+			COALESCE(occurrence_count,0), status, COALESCE(approved_by,''), approved_at,
 			COALESCE(pr_url,''), merged_at, COALESCE(go_file_path,''),
 			created_at, updated_at
 		FROM pending_rules WHERE id = ?`, id).Scan(
 		&r.ID, &r.Vendor, &r.CommandPattern, &r.OutputType,
 		&r.SchemaYAML, &r.GoCodeDraft, &r.SampleInputs, &r.ExpectedOutputs, &r.Confidence,
-		&r.Status, &r.ApprovedBy, &r.ApprovedAt, &r.PRURL, &r.MergedAt, &r.GoFilePath,
+		&r.OccurrenceCount, &r.Status, &r.ApprovedBy, &r.ApprovedAt, &r.PRURL, &r.MergedAt, &r.GoFilePath,
 		&r.CreatedAt, &r.UpdatedAt)
 	return r, err
 }
 
-// ListPendingRules returns rules filtered by status, most recent first.
+// ListPendingRules returns rules filtered by status, sorted by occurrence_count DESC.
 func (db *DB) ListPendingRules(status string, limit int) ([]PendingRule, error) {
-	q := `SELECT id, vendor, command_pattern, output_type, COALESCE(confidence,0), status, created_at
+	q := `SELECT id, vendor, command_pattern, output_type, COALESCE(confidence,0),
+		COALESCE(occurrence_count,0), status, created_at
           FROM pending_rules WHERE 1=1`
 	var args []any
 	if status != "" {
 		q += " AND status = ?"
 		args = append(args, status)
 	}
-	q += " ORDER BY created_at DESC LIMIT ?"
+	q += " ORDER BY occurrence_count DESC, created_at DESC LIMIT ?"
 	args = append(args, limit)
 
 	rows, err := db.Query(q, args...)
@@ -441,7 +446,7 @@ func (db *DB) ListPendingRules(status string, limit int) ([]PendingRule, error) 
 	for rows.Next() {
 		var r PendingRule
 		if err := rows.Scan(&r.ID, &r.Vendor, &r.CommandPattern, &r.OutputType,
-			&r.Confidence, &r.Status, &r.CreatedAt); err != nil {
+			&r.Confidence, &r.OccurrenceCount, &r.Status, &r.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -582,6 +587,7 @@ package parser_test
 import (
 	"testing"
 	"github.com/xavierli/nethelper/internal/parser"
+	"github.com/xavierli/nethelper/internal/parser/huawei"
 	"github.com/xavierli/nethelper/internal/store"
 )
 
@@ -731,7 +737,7 @@ Expected: PASS
 
 - [ ] **Step 3.5: Write failing integration test for pipeline → collector**
 
-Add to `internal/parser/pipeline_test.go`:
+Add to `internal/parser/collector_test.go` (already `package parser_test`):
 
 ```go
 func TestPipelineCollectsUnknownCommands(t *testing.T) {
@@ -755,6 +761,8 @@ func TestPipelineCollectsUnknownCommands(t *testing.T) {
 	}
 }
 ```
+
+Note: `collector_test.go` already imports `store` and `huawei` from Step 3.1; add `"github.com/xavierli/nethelper/internal/parser/huawei"` if not yet present.
 
 - [ ] **Step 3.6: Run to confirm failure**
 
@@ -1051,9 +1059,10 @@ const maxSamplesPerGroup = 5
 
 // CommandGroup holds a normalised command and representative raw output samples.
 type CommandGroup struct {
-	Vendor      string
-	CommandNorm string
-	Samples     []store.UnknownOutput
+	Vendor           string
+	CommandNorm      string
+	Samples          []store.UnknownOutput
+	TotalOccurrences int // sum of occurrence_count across all samples in this group
 }
 
 // LLMRuleResponse is the structured JSON response from the LLM.
@@ -1089,6 +1098,7 @@ func ClusterByCommand(db *store.DB, vendor string) []CommandGroup {
 			groupMap[key] = &CommandGroup{Vendor: row.Vendor, CommandNorm: row.CommandNorm}
 		}
 		g := groupMap[key]
+		g.TotalOccurrences += row.OccurrenceCount
 		if len(g.Samples) < maxSamplesPerGroup {
 			g.Samples = append(g.Samples, row)
 		}
@@ -1124,14 +1134,15 @@ func (e *Engine) RunOnce(ctx context.Context, vendor string) (int, error) {
 		samplesJSON, _ := json.Marshal(samples)
 
 		_, err = e.db.CreatePendingRule(store.PendingRule{
-			Vendor:         g.Vendor,
-			CommandPattern: g.CommandNorm,
-			OutputType:     resp.OutputType,
-			SchemaYAML:     resp.SchemaYAML,
-			GoCodeDraft:    resp.GoCodeDraft,
-			SampleInputs:   string(samplesJSON),
-			Confidence:     resp.Confidence,
-			Status:         "draft",
+			Vendor:          g.Vendor,
+			CommandPattern:  g.CommandNorm,
+			OutputType:      resp.OutputType,
+			SchemaYAML:      resp.SchemaYAML,
+			GoCodeDraft:     resp.GoCodeDraft,
+			SampleInputs:    string(samplesJSON),
+			Confidence:      resp.Confidence,
+			OccurrenceCount: g.TotalOccurrences,
+			Status:          "draft",
 		})
 		if err != nil {
 			slog.Warn("discovery: create rule failed", "cmd", g.CommandNorm, "error", err)
@@ -1162,7 +1173,18 @@ For hierarchical/raw: go_code_draft is the body of func parseXxx(raw string) (mo
 
 	userMsg := fmt.Sprintf("Vendor: %s\nCommand: %s\n\n%s", g.Vendor, g.CommandNorm, sb.String())
 
-	text, err := e.router.Complete(ctx, system, userMsg)
+	text, err := func() (string, error) {
+		resp, err := e.router.Chat(ctx, llm.CapParse, llm.ChatRequest{
+			Messages: []llm.Message{
+				{Role: "system", Content: system},
+				{Role: "user", Content: userMsg},
+			},
+		})
+		if err != nil {
+			return "", err
+		}
+		return resp.Content, nil
+	}()
 	if err != nil {
 		return LLMRuleResponse{}, err
 	}
@@ -1404,11 +1426,18 @@ func (h *handlers) list(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	rules, err := h.db.ListPendingRules("", 100)
+	// Fetch draft and testing rules — the two statuses shown in View 1 (spec §5.3)
+	draft, err := h.db.ListPendingRules("draft", 50)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
+	testing_, err := h.db.ListPendingRules("testing", 50)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	rules := append(draft, testing_...)
 	tmpl := template.Must(template.New("list").Funcs(funcMap).Parse(listHTML))
 	tmpl.Execute(w, rules)
 }
@@ -1770,7 +1799,11 @@ import (
 	"github.com/xavierli/nethelper/internal/parser/huawei"
 )
 
-func TestClassifyCommandFallsBackToGenerated(t *testing.T) {
+// TestClassifyCommandUnknownBaseline is a non-regression anchor: unknown commands return
+// CmdUnknown both before and after the fallback hook is wired. It does NOT verify that
+// classifyGenerated() is actually called — it only confirms the final result is unchanged.
+// This is intentional: the hook wiring is verified by patchGeneratedFile in Task 9.
+func TestClassifyCommandUnknownBaseline(t *testing.T) {
 	p := huawei.New()
 	ct := p.ClassifyCommand("display traffic-policy")
 	if ct != model.CmdUnknown {
@@ -1782,7 +1815,7 @@ func TestClassifyCommandFallsBackToGenerated(t *testing.T) {
 - [ ] **Step 8.2: Run — should already pass (baseline)**
 
 ```bash
-go test ./internal/parser/huawei/... -run TestClassifyCommandFallsBackToGenerated -v
+go test ./internal/parser/huawei/... -run TestClassifyCommandUnknownBaseline -v
 ```
 
 Expected: PASS
@@ -1794,11 +1827,7 @@ Expected: PASS
 // This file is maintained by the Code Generator. Add rules via `nethelper rule studio`.
 package huawei
 
-import (
-	"strings"
-
-	"github.com/xavierli/nethelper/internal/model"
-)
+import "github.com/xavierli/nethelper/internal/model"
 
 // classifyGenerated is a fallback called by ClassifyCommand when the main switch
 // returns CmdUnknown. Rule Studio inserts cases here automatically.
@@ -1813,6 +1842,18 @@ func classifyGenerated(cmd string) model.CommandType {
 func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, error) {
 	return model.ParseResult{Type: cmdType, RawText: raw}, nil
 }
+```
+
+When `patchGeneratedFile` inserts the first case, it also patches the import to add `"strings"`:
+
+```go
+// patchGeneratedFile — add strings import if not present
+if !strings.Contains(patched, `"strings"`) {
+    patched = strings.Replace(patched,
+        `import "github.com/xavierli/nethelper/internal/model"`,
+        "import (\n\t\"strings\"\n\n\t\"github.com/xavierli/nethelper/internal/model\"\n)", 1)
+}
+return os.WriteFile(path, []byte(patched), 0644)
 ```
 
 Create the same file for each vendor, adjusting `package` name.
@@ -2119,20 +2160,26 @@ func generateTableBody(schemaYAML, funcName string) (string, error) {
 // GenerateTestFile generates a _test.go file with one test per test case.
 func GenerateTestFile(rule store.PendingRule, testCases []store.RuleTestCase) (string, error) {
 	funcName := GoFuncName(rule.Vendor, rule.CommandPattern)
+	// NOTE: Generated tests call the parse function with saved inputs and check for no-error.
+	// Full field assertion against expected JSON is a future improvement (see Deferred section).
 	tplSrc := `// Code generated by nethelper rule-studio. DO NOT EDIT.
 package {{.Vendor}}_test
 
 import (
 	"testing"
-	_ "github.com/xavierli/nethelper/internal/parser/{{.Vendor}}"
+
+	"github.com/xavierli/nethelper/internal/parser/{{.Vendor}}"
 )
 
 {{range $i, $tc := .TestCases}}
 func Test{{$.FuncName}}_Case{{$i}}(t *testing.T) {
-	_ = ` + "`" + `{{$tc.Input}}` + "`" + ` // input
-	// Expected: {{$tc.Expected}}
-	// TODO: call {{$.Vendor}}.{{$.FuncName}} and assert fields
-	t.Log("test case {{$i}} registered")
+	input := ` + "`" + `{{$tc.Input}}` + "`" + `
+	_, err := {{$.Vendor}}.{{$.FuncName}}(input)
+	if err != nil {
+		t.Errorf("case {{$i}}: unexpected error: %v", err)
+	}
+	// Expected result saved: {{$tc.Expected}}
+	// TODO: parse expected JSON and assert returned fields (see deferred)
 }
 {{end}}
 `
@@ -2156,11 +2203,18 @@ func patchGeneratedFile(path, commandPattern, funcName string, cmdType string) e
 	src := string(data)
 
 	const sentinel = "\t// GENERATED CASES — do not edit this comment"
-	newCase := fmt.Sprintf("\tcase strings.HasPrefix(cmd, %q):\n\t\treturn model.%s // %s\n%s",
-		commandPattern, cmdType, funcName, sentinel)
+	newCase := fmt.Sprintf("\tcase strings.HasPrefix(cmd, %q):\n\t\treturn model.CmdUnknown // %s\n%s",
+		commandPattern, funcName, sentinel)
 	patched := strings.Replace(src, sentinel, newCase, 1)
 	if patched == src {
 		return fmt.Errorf("patchGeneratedFile: sentinel not found in %s", path)
+	}
+
+	// Add "strings" import if this is the first case being inserted
+	if !strings.Contains(patched, `"strings"`) {
+		patched = strings.Replace(patched,
+			`import "github.com/xavierli/nethelper/internal/model"`,
+			"import (\n\t\"strings\"\n\n\t\"github.com/xavierli/nethelper/internal/model\"\n)", 1)
 	}
 
 	return os.WriteFile(path, []byte(patched), 0644)
@@ -2171,17 +2225,17 @@ func patchGeneratedFile(path, commandPattern, funcName string, cmdType string) e
 func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts GeneratorOptions) (string, error) {
 	if !opts.DryRun {
 		if err := checkGH(); err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	parserSrc, err := GenerateParserFile(rule)
 	if err != nil {
-		return fmt.Errorf("generate parser: %w", err)
+		return "", fmt.Errorf("generate parser: %w", err)
 	}
 	testSrc, err := GenerateTestFile(rule, testCases)
 	if err != nil {
-		return fmt.Errorf("generate test: %w", err)
+		return "", fmt.Errorf("generate test: %w", err)
 	}
 
 	relParser := TargetFilePath(rule.Vendor, rule.CommandPattern)
@@ -2593,3 +2647,4 @@ git commit -m "chore: end-to-end smoke test verified for parser rule studio P0-P
 - Background discovery goroutine in studio server (config `rule.discovery_interval`)
 - `--limit` flag on `discover` command passed through to engine
 - `regen --force` shows full diff (currently logs a warning only)
+- Generated test files currently verify no-error only; full field assertion against `expected` JSON (parsing `rule_test_cases.expected` and comparing to returned `ParseResult`) is deferred — the generated test is a compilation+no-panic check, not a functional regression test
