@@ -67,7 +67,22 @@ type ParseResult struct {
 }
 ```
 
-Pipeline 在 `storeResult()` 中：若 `result.Rows` 非空，将其写入 `scratch_entries`（category = `"generated"`），与现有大表路由逻辑一致。
+同时更新 `IsEmpty()` 以包含 `Rows`：
+
+```go
+func (pr ParseResult) IsEmpty() bool {
+    return len(pr.Interfaces) == 0 &&
+        len(pr.RIBEntries) == 0 &&
+        len(pr.FIBEntries) == 0 &&
+        len(pr.LFIBEntries) == 0 &&
+        len(pr.Neighbors) == 0 &&
+        len(pr.Tunnels) == 0 &&
+        len(pr.SRMappings) == 0 &&
+        len(pr.Rows) == 0  // ← 新增
+}
+```
+
+Pipeline 在 `storeResult()` 中：若 `result.Rows` 非空，将其 JSON 序列化后写入 `scratch_entries`（category = `"generated"`），与现有大表路由逻辑一致。
 
 ### VendorParser 接口新增两个方法
 
@@ -122,9 +137,27 @@ func (r *FieldRegistry) CmdTypes(vendor string) []model.CommandType
 
 **CLI 层职责**：调用 `ClassifyCommand(rawInput)` 将用户输入的命令字符串转为 `CommandType`，再调用 `fieldRegistry.Fields(vendor, cmdType)` 查询。
 
-**Registry 初始化：** 在 `root.go` `PersistentPreRunE` 中，pipeline 创建后立即 build：
+**Registry 初始化：** 在 `root.go` 中，`registry` 变量需升级为 **package-level var**（与 `pipeline`、`db` 一致），这样 `fields.go` 的 CLI 命令才能调用 `registry.Get(vendor).ClassifyCommand(rawInput)` 做命令字符串→CommandType 的转换。
 
 ```go
+// root.go：package-level vars（新增 registry 和 fieldRegistry）
+var (
+    cfg          *config.Config
+    db           *store.DB
+    pipeline     *parser.Pipeline
+    llmRouter    *llm.Router
+    registry     *parser.Registry      // ← 升级为 package-level（原为 PersistentPreRunE 局部变量）
+    fieldRegistry *parser.FieldRegistry // ← 新增
+)
+```
+
+在 `PersistentPreRunE` 中赋值（已有 registry 初始化代码，改为赋给 package-level var）：
+
+```go
+registry = parser.NewRegistry()
+registry.Register(huawei.New())
+// ...
+pipeline = parser.NewPipelineWithCollector(db, registry, parser.NewCollector(db))
 fieldRegistry = parser.BuildFieldRegistry(registry)
 ```
 
@@ -143,7 +176,7 @@ fieldRegistry = parser.BuildFieldRegistry(registry)
 var _ parser.VendorParser = (*Parser)(nil)
 
 func (p *Parser) SupportedCmdTypes() []model.CommandType {
-    return []model.CommandType{
+    base := []model.CommandType{
         model.CmdInterface,
         model.CmdNeighbor,
         model.CmdRIB,
@@ -152,8 +185,10 @@ func (p *Parser) SupportedCmdTypes() []model.CommandType {
         model.CmdTunnel,
         model.CmdSRMapping,
         model.CmdConfig,
+        model.CmdConfigSet, // ← 不要遗漏
         // 生成 parser 的动态类型由 huawei_generated.go 的 generatedCmdTypes() 提供
     }
+    return append(base, generatedCmdTypes()...)
 }
 
 func (p *Parser) FieldSchema(cmdType model.CommandType) []parser.FieldDef {
@@ -190,6 +225,14 @@ func (p *Parser) FieldSchema(cmdType model.CommandType) []parser.FieldDef {
 
 ```go
 // internal/parser/huawei/huawei_generated.go
+// 注意：本文件需 import parser 父包（用于 parser.FieldDef 类型）。
+// package huawei → import parser 是合法的子包→父包引用，不构成循环。
+// 同理适用于 cisco_generated.go、h3c_generated.go、juniper_generated.go。
+
+import (
+    "github.com/xavierli/nethelper/internal/model"
+    "github.com/xavierli/nethelper/internal/parser"
+)
 
 // generatedCmdTypes 返回所有已生成规则的 CommandType 列表
 func generatedCmdTypes() []model.CommandType {
@@ -207,20 +250,11 @@ func generatedFieldSchema(cmdType model.CommandType) []parser.FieldDef {
 }
 ```
 
-`PatchGeneratedFile` 在 approve 时同时 patch 三处 sentinel：
-- `// GENERATED CASES`（分类函数）
-- `// GENERATED PARSE CASES`（解析函数）
-- `// GENERATED CMDTYPES`（cmdType 枚举）
-- `// GENERATED FIELD CASES`（FieldSchema）
-
-主 Parser 的 `SupportedCmdTypes()` 调用 `generatedCmdTypes()` 追加到列表末尾：
-
-```go
-func (p *Parser) SupportedCmdTypes() []model.CommandType {
-    base := []model.CommandType{model.CmdInterface, model.CmdNeighbor /* ... */}
-    return append(base, generatedCmdTypes()...)
-}
-```
+`PatchGeneratedFile` 在 approve 时同时 patch **四处** sentinel：
+- `// GENERATED CASES`（分类函数，已有）
+- `// GENERATED PARSE CASES`（解析函数，已有）
+- `// GENERATED CMDTYPES`（cmdType 枚举，新增）
+- `// GENERATED FIELD CASES`（FieldSchema，新增）
 
 ## Rule Studio: `schema_yaml` Derived Fields Extension
 
@@ -247,7 +281,9 @@ derived:
     example: "3.14"
 ```
 
-`derived` 字段为可选，缺省时与现有行为完全兼容。`type` 只接受 `FieldType` 枚举值（`string` | `int` | `float` | `bool`），schema 解析时验证。
+`derived` 字段为可选，缺省时与现有行为完全兼容。Schema 解析时执行以下校验，违反任何一条均返回 error：
+- `type` 只接受 `FieldType` 枚举值（`string` | `int` | `float` | `bool`）
+- `from` 中的每个字段名必须存在于 `columns[*].name` 列表中（引用不存在的列为 schema 错误）
 
 ## Code Generator Changes
 
@@ -310,17 +346,29 @@ func generatedFieldSchema(cmdType model.CommandType) []parser.FieldDef {
 
 ## Pipeline: Rows 路由
 
-`internal/parser/pipeline.go` 的 `storeResult()` 新增路由分支：
+`internal/parser/pipeline.go` 的 `storeResult()` 新增路由分支（在现有 `isBulkTableCommand` 检查之前或之后均可，两者互斥）：
 
 ```go
 if len(result.Rows) > 0 {
-    // 生成 parser 的通用行数据写入 scratch pad
-    p.storeScratch(deviceID, snapshotID, "generated", result.Type.String(), result.Rows)
+    // 生成 parser 的通用行数据：JSON 序列化后写入 scratch pad
+    rowsJSON, err := json.Marshal(result.Rows)
+    if err != nil {
+        rowsJSON = []byte("[]")
+    }
+    p.db.InsertScratch(model.ScratchEntry{
+        DeviceID: deviceID,
+        Category: "generated",
+        Query:    string(result.Type), // CommandType 是 string alias，直接转换
+        Content:  string(rowsJSON),
+    })
     return nil
 }
 ```
 
-与现有 `isBulkTableCommand` 路由逻辑平级，保持一致。
+说明：
+- `model.ScratchEntry.Content` 是单个 `string`；所有行作为 JSON 数组存入一条记录（与现有大表路由的 `RawText` 模式一致）。
+- `string(result.Type)` 直接转换 `CommandType`（底层为 `string`）；无需 `.String()` 方法。
+- 需在 `pipeline.go` 的 import 中添加 `"encoding/json"`。
 
 ## CLI: `nethelper rule fields`
 
@@ -387,19 +435,19 @@ GET /api/fields
 
 | File | Change |
 |------|--------|
-| `internal/model/parse_result.go` | 新增 `Rows []map[string]string` 字段 |
+| `internal/model/parse_result.go` | 新增 `Rows []map[string]string` 字段；`IsEmpty()` 添加 `len(pr.Rows) == 0` |
 | `internal/parser/types.go` | `VendorParser` 接口新增 `FieldSchema()` + `SupportedCmdTypes()` |
-| `internal/parser/pipeline.go` | `storeResult()` 新增 Rows → scratch pad 路由 |
-| `internal/parser/huawei/huawei.go` | 实现 `FieldSchema()` + `SupportedCmdTypes()`；升级接口检查为 `var _ parser.VendorParser = (*Parser)(nil)` |
+| `internal/parser/pipeline.go` | `storeResult()` 新增 Rows → scratch pad 路由；import 添加 `encoding/json` |
+| `internal/parser/huawei/huawei.go` | 实现 `FieldSchema()` + `SupportedCmdTypes()`（含 `CmdConfigSet`）；升级接口检查为 `var _ parser.VendorParser = (*Parser)(nil)` |
 | `internal/parser/cisco/cisco.go` | 同上 |
 | `internal/parser/h3c/h3c.go` | 同上 |
 | `internal/parser/juniper/juniper.go` | 同上 |
-| `internal/parser/huawei/huawei_generated.go` | 新增 `generatedCmdTypes()` + `generatedFieldSchema()` + 两个新 sentinel；`PatchGeneratedFile` patch 四处 sentinel |
+| `internal/parser/huawei/huawei_generated.go` | 新增 `generatedCmdTypes()` + `generatedFieldSchema()` + 两个新 sentinel（`// GENERATED CMDTYPES`、`// GENERATED FIELD CASES`）；添加 `import "github.com/xavierli/nethelper/internal/parser"` |
 | `internal/parser/cisco/cisco_generated.go` | 同上 |
 | `internal/parser/h3c/h3c_generated.go` | 同上 |
 | `internal/parser/juniper/juniper_generated.go` | 同上 |
-| `internal/cli/root.go` | 注册 `fieldRegistry` 全局变量；`BuildFieldRegistry` 在 pipeline 创建后调用 |
-| `internal/codegen/generator.go` | `schema_yaml` 解析 `derived` 块；生成派生骨架 + Rows return；`PatchGeneratedFile` 新增两处 sentinel patch |
+| `internal/cli/root.go` | `registry` 升级为 package-level var；新增 `fieldRegistry *parser.FieldRegistry` package-level var；`PersistentPreRunE` 赋值并调用 `BuildFieldRegistry` |
+| `internal/codegen/generator.go` | `schema_yaml` 解析 `derived` 块（含 `from` 引用校验）；生成派生骨架 + `Rows` return；`PatchGeneratedFile` 新增两处 sentinel patch（`// GENERATED CMDTYPES`、`// GENERATED FIELD CASES`）；`FieldType` 枚举校验 |
 | `internal/studio/handlers.go` | 新增 `/api/fields` 端点 + 字段浏览侧边栏 HTML |
 
 ### Deferred
