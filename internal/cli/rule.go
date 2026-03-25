@@ -25,6 +25,7 @@ func newRuleCmd() *cobra.Command {
 	cmd.AddCommand(newRuleListCmd())
 	cmd.AddCommand(newRuleRegenCmd())
 	cmd.AddCommand(newRuleHistoryCmd())
+	cmd.AddCommand(newRuleFieldsCmd(fieldRegistry, registry))
 	return cmd
 }
 
