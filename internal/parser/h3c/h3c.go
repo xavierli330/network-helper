@@ -43,6 +43,9 @@ func (p *Parser) ClassifyCommand(cmd string) model.CommandType {
 	case strings.HasPrefix(lower, "display ip routing-table"): return model.CmdRIB
 	case strings.HasPrefix(lower, "display fib"): return model.CmdFIB
 	case strings.HasPrefix(lower, "display mpls lsp"), strings.HasPrefix(lower, "display mpls forwarding"): return model.CmdLFIB
+	// "display ip interface [brief]" must come before the generic "display int" catch-all
+	case strings.HasPrefix(lower, "display ip interface"), strings.HasPrefix(lower, "display ip inter"):
+		return model.CmdInterface
 	case strings.HasPrefix(lower, "display interface"),
 		strings.HasPrefix(lower, "display int"):
 		return model.CmdInterface
@@ -62,9 +65,9 @@ func (p *Parser) ClassifyCommand(cmd string) model.CommandType {
 
 func (p *Parser) ParseOutput(cmdType model.CommandType, raw string) (model.ParseResult, error) {
 	switch cmdType {
-	case model.CmdInterface: return ParseInterfaceBrief(raw)
+	case model.CmdInterface: return ParseInterface(raw)
 	case model.CmdRIB: return ParseRoutingTable(raw)
-	case model.CmdNeighbor: return ParseOspfPeer(raw)
+	case model.CmdNeighbor: return ParseNeighbor(raw)
 	case model.CmdLFIB: return ParseMplsLsp(raw)
 	case model.CmdConfig: return model.ParseResult{Type: model.CmdConfig, ConfigText: raw, RawText: raw}, nil
 	default: return parseGenerated(cmdType, raw)

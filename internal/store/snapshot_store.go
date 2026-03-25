@@ -41,6 +41,6 @@ func (db *DB) GetSnapshot(id int) (model.Snapshot, error) {
 
 func (db *DB) LatestSnapshotID(deviceID string) (int, error) {
 	var id int
-	err := db.QueryRow(`SELECT id FROM snapshots WHERE device_id = ? ORDER BY captured_at DESC LIMIT 1`, deviceID).Scan(&id)
+	err := db.QueryRow(`SELECT id FROM snapshots WHERE device_id = ? ORDER BY id DESC LIMIT 1`, deviceID).Scan(&id)
 	return id, err
 }
