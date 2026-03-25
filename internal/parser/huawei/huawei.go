@@ -133,10 +133,58 @@ func inferInterfaceType(name string) model.InterfaceType {
 	}
 }
 
-// SupportedCmdTypes returns all CommandType values handled by the Huawei parser.
-// Stub — real schema added in Tasks 3–4.
-func (p *Parser) SupportedCmdTypes() []model.CommandType { return nil }
+// SupportedCmdTypes returns all CommandType values the Huawei parser handles.
+func (p *Parser) SupportedCmdTypes() []model.CommandType {
+	base := []model.CommandType{
+		model.CmdInterface,
+		model.CmdNeighbor,
+		model.CmdRIB,
+		model.CmdFIB,
+		model.CmdLFIB,
+		model.CmdTunnel,
+		model.CmdSRMapping,
+		model.CmdConfig,
+		model.CmdConfigSet,
+	}
+	return append(base, generatedCmdTypes()...)
+}
 
 // FieldSchema returns field definitions for the given CommandType.
-// Stub — real schema added in Tasks 3–4.
-func (p *Parser) FieldSchema(_ model.CommandType) []model.FieldDef { return nil }
+func (p *Parser) FieldSchema(cmdType model.CommandType) []model.FieldDef {
+	switch cmdType {
+	case model.CmdInterface:
+		return []model.FieldDef{
+			{Name: "name",         Type: model.FieldTypeString, Description: "接口名称", Example: "GigabitEthernet0/0/0"},
+			{Name: "phy_status",   Type: model.FieldTypeString, Description: "物理状态", Example: "up"},
+			{Name: "proto_status", Type: model.FieldTypeString, Description: "协议状态", Example: "up"},
+			{Name: "ip_address",   Type: model.FieldTypeString, Description: "IP 地址", Example: "10.0.0.1"},
+			{Name: "mask",         Type: model.FieldTypeString, Description: "子网掩码", Example: "255.255.255.0"},
+			{Name: "bandwidth",    Type: model.FieldTypeString, Description: "带宽配置", Example: "1000M"},
+			{Name: "description",  Type: model.FieldTypeString, Description: "接口描述", Example: "to-PE1"},
+		}
+	case model.CmdNeighbor:
+		return []model.FieldDef{
+			{Name: "protocol",       Type: model.FieldTypeString, Description: "邻居协议", Example: "ospf"},
+			{Name: "remote_id",      Type: model.FieldTypeString, Description: "对端 ID", Example: "10.0.0.2"},
+			{Name: "remote_address", Type: model.FieldTypeString, Description: "对端地址", Example: "10.0.0.2"},
+			{Name: "state",          Type: model.FieldTypeString, Description: "邻居状态", Example: "Full"},
+			{Name: "uptime",         Type: model.FieldTypeString, Description: "建立时长", Example: "2d3h"},
+		}
+	case model.CmdRIB:
+		return []model.FieldDef{
+			{Name: "prefix",     Type: model.FieldTypeString, Description: "目的前缀", Example: "10.0.0.0"},
+			{Name: "mask_len",   Type: model.FieldTypeInt,    Description: "前缀长度", Example: "24"},
+			{Name: "protocol",   Type: model.FieldTypeString, Description: "路由协议", Example: "ospf"},
+			{Name: "next_hop",   Type: model.FieldTypeString, Description: "下一跳", Example: "10.1.0.1"},
+			{Name: "interface",  Type: model.FieldTypeString, Description: "出接口", Example: "GE0/0/1"},
+			{Name: "preference", Type: model.FieldTypeInt,    Description: "路由优先级", Example: "10"},
+			{Name: "metric",     Type: model.FieldTypeInt,    Description: "路由开销", Example: "1"},
+		}
+	case model.CmdConfig, model.CmdConfigSet:
+		return []model.FieldDef{
+			{Name: "config_text", Type: model.FieldTypeString, Description: "设备配置文本", Example: "sysname Router1"},
+		}
+	default:
+		return generatedFieldSchema(cmdType)
+	}
+}

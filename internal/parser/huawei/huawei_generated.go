@@ -2,7 +2,9 @@
 // This file is maintained by the Code Generator. Add rules via `nethelper rule studio`.
 package huawei
 
-import "github.com/xavierli/nethelper/internal/model"
+import (
+	"github.com/xavierli/nethelper/internal/model"
+)
 
 // classifyGenerated is a fallback called by ClassifyCommand when the main switch
 // returns CmdUnknown. Rule Studio inserts cases here automatically.
@@ -20,4 +22,19 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 	// GENERATED PARSE CASES — do not edit this comment
 	}
 	return model.ParseResult{Type: cmdType, RawText: raw}, nil
+}
+
+// generatedCmdTypes returns CommandType values for all approved Rule Studio rules.
+func generatedCmdTypes() []model.CommandType {
+	return []model.CommandType{
+		// GENERATED CMDTYPES — do not edit this comment
+	}
+}
+
+// generatedFieldSchema returns FieldDef slices for Rule Studio generated parsers.
+func generatedFieldSchema(cmdType model.CommandType) []model.FieldDef {
+	switch cmdType {
+	// GENERATED FIELD CASES — do not edit this comment
+	}
+	return nil
 }
