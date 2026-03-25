@@ -743,7 +743,7 @@ func TestPipelineCollectsUnknownCommands(t *testing.T) {
 	pipe := parser.NewPipelineWithCollector(db, reg, parser.NewCollector(db))
 
 	// "display traffic-policy" is not in huawei.ClassifyCommand → CmdUnknown
-	log := "<R1>display traffic-policy\nPolicy: p1\n<R1>display version\nHuawei VRP\n"
+	log := "<R1>display traffic-policy\nPolicy: p1\n"
 	_, err := pipe.Ingest("test.log", log)
 	if err != nil {
 		t.Fatal(err)
@@ -783,7 +783,7 @@ Inside `processBlocks()`, in the loop where `CmdUnknown` blocks are handled, add
 
 ```go
 if b.CmdType == model.CmdUnknown && p.collector != nil {
-	p.collector.Collect(*b)
+	p.collector.Collect(b)
 }
 ```
 
@@ -901,7 +901,7 @@ import (
 type ColumnDef struct {
 	Name     string // field name in result row
 	Index    int    // 0-based position in whitespace-split fields
-	Type     string // "string" | "int" | "ip" | "bytes" (future coercion)
+	Type     string // "string" | "int" | "ip" | "duration" | "bytes" (future coercion)
 	Optional bool
 }
 
@@ -1584,7 +1584,7 @@ func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 	}
 
 	repoRoot, _ := os.Getwd()
-	err = codegen.Generate(rule, testCases, codegen.GeneratorOptions{
+	prURL, err := codegen.Generate(rule, testCases, codegen.GeneratorOptions{
 		RepoRoot:   repoRoot,
 		ApprovedBy: approvedBy,
 	})
@@ -1593,7 +1593,9 @@ func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 		return
 	}
 
+	relParser := codegen.TargetFilePath(rule.Vendor, rule.CommandPattern)
 	h.db.ApprovePendingRule(id, approvedBy, time.Now())
+	h.db.SetPendingRulePR(id, prURL, relParser)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -1691,20 +1693,19 @@ textarea{width:100%;height:200px;font-family:monospace}
 
 {{if eq .Rule.OutputType "table"}}
 <h3>Paste device output:</h3>
-<textarea id="input-area"></textarea><br>
+<textarea id="input-area" name="input"></textarea><br>
 <button hx-post="/api/rule/{{.Rule.ID}}/test"
-        hx-include="#input-area" hx-target="#result"
-        hx-vals='{"input": ""}'>▶ Run Parse</button>
+        hx-include="#input-area" hx-target="#result">▶ Run Parse</button>
 <div id="result"></div>
 {{else}}
 <p><em>⚠️ Go code rule — live execution unavailable. Review draft below, save test cases manually.</em></p>
 <pre style="background:#f8f8f8;padding:1rem;overflow:auto">{{.Rule.GoCodeDraft}}</pre>
-<textarea id="input-area" placeholder="Paste CLI output..."></textarea>
+<textarea id="input-area" name="input" placeholder="Paste CLI output..."></textarea>
 {{end}}
 
 <h3>Save test case:</h3>
-<input id="tc-desc" type="text" placeholder="Description (optional)" style="width:300px"><br>
-<textarea id="tc-expected" placeholder='Expected JSON result, e.g. {"rows":[...]}'></textarea>
+<input id="tc-desc" name="description" type="text" placeholder="Description (optional)" style="width:300px"><br>
+<textarea id="tc-expected" name="expected" placeholder='Expected JSON result, e.g. {"rows":[...]}'></textarea>
 <button hx-post="/api/rule/{{.Rule.ID}}/testcase"
         hx-include="#input-area,#tc-desc,#tc-expected"
         hx-target="#tc-status">💾 Save Test Case</button>
@@ -1793,11 +1794,18 @@ Expected: PASS
 // This file is maintained by the Code Generator. Add rules via `nethelper rule studio`.
 package huawei
 
-import "github.com/xavierli/nethelper/internal/model"
+import (
+	"strings"
+
+	"github.com/xavierli/nethelper/internal/model"
+)
 
 // classifyGenerated is a fallback called by ClassifyCommand when the main switch
 // returns CmdUnknown. Rule Studio inserts cases here automatically.
-func classifyGenerated(_ string) model.CommandType {
+func classifyGenerated(cmd string) model.CommandType {
+	switch {
+	// GENERATED CASES — do not edit this comment
+	}
 	return model.CmdUnknown
 }
 
@@ -2139,7 +2147,7 @@ func Test{{$.FuncName}}_Case{{$i}}(t *testing.T) {
 }
 
 // patchGeneratedFile appends a new case to classifyGenerated() and parseGenerated()
-// in <vendor>_generated.go. Uses simple string replacement on the sentinel comments.
+// in <vendor>_generated.go. Uses a stable sentinel comment inside the switch body.
 func patchGeneratedFile(path, commandPattern, funcName string, cmdType string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -2147,23 +2155,20 @@ func patchGeneratedFile(path, commandPattern, funcName string, cmdType string) e
 	}
 	src := string(data)
 
-	classifyCase := fmt.Sprintf("\tcase strings.HasPrefix(cmd, %q):\n\t\treturn model.CmdUnknown // %s\n", commandPattern, funcName)
-	src = strings.Replace(src,
-		"func classifyGenerated(_ string) model.CommandType {\n\treturn model.CmdUnknown",
-		"func classifyGenerated(cmd string) model.CommandType {\n"+classifyCase+"\treturn model.CmdUnknown",
-		1)
-
-	// Ensure strings import is present
-	if !strings.Contains(src, `"strings"`) {
-		src = strings.Replace(src, `import "github.com/xavierli/nethelper/internal/model"`,
-			"import (\n\t\"strings\"\n\t\"github.com/xavierli/nethelper/internal/model\"\n)", 1)
+	const sentinel = "\t// GENERATED CASES — do not edit this comment"
+	newCase := fmt.Sprintf("\tcase strings.HasPrefix(cmd, %q):\n\t\treturn model.%s // %s\n%s",
+		commandPattern, cmdType, funcName, sentinel)
+	patched := strings.Replace(src, sentinel, newCase, 1)
+	if patched == src {
+		return fmt.Errorf("patchGeneratedFile: sentinel not found in %s", path)
 	}
 
-	return os.WriteFile(path, []byte(src), 0644)
+	return os.WriteFile(path, []byte(patched), 0644)
 }
 
 // Generate performs the full code generation, git commit, and PR creation.
-func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts GeneratorOptions) error {
+// Returns the PR URL on success.
+func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts GeneratorOptions) (string, error) {
 	if !opts.DryRun {
 		if err := checkGH(); err != nil {
 			return err
@@ -2189,22 +2194,22 @@ func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts Gener
 
 	if opts.DryRun {
 		fmt.Printf("=== %s ===\n%s\n\n=== %s ===\n%s\n", parserPath, parserSrc, testPath, testSrc)
-		return nil
+		return "", nil
 	}
 
 	if err := os.MkdirAll(filepath.Dir(parserPath), 0755); err != nil {
-		return err
+		return "", err
 	}
 	if err := os.WriteFile(parserPath, []byte(parserSrc), 0644); err != nil {
-		return err
+		return "", err
 	}
 	if err := os.WriteFile(testPath, []byte(testSrc), 0644); err != nil {
-		return err
+		return "", err
 	}
 
 	funcName := GoFuncName(rule.Vendor, rule.CommandPattern)
 	if err := patchGeneratedFile(generatedPath, rule.CommandPattern, funcName, rule.OutputType); err != nil {
-		return fmt.Errorf("patch _generated.go: %w", err)
+		return "", fmt.Errorf("patch _generated.go: %w", err)
 	}
 
 	ident := strings.ToLower(strings.Join(strings.Fields(CmdNameToGoIdent(rule.CommandPattern)), "_"))
@@ -2218,26 +2223,38 @@ func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts Gener
 		return cmd.Run()
 	}
 
+	runOutput := func(args ...string) (string, error) {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = opts.RepoRoot
+		cmd.Stderr = os.Stderr
+		out, err := cmd.Output()
+		return strings.TrimSpace(string(out)), err
+	}
+
 	if err := run("git", "checkout", "-b", branch); err != nil {
-		return fmt.Errorf("git checkout: %w", err)
+		return "", fmt.Errorf("git checkout: %w", err)
 	}
 	if err := run("git", "add", relParser, relTest, relGenerated); err != nil {
-		return fmt.Errorf("git add: %w", err)
+		return "", fmt.Errorf("git add: %w", err)
 	}
 	msg := fmt.Sprintf("feat(parser): add %s parser for %q\n\nCo-Authored-By: nethelper rule-studio <noreply@nethelper>", rule.Vendor, rule.CommandPattern)
 	if err := run("git", "commit", "-m", msg); err != nil {
-		return fmt.Errorf("git commit: %w", err)
+		return "", fmt.Errorf("git commit: %w", err)
 	}
 	if err := run("git", "push", "-u", "origin", branch); err != nil {
-		return fmt.Errorf("git push: %w", err)
+		return "", fmt.Errorf("git push: %w", err)
 	}
 
 	approvedBy := opts.ApprovedBy
 	body := fmt.Sprintf("Auto-generated by nethelper rule-studio.\n\n**Vendor:** %s\n**Command:** %s\n**Rule ID:** %d\n**Approved by:** %s\n**Test cases:** %d",
 		rule.Vendor, rule.CommandPattern, rule.ID, approvedBy, len(testCases))
-	return run("gh", "pr", "create",
+	prURL, err := runOutput("gh", "pr", "create",
 		"--title", fmt.Sprintf("feat(parser): %s %s", rule.Vendor, rule.CommandPattern),
 		"--body", body)
+	if err != nil {
+		return "", fmt.Errorf("gh pr create: %w", err)
+	}
+	return prURL, nil
 }
 
 func checkGH() error {
@@ -2282,7 +2299,9 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -2408,10 +2427,15 @@ func newRuleRegenCmd() *cobra.Command {
 				return err
 			}
 			repoRoot, _ := os.Getwd()
-			return codegen.Generate(rule, testCases, codegen.GeneratorOptions{
+			prURL, err := codegen.Generate(rule, testCases, codegen.GeneratorOptions{
 				RepoRoot:   repoRoot,
 				ApprovedBy: rule.ApprovedBy,
 			})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("PR created: %s\n", prURL)
+			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "Force regeneration even if already merged")
@@ -2424,13 +2448,18 @@ func newRuleHistoryCmd() *cobra.Command {
 		Short: "Show history for a command pattern",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Use ListPendingRules to find matching IDs, then GetPendingRule for full data (incl. pr_url)
 			rules, err := db.ListPendingRules("", 100)
 			if err != nil {
 				return err
 			}
 			found := false
-			for _, r := range rules {
-				if r.Vendor == args[0] && r.CommandPattern == args[1] {
+			for _, summary := range rules {
+				if summary.Vendor == args[0] && summary.CommandPattern == args[1] {
+					r, err := db.GetPendingRule(summary.ID)
+					if err != nil {
+						continue
+					}
 					fmt.Printf("ID: %d  Status: %-10s  PR: %s  Created: %s\n",
 						r.ID, r.Status, r.PRURL, r.CreatedAt.Format("2006-01-02 15:04"))
 					found = true
@@ -2451,8 +2480,6 @@ func truncate(s string, n int) string {
 	return s[:n-1] + "…"
 }
 ```
-
-Add `"path/filepath"` and `"strings"` to imports.
 
 - [ ] **Step 10.2: Register in `internal/cli/root.go`**
 
