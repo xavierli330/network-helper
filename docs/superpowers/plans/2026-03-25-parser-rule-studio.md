@@ -1274,7 +1274,18 @@ type RuleConfig struct {
 
 Add `Rule RuleConfig` field to the `Config` struct.
 
-In `DefaultConfig()`, add: `Rule: RuleConfig{StudioPort: 7070}`.
+In `Default()` (not `DefaultConfig()` — the actual function name), add `Rule: RuleConfig{StudioPort: 7070}` to the returned struct literal:
+
+```go
+func Default() *Config {
+    dataDir := DefaultDataDir()
+    return &Config{
+        DataDir: dataDir,
+        DBPath:  filepath.Join(dataDir, "nethelper.db"),
+        Rule:    RuleConfig{StudioPort: 7070},
+    }
+}
+```
 
 - [ ] **Step 6.2: Build to check compilation**
 
