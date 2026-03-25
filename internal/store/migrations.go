@@ -333,4 +333,62 @@ var migrations = []string{
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_knowledge_file ON knowledge_cache(file_path, file_hash)`,
+
+	// Rule Studio: collect unknown command outputs
+	`CREATE TABLE IF NOT EXISTS unknown_outputs (
+    id               INTEGER PRIMARY KEY,
+    device_id        TEXT NOT NULL,
+    vendor           TEXT NOT NULL,
+    command_raw      TEXT NOT NULL,
+    command_norm     TEXT NOT NULL,
+    raw_output       TEXT NOT NULL,
+    content_hash     TEXT NOT NULL,
+    first_seen       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    occurrence_count INTEGER NOT NULL DEFAULT 1,
+    status           TEXT NOT NULL DEFAULT 'new'
+                     CHECK(status IN ('new','clustered','promoted','ignored'))
+)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_unknown_dedup ON unknown_outputs(vendor, command_norm, content_hash)`,
+	`CREATE INDEX IF NOT EXISTS idx_unknown_vendor_cmd ON unknown_outputs(vendor, command_norm, status)`,
+	`CREATE INDEX IF NOT EXISTS idx_unknown_hash ON unknown_outputs(content_hash)`,
+
+	// Rule Studio: LLM-generated parser rule drafts
+	`CREATE TABLE IF NOT EXISTS pending_rules (
+    id               INTEGER PRIMARY KEY,
+    vendor           TEXT NOT NULL,
+    command_pattern  TEXT NOT NULL,
+    output_type      TEXT NOT NULL CHECK(output_type IN ('table','hierarchical','raw')),
+    schema_yaml      TEXT,
+    go_code_draft    TEXT,
+    sample_inputs    TEXT NOT NULL DEFAULT '[]',
+    expected_outputs TEXT,
+    confidence       REAL,
+    occurrence_count INTEGER NOT NULL DEFAULT 0,
+    status           TEXT NOT NULL DEFAULT 'draft'
+                     CHECK(status IN ('draft','testing','approved','rejected')),
+    approved_by      TEXT,
+    approved_at      DATETIME,
+    pr_url           TEXT,
+    merged_at        DATETIME,
+    go_file_path     TEXT,
+    created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+	// Trigger to auto-update updated_at on any UPDATE
+	`CREATE TRIGGER IF NOT EXISTS pending_rules_updated_at
+ AFTER UPDATE ON pending_rules
+ BEGIN
+     UPDATE pending_rules SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+ END`,
+
+	// Rule Studio: sandbox-saved test cases per rule
+	`CREATE TABLE IF NOT EXISTS rule_test_cases (
+    id          INTEGER PRIMARY KEY,
+    rule_id     INTEGER NOT NULL REFERENCES pending_rules(id) ON DELETE CASCADE,
+    description TEXT,
+    input       TEXT NOT NULL,
+    expected    TEXT NOT NULL DEFAULT '{}',
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
 }

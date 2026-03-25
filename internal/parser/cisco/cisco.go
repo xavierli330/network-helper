@@ -54,6 +54,9 @@ func (p *Parser) ClassifyCommand(cmd string) model.CommandType {
 	case strings.HasPrefix(lower, "show running-config"), strings.HasPrefix(lower, "show startup-config"):
 		return model.CmdConfig
 	default:
+		if ct := classifyGenerated(lower); ct != model.CmdUnknown {
+			return ct
+		}
 		return model.CmdUnknown
 	}
 }
@@ -65,7 +68,7 @@ func (p *Parser) ParseOutput(cmdType model.CommandType, raw string) (model.Parse
 	case model.CmdNeighbor: return ParseShowOSPFNeighbor(raw)
 	case model.CmdLFIB: return ParseShowMplsForwarding(raw)
 	case model.CmdConfig: return model.ParseResult{Type: model.CmdConfig, ConfigText: raw, RawText: raw}, nil
-	default: return model.ParseResult{Type: cmdType, RawText: raw}, nil
+	default: return parseGenerated(cmdType, raw)
 	}
 }
 

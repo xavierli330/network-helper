@@ -85,6 +85,9 @@ func (p *Parser) ClassifyCommand(cmd string) model.CommandType {
 		strings.HasPrefix(lower, "display route-p"):
 		return model.CmdUnknown // route-policy output is not running-config
 	default:
+		if ct := classifyGenerated(lower); ct != model.CmdUnknown {
+			return ct
+		}
 		return model.CmdUnknown
 	}
 }
@@ -102,7 +105,7 @@ func (p *Parser) ParseOutput(cmdType model.CommandType, raw string) (model.Parse
 	case model.CmdConfig:
 		return model.ParseResult{Type: model.CmdConfig, ConfigText: raw, RawText: raw}, nil
 	default:
-		return model.ParseResult{Type: cmdType, RawText: raw}, nil
+		return parseGenerated(cmdType, raw)
 	}
 }
 

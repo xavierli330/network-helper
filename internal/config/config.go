@@ -110,6 +110,15 @@ type KnowledgeConfig struct {
 	Sources []KnowledgeSourceConfig `yaml:"sources"`
 }
 
+// RuleConfig configures the Rule Studio and Discovery Engine.
+type RuleConfig struct {
+	// DiscoveryInterval is how often the studio server auto-runs discovery.
+	// Empty or "0" = disabled (default). Example: "30m", "1h".
+	DiscoveryInterval string `yaml:"discovery_interval"`
+	// StudioPort is the default port for `nethelper rule studio`. Default: 7070.
+	StudioPort int `yaml:"studio_port"`
+}
+
 type Config struct {
 	DataDir     string            `yaml:"data_dir"`
 	DBPath      string            `yaml:"db_path"`
@@ -121,6 +130,7 @@ type Config struct {
 	Context     ContextConfig     `yaml:"context"`
 	Heartbeat   HeartbeatConfig   `yaml:"heartbeat"`
 	Knowledge   KnowledgeConfig   `yaml:"knowledge"`
+	Rule        RuleConfig        `yaml:"rule"`
 }
 
 func DefaultDataDir() string {
@@ -136,6 +146,7 @@ func Default() *Config {
 	return &Config{
 		DataDir: dataDir,
 		DBPath:  filepath.Join(dataDir, "nethelper.db"),
+		Rule:    RuleConfig{StudioPort: 7070},
 	}
 }
 

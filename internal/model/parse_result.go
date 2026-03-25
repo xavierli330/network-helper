@@ -13,6 +13,11 @@ const (
 	CmdConfig    CommandType = "config"
 	CmdConfigSet CommandType = "config_set"
 	CmdUnknown   CommandType = "unknown"
+
+	// CmdGenerated is the prefix for all Rule Studio-generated CommandType values.
+	// Individual commands use the full form: "generated:<vendor>:<stem>"
+	// This constant is only used as documentation — classifyGenerated() returns unique types.
+	CmdGenerated CommandType = "generated"
 )
 
 type ParseResult struct {

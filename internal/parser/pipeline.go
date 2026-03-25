@@ -21,13 +21,19 @@ type IngestResult struct {
 
 // Pipeline orchestrates split → detect → parse → store.
 type Pipeline struct {
-	db       *store.DB
-	registry *Registry
+	db        *store.DB
+	registry  *Registry
+	collector *Collector
 }
 
 // NewPipeline creates a Pipeline backed by the given DB and vendor registry.
 func NewPipeline(db *store.DB, registry *Registry) *Pipeline {
 	return &Pipeline{db: db, registry: registry}
+}
+
+// NewPipelineWithCollector creates a Pipeline that captures CmdUnknown outputs.
+func NewPipelineWithCollector(db *store.DB, registry *Registry, c *Collector) *Pipeline {
+	return &Pipeline{db: db, registry: registry, collector: c}
 }
 
 // Ingest splits raw CLI output into command blocks, parses each one,
@@ -165,6 +171,10 @@ func (p *Pipeline) processBlocks(sourceFile string, blocks []CommandBlock, resul
 				})
 				result.BlocksParsed++
 				continue
+			}
+
+			if b.CmdType == model.CmdUnknown && p.collector != nil {
+				p.collector.Collect(b)
 			}
 
 			parseResult, err := vp.ParseOutput(b.CmdType, b.Output)
