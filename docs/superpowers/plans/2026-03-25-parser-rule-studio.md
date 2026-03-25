@@ -2110,7 +2110,7 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 
 	// Patch: simulate approving "display traffic-policy statistics interface"
 	if err := codegen.PatchGeneratedFile(tmp.Name(), "display traffic-policy statistics interface",
-		"ParseHuaweiTrafficPolicyStatisticsInterface"); err != nil {
+		"ParseHuaweiTrafficPolicyStatisticsInterface", "huawei"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2328,14 +2328,16 @@ func Test{{$.FuncName}}_Case{{$i}}(t *testing.T) {
 // PatchGeneratedFile appends new cases to both classifyGenerated() and parseGenerated()
 // in <vendor>_generated.go. Uses stable sentinel comments inside each switch body.
 // Exported so it can be tested from codegen_test package.
-func PatchGeneratedFile(path, commandPattern, funcName string) error {
+// vendor must be passed explicitly (e.g. "huawei") — do not derive from path, as path
+// may point to a temp directory during tests.
+func PatchGeneratedFile(path, commandPattern, funcName, vendor string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}
 	src := string(data)
 
-	// Derive unique CommandType: "generated:huawei:traffic_policy_statistics"
+	// Derive unique CommandType: "generated:huawei:traffic_policy_statistics_interface"
 	// Use the snake_case stem from commandPattern (after stripping display/show prefix)
 	lower := strings.ToLower(strings.TrimSpace(commandPattern))
 	for _, pfx := range []string{"display ", "show ", "dis ", "sh "} {
@@ -2343,13 +2345,6 @@ func PatchGeneratedFile(path, commandPattern, funcName string) error {
 	}
 	snakeRe := regexp.MustCompile(`[\s\-]+`)
 	stem := snakeRe.ReplaceAllString(lower, "_")
-	// Extract vendor from funcName prefix "ParseHuawei..." → "huawei"
-	// (vendor is always the first field in the path, but we derive it from the path argument)
-	// Instead, accept vendor as a parameter — add it to the function signature:
-	// patchGeneratedFile(path, commandPattern, funcName, vendor string) error
-	// (Update caller in Generate() accordingly)
-	// cmdType string example: "generated:huawei:traffic_policy_statistics"
-	vendor := filepath.Base(filepath.Dir(path))  // e.g. "huawei" from "internal/parser/huawei/huawei_generated.go"
 	cmdTypeStr := fmt.Sprintf("generated:%s:%s", vendor, stem)
 
 	// Patch classifyGenerated: insert before classify sentinel
@@ -2362,19 +2357,22 @@ func PatchGeneratedFile(path, commandPattern, funcName string) error {
 	}
 
 	// Patch parseGenerated: insert before parse sentinel
+	// Save intermediate state so the guard correctly detects a missing parse sentinel.
+	intermediate := patched
 	const parseSentinel = "\t// GENERATED PARSE CASES — do not edit this comment"
 	newParseCase := fmt.Sprintf("\tcase model.CommandType(%q):\n\t\treturn %s(raw)\n%s",
 		cmdTypeStr, funcName, parseSentinel)
 	patched = strings.Replace(patched, parseSentinel, newParseCase, 1)
-	if patched == src {
+	if patched == intermediate {
 		return fmt.Errorf("patchGeneratedFile: parse sentinel not found in %s", path)
 	}
 
-	// Add "strings" and "regexp" imports if this is the first case being inserted
+	// Add "strings" import if this is the first case being inserted.
+	// regexp is used only inside PatchGeneratedFile itself, not in the generated file.
 	if !strings.Contains(patched, `"strings"`) {
 		patched = strings.Replace(patched,
 			`import "github.com/xavierli/nethelper/internal/model"`,
-			"import (\n\t\"regexp\"\n\t\"strings\"\n\n\t\"github.com/xavierli/nethelper/internal/model\"\n)", 1)
+			"import (\n\t\"strings\"\n\n\t\"github.com/xavierli/nethelper/internal/model\"\n)", 1)
 	}
 
 	return os.WriteFile(path, []byte(patched), 0644)
@@ -2422,7 +2420,7 @@ func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts Gener
 	}
 
 	funcName := GoFuncName(rule.Vendor, rule.CommandPattern)
-	if err := PatchGeneratedFile(generatedPath, rule.CommandPattern, funcName); err != nil {
+	if err := PatchGeneratedFile(generatedPath, rule.CommandPattern, funcName, rule.Vendor); err != nil {
 		return "", fmt.Errorf("patch _generated.go: %w", err)
 	}
 
