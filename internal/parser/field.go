@@ -17,5 +17,5 @@ type FieldDef struct {
 	Description string    // human-readable description
 	Example     string    // representative value, e.g. "up"
 	Derived     bool      // true if computed from other fields
-	DerivedFrom []string  // source field names for derived fields
+	DerivedFrom []string  // source field names; non-nil only when Derived is true
 }
