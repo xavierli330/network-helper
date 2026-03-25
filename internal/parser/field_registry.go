@@ -77,3 +77,9 @@ func (r *FieldRegistry) ClassifyCommand(vendor, rawCmd string) model.CommandType
 	}
 	return p.ClassifyCommand(rawCmd)
 }
+
+// Reg returns the underlying parser Registry, needed for live command classification
+// in the Studio parser tester.
+func (r *FieldRegistry) Reg() *Registry {
+	return r.reg
+}

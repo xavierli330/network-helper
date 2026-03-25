@@ -25,11 +25,12 @@ type Server struct {
 	llmR     *llm.Router
 	generate GenerateFn // nil means codegen not available (dry-run mode)
 	fieldReg *parser.FieldRegistry
+	repoRoot string
 }
 
 // NewServer creates a Rule Studio server. eng, llmR, generate and fieldReg may be nil.
-func NewServer(db *store.DB, eng *discovery.Engine, llmR *llm.Router, generate GenerateFn, fieldReg *parser.FieldRegistry) *Server {
-	s := &Server{mux: http.NewServeMux(), db: db, eng: eng, llmR: llmR, generate: generate, fieldReg: fieldReg}
+func NewServer(db *store.DB, eng *discovery.Engine, llmR *llm.Router, generate GenerateFn, fieldReg *parser.FieldRegistry, repoRoot string) *Server {
+	s := &Server{mux: http.NewServeMux(), db: db, eng: eng, llmR: llmR, generate: generate, fieldReg: fieldReg, repoRoot: repoRoot}
 	s.registerRoutes()
 	return s
 }
@@ -48,7 +49,7 @@ func (s *Server) registerRoutes() {
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Write(htmxJS)
 	})
-	h := &handlers{db: s.db, eng: s.eng, generate: s.generate, fieldReg: s.fieldReg}
+	h := &handlers{db: s.db, eng: s.eng, generate: s.generate, fieldReg: s.fieldReg, repoRoot: s.repoRoot}
 	s.mux.HandleFunc("/", h.list)
 	s.mux.HandleFunc("/rule/", h.ruleDispatch)    // /rule/:id and /rule/:id/sandbox
 	s.mux.HandleFunc("/api/rule/", h.apiDispatch) // /api/rule/:id/test|testcase|approve|ignore
@@ -57,4 +58,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/fields", h.fields)
 	s.mux.HandleFunc("/api/fields/vendors-html", h.apiFieldsVendorsHTML)
 	s.mux.HandleFunc("/api/fields/schema-html", h.apiFieldsSchemaHTML)
+	s.mux.HandleFunc("/test", h.tester)
+	s.mux.HandleFunc("/api/test", h.apiParserTest)
+	s.mux.HandleFunc("/unknown", h.unknownList)
+	s.mux.HandleFunc("/api/unknown/", h.unknownDispatch)
 }

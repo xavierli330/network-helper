@@ -105,6 +105,18 @@ func (db *DB) UpdateUnknownOutputStatus(vendor, commandNorm, status string) erro
 	return err
 }
 
+// GetUnknownOutputByID fetches a single unknown output by its primary key.
+func (db *DB) GetUnknownOutputByID(id int) (UnknownOutput, error) {
+	var u UnknownOutput
+	err := db.QueryRow(`
+		SELECT id, device_id, vendor, command_raw, command_norm, raw_output, content_hash,
+		       first_seen, last_seen, occurrence_count, status
+		FROM unknown_outputs WHERE id = ?`, id).Scan(
+		&u.ID, &u.DeviceID, &u.Vendor, &u.CommandRaw, &u.CommandNorm,
+		&u.RawOutput, &u.ContentHash, &u.FirstSeen, &u.LastSeen, &u.OccurrenceCount, &u.Status)
+	return u, err
+}
+
 // CreatePendingRule inserts a new rule and returns its ID.
 func (db *DB) CreatePendingRule(r PendingRule) (int, error) {
 	res, err := db.Exec(`

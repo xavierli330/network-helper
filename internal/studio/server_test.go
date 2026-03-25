@@ -26,7 +26,7 @@ func openTestDB(t *testing.T) *store.DB {
 func TestServerRoutes(t *testing.T) {
 	db := openTestDB(t)
 
-	srv := studio.NewServer(db, nil, nil, nil, nil) // generate=nil until Task 9 wires codegen
+	srv := studio.NewServer(db, nil, nil, nil, nil, "") // generate=nil until Task 9 wires codegen
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
@@ -50,7 +50,7 @@ func TestAPIFields(t *testing.T) {
 	reg.Register(&stubFieldParser{})
 	fr := parser.BuildFieldRegistry(reg)
 
-	srv := studio.NewServer(db, nil, nil, nil, fr)
+	srv := studio.NewServer(db, nil, nil, nil, fr, "")
 
 	tests := []struct {
 		name     string
@@ -79,7 +79,7 @@ func TestAPIFields(t *testing.T) {
 		},
 		{
 			name:     "nil registry returns 503",
-			server:   studio.NewServer(openTestDB(t), nil, nil, nil, nil),
+			server:   studio.NewServer(openTestDB(t), nil, nil, nil, nil, ""),
 			query:    "/api/fields",
 			wantCode: http.StatusServiceUnavailable,
 			wantBody: "field registry not available",

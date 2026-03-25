@@ -336,6 +336,65 @@ func capitalizeFirst(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
+// generateFiles writes parser, test, and patches the vendor _generated.go file to disk.
+// Returns the absolute paths of the three files written.
+func generateFiles(rule store.PendingRule, testCases []store.RuleTestCase, repoRoot string) (parserPath, testPath, genPath string, err error) {
+	parserSrc, err := GenerateParserFile(rule)
+	if err != nil {
+		err = fmt.Errorf("generate parser: %w", err)
+		return
+	}
+	testSrc, err := GenerateTestFile(rule, testCases)
+	if err != nil {
+		err = fmt.Errorf("generate test: %w", err)
+		return
+	}
+
+	relParser := TargetFilePath(rule.Vendor, rule.CommandPattern)
+	relTest := strings.TrimSuffix(relParser, ".go") + "_test.go"
+	relGenerated := fmt.Sprintf("internal/parser/%s/%s_generated.go", rule.Vendor, rule.Vendor)
+
+	parserPath = filepath.Join(repoRoot, relParser)
+	testPath = filepath.Join(repoRoot, relTest)
+	genPath = filepath.Join(repoRoot, relGenerated)
+
+	if err = os.MkdirAll(filepath.Dir(parserPath), 0755); err != nil {
+		return
+	}
+	if err = os.WriteFile(parserPath, []byte(parserSrc), 0644); err != nil {
+		return
+	}
+	if err = os.WriteFile(testPath, []byte(testSrc), 0644); err != nil {
+		return
+	}
+
+	funcName := GoFuncName(rule.Vendor, rule.CommandPattern)
+	if err = PatchGeneratedFile(genPath, rule.CommandPattern, funcName, rule.Vendor, rule.SchemaYAML); err != nil {
+		err = fmt.Errorf("patch _generated.go: %w", err)
+		return
+	}
+	return
+}
+
+// GenerateLocal writes files and runs `go build ./cmd/nethelper` in repoRoot.
+// Returns written file paths and combined build output (stdout+stderr).
+func GenerateLocal(rule store.PendingRule, testCases []store.RuleTestCase, repoRoot string) (paths []string, buildOutput string, err error) {
+	p, t, g, err := generateFiles(rule, testCases, repoRoot)
+	if err != nil {
+		return nil, "", err
+	}
+	paths = []string{p, t, g}
+
+	cmd := exec.Command("go", "build", "./cmd/nethelper")
+	cmd.Dir = repoRoot
+	out, buildErr := cmd.CombinedOutput()
+	buildOutput = string(out)
+	if buildErr != nil {
+		err = fmt.Errorf("build failed: %w", buildErr)
+	}
+	return
+}
+
 // Generate performs the full code generation, git commit, and PR creation.
 // Returns the PR URL on success.
 func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts GeneratorOptions) (string, error) {
@@ -345,42 +404,30 @@ func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts Gener
 		}
 	}
 
-	parserSrc, err := GenerateParserFile(rule)
-	if err != nil {
-		return "", fmt.Errorf("generate parser: %w", err)
+	if opts.DryRun {
+		parserSrc, err := GenerateParserFile(rule)
+		if err != nil {
+			return "", fmt.Errorf("generate parser: %w", err)
+		}
+		testSrc, err := GenerateTestFile(rule, testCases)
+		if err != nil {
+			return "", fmt.Errorf("generate test: %w", err)
+		}
+		relParser := TargetFilePath(rule.Vendor, rule.CommandPattern)
+		relTest := strings.TrimSuffix(relParser, ".go") + "_test.go"
+		parserPath := filepath.Join(opts.RepoRoot, relParser)
+		testPath := filepath.Join(opts.RepoRoot, relTest)
+		fmt.Printf("=== %s ===\n%s\n\n=== %s ===\n%s\n", parserPath, parserSrc, testPath, testSrc)
+		return "", nil
 	}
-	testSrc, err := GenerateTestFile(rule, testCases)
-	if err != nil {
-		return "", fmt.Errorf("generate test: %w", err)
+
+	if _, _, _, err := generateFiles(rule, testCases, opts.RepoRoot); err != nil {
+		return "", err
 	}
 
 	relParser := TargetFilePath(rule.Vendor, rule.CommandPattern)
 	relTest := strings.TrimSuffix(relParser, ".go") + "_test.go"
 	relGenerated := fmt.Sprintf("internal/parser/%s/%s_generated.go", rule.Vendor, rule.Vendor)
-
-	parserPath := filepath.Join(opts.RepoRoot, relParser)
-	testPath := filepath.Join(opts.RepoRoot, relTest)
-	generatedPath := filepath.Join(opts.RepoRoot, relGenerated)
-
-	if opts.DryRun {
-		fmt.Printf("=== %s ===\n%s\n\n=== %s ===\n%s\n", parserPath, parserSrc, testPath, testSrc)
-		return "", nil
-	}
-
-	if err := os.MkdirAll(filepath.Dir(parserPath), 0755); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(parserPath, []byte(parserSrc), 0644); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(testPath, []byte(testSrc), 0644); err != nil {
-		return "", err
-	}
-
-	funcName := GoFuncName(rule.Vendor, rule.CommandPattern)
-	if err := PatchGeneratedFile(generatedPath, rule.CommandPattern, funcName, rule.Vendor, rule.SchemaYAML); err != nil {
-		return "", fmt.Errorf("patch _generated.go: %w", err)
-	}
 
 	stem := strings.TrimSuffix(filepath.Base(relParser), ".go")
 	branch := fmt.Sprintf("rule/%s-%s-%d", rule.Vendor, stem, rule.ID)

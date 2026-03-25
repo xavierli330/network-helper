@@ -161,3 +161,51 @@ For hierarchical/raw: go_code_draft is the body of func parseXxx(raw string) (mo
 	}
 	return resp, nil
 }
+
+// GenerateForUnknown generates a pending rule draft for a single unknown output by ID.
+// If a rule already exists for the same (vendor, command_norm), returns the existing rule ID.
+// Returns the pending rule ID (new or existing).
+func (e *Engine) GenerateForUnknown(ctx context.Context, unknownID int) (int, error) {
+	u, err := e.db.GetUnknownOutputByID(unknownID)
+	if err != nil {
+		return 0, fmt.Errorf("load unknown output %d: %w", unknownID, err)
+	}
+
+	// Check for existing draft/testing rule for this (vendor, command_norm).
+	existing, err := e.db.GetPendingRuleByCommandNorm(u.Vendor, u.CommandNorm)
+	if err == nil {
+		// Rule already exists — return existing ID without re-calling LLM.
+		return existing.ID, nil
+	}
+
+	group := CommandGroup{
+		Vendor:           u.Vendor,
+		CommandNorm:      u.CommandNorm,
+		Samples:          []store.UnknownOutput{u},
+		TotalOccurrences: u.OccurrenceCount,
+	}
+
+	resp, err := e.callLLM(ctx, group)
+	if err != nil {
+		return 0, fmt.Errorf("LLM call for unknown %d: %w", unknownID, err)
+	}
+
+	samplesJSON, _ := json.Marshal([]string{u.RawOutput})
+	ruleID, err := e.db.CreatePendingRule(store.PendingRule{
+		Vendor:          u.Vendor,
+		CommandPattern:  u.CommandNorm,
+		OutputType:      resp.OutputType,
+		SchemaYAML:      resp.SchemaYAML,
+		GoCodeDraft:     resp.GoCodeDraft,
+		SampleInputs:    string(samplesJSON),
+		Confidence:      resp.Confidence,
+		OccurrenceCount: u.OccurrenceCount,
+		Status:          "draft",
+	})
+	if err != nil {
+		return 0, fmt.Errorf("create pending rule: %w", err)
+	}
+
+	e.db.UpdateUnknownOutputStatus(u.Vendor, u.CommandNorm, "clustered")
+	return ruleID, nil
+}
