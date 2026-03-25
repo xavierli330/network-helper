@@ -7,3 +7,4 @@ nethelper
 !cmd/nethelper/
 dist/
 build/
+test/integration/testdata/
