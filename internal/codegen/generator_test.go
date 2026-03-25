@@ -58,6 +58,9 @@ columns:
 	if !strings.Contains(src, `"github.com/xavierli/nethelper/internal/parser/engine"`) {
 		t.Error("expected engine import for table rule")
 	}
+	if !strings.Contains(src, "Rows: tableResult.Rows") {
+		t.Error("expected Rows in return statement")
+	}
 }
 
 func TestGenerateParserFile_Hierarchical(t *testing.T) {
@@ -121,8 +124,15 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 	}
 	tmp.Close()
 
+	schemaYAML := `header_pattern: "Interface\\s+Policy"
+skip_lines: 0
+columns:
+  - name: interface
+    index: 0
+    type: string`
+
 	if err := codegen.PatchGeneratedFile(tmp.Name(), "display traffic-policy statistics interface",
-		"ParseHuaweiTrafficPolicyStatisticsInterface", "huawei"); err != nil {
+		"ParseHuaweiTrafficPolicyStatisticsInterface", "huawei", schemaYAML); err != nil {
 		t.Fatal(err)
 	}
 
@@ -143,5 +153,64 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 	}
 	if !strings.Contains(got, `"strings"`) {
 		t.Error("strings import not added")
+	}
+}
+
+func TestGenerateParserFile_WithDerived(t *testing.T) {
+	rule := store.PendingRule{
+		Vendor:         "huawei",
+		CommandPattern: "display traffic-policy statistics interface",
+		OutputType:     "table",
+		SchemaYAML: `header_pattern: "Interface\\s+InOctets\\s+Bandwidth"
+skip_lines: 0
+columns:
+  - name: interface
+    index: 0
+    type: string
+  - name: in_bytes
+    index: 1
+    type: int
+  - name: bandwidth_kbps
+    index: 2
+    type: int
+derived:
+  - name: util_pct
+    type: float
+    description: "入方向利用率百分比"
+    from: ["in_bytes", "bandwidth_kbps"]
+    example: "3.14"
+`,
+	}
+	out, err := codegen.GenerateParserFile(rule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `row["util_pct"]`) {
+		t.Errorf("expected derived field TODO in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Rows: tableResult.Rows") {
+		t.Errorf("expected Rows in return statement, got:\n%s", out)
+	}
+}
+
+func TestGenerateParserFile_DerivedValidation(t *testing.T) {
+	rule := store.PendingRule{
+		Vendor:         "huawei",
+		CommandPattern: "display x",
+		OutputType:     "table",
+		SchemaYAML: `header_pattern: "X"
+columns:
+  - name: col_a
+    index: 0
+    type: string
+derived:
+  - name: bad_derived
+    type: float
+    from: ["nonexistent_column"]
+`,
+	}
+	_, err := codegen.GenerateParserFile(rule)
+	if err == nil {
+		t.Fatal("expected validation error for unknown column reference")
 	}
 }

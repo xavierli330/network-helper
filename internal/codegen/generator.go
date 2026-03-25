@@ -16,6 +16,31 @@ import (
 	"github.com/xavierli/nethelper/internal/store"
 )
 
+// tableSchemaYAML is the struct used to unmarshal the schema_yaml field of a rule.
+type tableSchemaYAML struct {
+	HeaderPattern string      `yaml:"header_pattern"`
+	SkipLines     int         `yaml:"skip_lines"`
+	Columns       []columnDef `yaml:"columns"`
+	Derived       []derivedDef `yaml:"derived"`
+}
+
+type columnDef struct {
+	Name        string `yaml:"name"`
+	Index       int    `yaml:"index"`
+	Type        string `yaml:"type"`
+	Optional    bool   `yaml:"optional"`
+	Description string `yaml:"description"`
+}
+
+// derivedDef describes a field that is computed from other parsed fields.
+type derivedDef struct {
+	Name        string   `yaml:"name"`
+	Type        string   `yaml:"type"`
+	Description string   `yaml:"description"`
+	From        []string `yaml:"from"`
+	Example     string   `yaml:"example"`
+}
+
 // CmdNameToGoIdent converts a command string to a CamelCase Go identifier fragment.
 // "display traffic-policy statistics" → "TrafficPolicyStatistics"
 func CmdNameToGoIdent(cmd string) string {
@@ -51,6 +76,18 @@ func TargetFilePath(vendor, cmd string) string {
 	return fmt.Sprintf("internal/parser/%s/%s.go", vendor, filename)
 }
 
+// computeCmdTypeStr derives the unique CommandType string for a rule.
+// "huawei", "display traffic-policy statistics interface" → "generated:huawei:traffic_policy_statistics_interface"
+func computeCmdTypeStr(vendor, commandPattern string) string {
+	lower := strings.ToLower(strings.TrimSpace(commandPattern))
+	for _, pfx := range []string{"display ", "show ", "dis ", "sh "} {
+		lower = strings.TrimPrefix(lower, pfx)
+	}
+	snakeRe := regexp.MustCompile(`[\s\-]+`)
+	stem := snakeRe.ReplaceAllString(lower, "_")
+	return fmt.Sprintf("generated:%s:%s", vendor, stem)
+}
+
 // GeneratorOptions configures a code generation run.
 type GeneratorOptions struct {
 	RepoRoot   string
@@ -65,7 +102,8 @@ func GenerateParserFile(rule store.PendingRule) (string, error) {
 
 	var body, extraImport string
 	if rule.OutputType == "table" {
-		tb, err := generateTableBody(rule.SchemaYAML, funcName)
+		cmdTypeStr := computeCmdTypeStr(rule.Vendor, rule.CommandPattern)
+		tb, err := generateTableBody(rule.SchemaYAML, funcName, cmdTypeStr)
 		if err != nil {
 			return "", err
 		}
@@ -104,25 +142,52 @@ import (
 	return buf.String(), err
 }
 
-func generateTableBody(schemaYAML, funcName string) (string, error) {
-	var def struct {
-		HeaderPattern string `yaml:"header_pattern"`
-		SkipLines     int    `yaml:"skip_lines"`
-		Columns       []struct {
-			Name     string `yaml:"name"`
-			Index    int    `yaml:"index"`
-			Type     string `yaml:"type"`
-			Optional bool   `yaml:"optional"`
-		} `yaml:"columns"`
-	}
-	if err := yaml.Unmarshal([]byte(schemaYAML), &def); err != nil {
+func generateTableBody(schemaYAML, funcName, cmdTypeStr string) (string, error) {
+	var schema tableSchemaYAML
+	if err := yaml.Unmarshal([]byte(schemaYAML), &schema); err != nil {
 		return "", err
 	}
+
+	// Validate derived field types and references.
+	validFieldTypes := map[string]bool{"string": true, "int": true, "float": true, "bool": true}
+	colNames := map[string]bool{}
+	for _, c := range schema.Columns {
+		colNames[c.Name] = true
+	}
+	for _, d := range schema.Derived {
+		if !validFieldTypes[d.Type] {
+			return "", fmt.Errorf("derived field %q has invalid type %q (must be string|int|float|bool)", d.Name, d.Type)
+		}
+		for _, ref := range d.From {
+			if !colNames[ref] {
+				return "", fmt.Errorf("derived field %q references unknown column %q", d.Name, ref)
+			}
+		}
+	}
+
 	var cols strings.Builder
-	for _, c := range def.Columns {
+	for _, c := range schema.Columns {
 		cols.WriteString(fmt.Sprintf("\t\t{Name: %q, Index: %d, Type: %q, Optional: %v},\n",
 			c.Name, c.Index, c.Type, c.Optional))
 	}
+
+	// Build the derived fields TODO block (only emitted when derived fields exist).
+	var derivedBlock string
+	if len(schema.Derived) > 0 {
+		var db strings.Builder
+		db.WriteString("\t// Derived fields — implement each TODO below\n")
+		db.WriteString("\tfor i := range tableResult.Rows {\n")
+		db.WriteString("\t\trow := tableResult.Rows[i]\n")
+		for _, d := range schema.Derived {
+			db.WriteString(fmt.Sprintf("\t\t// derived: %s (%s) from [%s]\n",
+				d.Name, d.Type, strings.Join(d.From, ", ")))
+			db.WriteString(fmt.Sprintf("\t\t// TODO: row[%q] = ...\n", d.Name))
+		}
+		db.WriteString("\t\t_ = row\n")
+		db.WriteString("\t}\n")
+		derivedBlock = db.String()
+	}
+
 	return fmt.Sprintf(`func %s(raw string) (model.ParseResult, error) {
 	schema := engine.TableSchema{
 		HeaderPattern: %q,
@@ -134,9 +199,12 @@ func generateTableBody(schemaYAML, funcName string) (string, error) {
 	if err != nil {
 		return model.ParseResult{RawText: raw}, err
 	}
-	_ = tableResult // TODO: map rows to model fields
-	return model.ParseResult{Type: model.CmdUnknown, RawText: raw}, nil
-}`, funcName, def.HeaderPattern, def.SkipLines, cols.String()), nil
+%s	return model.ParseResult{
+		Type: model.CommandType(%q),
+		RawText: raw,
+		Rows: tableResult.Rows,
+	}, nil
+}`, funcName, schema.HeaderPattern, schema.SkipLines, cols.String(), derivedBlock, cmdTypeStr), nil
 }
 
 // GenerateTestFile generates a _test.go file with one test per test case.
@@ -173,27 +241,22 @@ func Test{{$.FuncName}}_Case{{$i}}(t *testing.T) {
 	return buf.String(), err
 }
 
-// PatchGeneratedFile appends new cases to both classifyGenerated() and parseGenerated()
-// in <vendor>_generated.go. Uses stable sentinel comments inside each switch body.
+// PatchGeneratedFile appends new cases to classifyGenerated(), parseGenerated(),
+// knownGeneratedCmdTypes(), and generatedFieldSchema() in <vendor>_generated.go.
+// Uses stable sentinel comments inside each switch/slice body.
 // Exported so it can be tested from codegen_test package.
 // vendor must be passed explicitly — do not derive from path (breaks in temp dirs).
-func PatchGeneratedFile(path, commandPattern, funcName, vendor string) error {
+// schemaYAML is used to populate the generatedFieldSchema case; pass "" to emit a nil-return stub.
+func PatchGeneratedFile(path, commandPattern, funcName, vendor, schemaYAML string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}
 	src := string(data)
 
-	// Derive unique CommandType: "generated:huawei:traffic_policy_statistics_interface"
-	lower := strings.ToLower(strings.TrimSpace(commandPattern))
-	for _, pfx := range []string{"display ", "show ", "dis ", "sh "} {
-		lower = strings.TrimPrefix(lower, pfx)
-	}
-	snakeRe := regexp.MustCompile(`[\s\-]+`)
-	stem := snakeRe.ReplaceAllString(lower, "_")
-	cmdTypeStr := fmt.Sprintf("generated:%s:%s", vendor, stem)
+	cmdTypeStr := computeCmdTypeStr(vendor, commandPattern)
 
-	// Patch classifyGenerated
+	// Patch 1: classifyGenerated
 	const classifySentinel = "\t// GENERATED CASES — do not edit this comment"
 	newClassifyCase := fmt.Sprintf("\tcase strings.HasPrefix(cmd, %q):\n\t\treturn model.CommandType(%q) // %s\n%s",
 		commandPattern, cmdTypeStr, funcName, classifySentinel)
@@ -202,7 +265,7 @@ func PatchGeneratedFile(path, commandPattern, funcName, vendor string) error {
 		return fmt.Errorf("patchGeneratedFile: classify sentinel not found in %s", path)
 	}
 
-	// Patch parseGenerated
+	// Patch 2: parseGenerated
 	intermediate := patched
 	const parseSentinel = "\t// GENERATED PARSE CASES — do not edit this comment"
 	newParseCase := fmt.Sprintf("\tcase model.CommandType(%q):\n\t\treturn %s(raw)\n%s",
@@ -212,6 +275,17 @@ func PatchGeneratedFile(path, commandPattern, funcName, vendor string) error {
 		return fmt.Errorf("patchGeneratedFile: parse sentinel not found in %s", path)
 	}
 
+	// Patch 3: knownGeneratedCmdTypes — silent if sentinel absent (function may not exist yet)
+	const cmdTypesSentinel = "\t\t// GENERATED CMDTYPES — do not edit this comment"
+	cmdTypeLine := fmt.Sprintf("\t\tmodel.CommandType(%q),\n%s", cmdTypeStr, cmdTypesSentinel)
+	patched = strings.Replace(patched, cmdTypesSentinel, cmdTypeLine, 1)
+
+	// Patch 4: generatedFieldSchema — silent if sentinel absent (function may not exist yet)
+	const fieldCasesSentinel = "\t// GENERATED FIELD CASES — do not edit this comment"
+	fieldSchemaCase := buildFieldSchemaCase(cmdTypeStr, schemaYAML)
+	fieldCaseLine := fieldSchemaCase + "\n" + fieldCasesSentinel
+	patched = strings.Replace(patched, fieldCasesSentinel, fieldCaseLine, 1)
+
 	// Add "strings" import if this is the first case
 	if !strings.Contains(patched, `"strings"`) {
 		patched = strings.Replace(patched,
@@ -220,6 +294,36 @@ func PatchGeneratedFile(path, commandPattern, funcName, vendor string) error {
 	}
 
 	return os.WriteFile(path, []byte(patched), 0644)
+}
+
+// buildFieldSchemaCase generates the Go case block for generatedFieldSchema().
+func buildFieldSchemaCase(cmdTypeStr, schemaYAML string) string {
+	var schema tableSchemaYAML
+	if err := yaml.Unmarshal([]byte(schemaYAML), &schema); err != nil {
+		return fmt.Sprintf("\tcase model.CommandType(%q):\n\t\treturn nil", cmdTypeStr)
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "\tcase model.CommandType(%q):\n", cmdTypeStr)
+	fmt.Fprintf(&b, "\t\treturn []model.FieldDef{\n")
+	for _, c := range schema.Columns {
+		fmt.Fprintf(&b, "\t\t\t{Name: %q, Type: model.FieldType%s, Description: %q},\n",
+			c.Name, capitalizeFirst(c.Type), c.Description)
+	}
+	for _, d := range schema.Derived {
+		fmt.Fprintf(&b, "\t\t\t{Name: %q, Type: model.FieldType%s, Description: %q, Derived: true, DerivedFrom: %#v},\n",
+			d.Name, capitalizeFirst(d.Type), d.Description, d.From)
+	}
+	fmt.Fprintf(&b, "\t\t}")
+	return b.String()
+}
+
+// capitalizeFirst uppercases the first rune of s.
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // Generate performs the full code generation, git commit, and PR creation.
@@ -264,7 +368,7 @@ func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts Gener
 	}
 
 	funcName := GoFuncName(rule.Vendor, rule.CommandPattern)
-	if err := PatchGeneratedFile(generatedPath, rule.CommandPattern, funcName, rule.Vendor); err != nil {
+	if err := PatchGeneratedFile(generatedPath, rule.CommandPattern, funcName, rule.Vendor, rule.SchemaYAML); err != nil {
 		return "", fmt.Errorf("patch _generated.go: %w", err)
 	}
 
