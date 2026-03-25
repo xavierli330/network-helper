@@ -93,6 +93,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newChannelCmd())
 	root.AddCommand(newHeartbeatCmd())
 	root.AddCommand(newKnowledgeCmd())
+	root.AddCommand(newRuleCmd())
 
 	return root
 }
