@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -196,6 +197,21 @@ func (p *Pipeline) processBlocks(sourceFile string, blocks []CommandBlock, resul
 }
 
 func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult, capturedAt time.Time, vendor string) error {
+	// Generated parsers return row data via Rows; route to scratch pad.
+	if len(pr.Rows) > 0 {
+		rowsJSON, err := json.Marshal(pr.Rows)
+		if err != nil {
+			rowsJSON = []byte("[]")
+		}
+		_, _ = p.db.InsertScratch(model.ScratchEntry{
+			DeviceID: deviceID,
+			Category: "generated",
+			Query:    string(pr.Type),
+			Content:  string(rowsJSON),
+		})
+		return nil
+	}
+
 	for i := range pr.Interfaces {
 		iface := &pr.Interfaces[i]
 		iface.DeviceID = deviceID
