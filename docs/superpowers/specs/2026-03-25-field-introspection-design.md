@@ -23,27 +23,53 @@ FieldSchema()  ←→   code generator 从 schema_yaml 生成
 ```
 
 **关键设计决策：**
-- **parse-time 计算**：派生字段在 ParseOutput 时计算，结果直接入库，查询侧零额外开销
+- **parse-time 计算**：派生字段在 ParseOutput 时计算，结果通过 `model.ParseResult.Rows` 传递给 pipeline，pipeline 写入 scratch pad；查询侧零额外开销
 - **开发者写 Go**：不引入表达式引擎，code generator 生成骨架 + `TODO` 注释，开发者填一行 Go
-- **FieldSchema() 加入接口**：编译时强制所有 vendor parser 实现，不会漂移
+- **FieldSchema() + SupportedCmdTypes() 加入接口**：编译时强制所有 vendor parser 实现，不会漂移
+- **FieldRegistry 以 CommandType 为 key**：避免 commandNorm → CommandType 多对一冲突；CLI 层先调 ClassifyCommand 再查 registry
 
 ## Data Structures
 
-### FieldDef
+### FieldType 和 FieldDef
 
 ```go
 // internal/parser/field.go
+
+// FieldType 是字段类型的枚举，限制合法值集合。
+type FieldType string
+
+const (
+    FieldTypeString FieldType = "string"
+    FieldTypeInt    FieldType = "int"
+    FieldTypeFloat  FieldType = "float"
+    FieldTypeBool   FieldType = "bool"
+)
+
 type FieldDef struct {
-    Name        string   // snake_case，如 "phy_status"
-    Type        string   // "string" | "int" | "float" | "bool"
-    Description string   // 人读说明
-    Example     string   // 示例值，如 "up"
-    Derived     bool     // 是否派生字段
-    DerivedFrom []string // 依赖的源字段名，如 ["in_bytes", "bandwidth_kbps"]
+    Name        string    // snake_case，如 "phy_status"
+    Type        FieldType // 枚举，见上方常量
+    Description string    // 人读说明
+    Example     string    // 示例值，如 "up"
+    Derived     bool      // 是否派生字段
+    DerivedFrom []string  // 依赖的源字段名，如 ["in_bytes", "bandwidth_kbps"]
 }
 ```
 
-### VendorParser 接口新增方法
+使用 `FieldType` 而非裸 `string`，hand-written parser 在编译期即可发现拼写错误；schema_yaml 解析时显式验证 `FieldType` 合法性。
+
+### model.ParseResult 新增 Rows 字段
+
+```go
+// internal/model/parse_result.go（现有结构，新增一行）
+type ParseResult struct {
+    // ... 现有字段 ...
+    Rows []map[string]string `json:"rows,omitempty"` // ← 新增：供生成 parser 传递通用行数据
+}
+```
+
+Pipeline 在 `storeResult()` 中：若 `result.Rows` 非空，将其写入 `scratch_entries`（category = `"generated"`），与现有大表路由逻辑一致。
+
+### VendorParser 接口新增两个方法
 
 ```go
 // internal/parser/types.go（现有接口）
@@ -52,35 +78,49 @@ type VendorParser interface {
     DetectPrompt(line string) (string, bool)
     ClassifyCommand(cmd string) model.CommandType
     ParseOutput(cmdType model.CommandType, raw string) (model.ParseResult, error)
-    FieldSchema(cmdType model.CommandType) []FieldDef  // ← 新增
+    FieldSchema(cmdType model.CommandType) []FieldDef        // ← 新增：返回该 cmdType 的字段列表
+    SupportedCmdTypes() []model.CommandType                  // ← 新增：返回该 parser 支持的所有 cmdType
 }
 ```
 
-`FieldSchema` 返回 `cmdType` 对应的字段列表；未知 `cmdType` 返回 `nil`（不是 error）。
+- `FieldSchema`：未知 `cmdType` 返回 `nil`（不是 error）。
+- `SupportedCmdTypes`：供 `BuildFieldRegistry` 遍历；包含手写常量（`CmdInterface`、`CmdNeighbor` 等）和生成 parser 的动态类型字符串（如 `"generated:huawei:traffic_policy_statistics_interface"`）。
+
+**所有四个 vendor parser 的编译期接口检查必须升级为：**
+
+```go
+// 在 huawei.go / cisco.go / h3c.go / juniper.go 顶部
+var _ parser.VendorParser = (*Parser)(nil)  // 确保整个接口被满足
+```
+
+（现有检查仅验证 `Vendor()`，升级后在编译期即可发现缺少 `FieldSchema` 或 `SupportedCmdTypes` 的情况。）
 
 ### FieldRegistry
 
 ```go
 // internal/parser/field_registry.go
 type FieldRegistry struct {
-    // vendor → commandNorm → []FieldDef
-    index map[string]map[string][]FieldDef
+    // vendor → CommandType → []FieldDef
+    // key 使用 model.CommandType（string alias），不是 commandNorm
+    index map[string]map[model.CommandType][]FieldDef
 }
 
-// BuildFieldRegistry 遍历 registry 中所有 parser，收集所有 cmdType 的 FieldDef
+// BuildFieldRegistry 遍历 registry 中所有 parser：
+//   1. 调用 p.SupportedCmdTypes() 获得完整 cmdType 列表
+//   2. 对每个 cmdType 调用 p.FieldSchema(ct) 收集字段
 func BuildFieldRegistry(reg *Registry) *FieldRegistry
 
-// Fields 查询单个命令的字段列表，commandNorm 为 normalised 命令字符串
-func (r *FieldRegistry) Fields(vendor, commandNorm string) []FieldDef
+// Fields 查询单个 CommandType 的字段列表
+func (r *FieldRegistry) Fields(vendor string, cmdType model.CommandType) []FieldDef
 
 // Vendors 返回所有已注册 vendor
 func (r *FieldRegistry) Vendors() []string
 
-// Commands 返回某 vendor 已注册的所有命令（normalised）
-func (r *FieldRegistry) Commands(vendor string) []string
+// CmdTypes 返回某 vendor 已注册的所有 CommandType
+func (r *FieldRegistry) CmdTypes(vendor string) []model.CommandType
 ```
 
-`commandNorm` 使用与 collector 相同的 normalise 逻辑（lowercase + strip display/show prefix）。
+**CLI 层职责**：调用 `ClassifyCommand(rawInput)` 将用户输入的命令字符串转为 `CommandType`，再调用 `fieldRegistry.Fields(vendor, cmdType)` 查询。
 
 **Registry 初始化：** 在 `root.go` `PersistentPreRunE` 中，pipeline 创建后立即 build：
 
@@ -90,42 +130,101 @@ fieldRegistry = parser.BuildFieldRegistry(registry)
 
 ## Hand-Written Parser Implementation
 
-每个 vendor parser（huawei/cisco/h3c/juniper）在各自的 `<vendor>.go` 中实现 `FieldSchema()`。
+每个 vendor parser（huawei/cisco/h3c/juniper）在各自的 `<vendor>.go` 中实现 `FieldSchema()` 和 `SupportedCmdTypes()`。
 
-示例（huawei `display interface brief`）：
+**前提**：`newRuleCmd()` 已在 `internal/cli/rule.go` 中实现（Parser Rule Studio 计划已落地），`nethelper rule fields` 作为子命令挂入该 parent command。如果 Rule Studio 计划尚未合并，实现者需先确保 `rule.go` 中存在 `newRuleCmd()`。
+
+示例（huawei）：
 
 ```go
-func (p *Parser) FieldSchema(cmdType model.CommandType) []FieldDef {
+// internal/parser/huawei/huawei.go
+
+// compile-time interface check
+var _ parser.VendorParser = (*Parser)(nil)
+
+func (p *Parser) SupportedCmdTypes() []model.CommandType {
+    return []model.CommandType{
+        model.CmdInterface,
+        model.CmdNeighbor,
+        model.CmdRIB,
+        model.CmdFIB,
+        model.CmdLFIB,
+        model.CmdTunnel,
+        model.CmdSRMapping,
+        model.CmdConfig,
+        // 生成 parser 的动态类型由 huawei_generated.go 的 generatedCmdTypes() 提供
+    }
+}
+
+func (p *Parser) FieldSchema(cmdType model.CommandType) []parser.FieldDef {
     switch cmdType {
     case model.CmdInterface:
         return []parser.FieldDef{
-            {Name: "name",        Type: "string", Description: "接口名称",     Example: "GigabitEthernet0/0/0"},
-            {Name: "phy_status",  Type: "string", Description: "物理状态",     Example: "up"},
-            {Name: "proto_status",Type: "string", Description: "协议状态",     Example: "up"},
-            {Name: "ip_address",  Type: "string", Description: "IP 地址",      Example: "10.0.0.1"},
-            {Name: "mask",        Type: "string", Description: "子网掩码",      Example: "255.255.255.0"},
-            {Name: "bandwidth",   Type: "string", Description: "带宽配置",      Example: "1000M"},
-            {Name: "description", Type: "string", Description: "接口描述",      Example: "to-PE1"},
+            {Name: "name",         Type: parser.FieldTypeString, Description: "接口名称", Example: "GigabitEthernet0/0/0"},
+            {Name: "phy_status",   Type: parser.FieldTypeString, Description: "物理状态", Example: "up"},
+            {Name: "proto_status", Type: parser.FieldTypeString, Description: "协议状态", Example: "up"},
+            {Name: "ip_address",   Type: parser.FieldTypeString, Description: "IP 地址",  Example: "10.0.0.1"},
+            {Name: "mask",         Type: parser.FieldTypeString, Description: "子网掩码", Example: "255.255.255.0"},
+            {Name: "bandwidth",    Type: parser.FieldTypeString, Description: "带宽配置", Example: "1000M"},
+            {Name: "description",  Type: parser.FieldTypeString, Description: "接口描述", Example: "to-PE1"},
         }
     case model.CmdNeighbor:
         return []parser.FieldDef{
-            {Name: "protocol",       Type: "string", Description: "邻居协议",   Example: "ospf"},
-            {Name: "remote_id",      Type: "string", Description: "对端 ID",   Example: "10.0.0.2"},
-            {Name: "remote_address", Type: "string", Description: "对端地址",   Example: "10.0.0.2"},
-            {Name: "state",          Type: "string", Description: "邻居状态",   Example: "Full"},
-            {Name: "uptime",         Type: "string", Description: "建立时长",   Example: "2d3h"},
+            {Name: "protocol",       Type: parser.FieldTypeString, Description: "邻居协议", Example: "ospf"},
+            {Name: "remote_id",      Type: parser.FieldTypeString, Description: "对端 ID",  Example: "10.0.0.2"},
+            {Name: "remote_address", Type: parser.FieldTypeString, Description: "对端地址", Example: "10.0.0.2"},
+            {Name: "state",          Type: parser.FieldTypeString, Description: "邻居状态", Example: "Full"},
+            {Name: "uptime",         Type: parser.FieldTypeString, Description: "建立时长", Example: "2d3h"},
         }
     // ... 其他 cmdType
+    default:
+        // 委托生成 parser
+        return generatedFieldSchema(cmdType)
+    }
+}
+```
+
+### 生成 Parser 的 SupportedCmdTypes 整合
+
+`huawei_generated.go`（以及各 vendor 对应文件）新增两个辅助函数，供主 Parser 调用：
+
+```go
+// internal/parser/huawei/huawei_generated.go
+
+// generatedCmdTypes 返回所有已生成规则的 CommandType 列表
+func generatedCmdTypes() []model.CommandType {
+    return []model.CommandType{
+        // GENERATED CMDTYPES — do not edit this comment
+    }
+}
+
+// generatedFieldSchema 返回生成规则对应的 FieldDef 列表
+func generatedFieldSchema(cmdType model.CommandType) []parser.FieldDef {
+    switch cmdType {
+    // GENERATED FIELD CASES — do not edit this comment
     }
     return nil
 }
 ```
 
-对于 Rule Studio 生成的 parser，`FieldSchema()` 由 code generator 从 `schema_yaml` 自动生成，不需要手写。
+`PatchGeneratedFile` 在 approve 时同时 patch 三处 sentinel：
+- `// GENERATED CASES`（分类函数）
+- `// GENERATED PARSE CASES`（解析函数）
+- `// GENERATED CMDTYPES`（cmdType 枚举）
+- `// GENERATED FIELD CASES`（FieldSchema）
+
+主 Parser 的 `SupportedCmdTypes()` 调用 `generatedCmdTypes()` 追加到列表末尾：
+
+```go
+func (p *Parser) SupportedCmdTypes() []model.CommandType {
+    base := []model.CommandType{model.CmdInterface, model.CmdNeighbor /* ... */}
+    return append(base, generatedCmdTypes()...)
+}
+```
 
 ## Rule Studio: `schema_yaml` Derived Fields Extension
 
-在现有 `schema_yaml` 中新增 `derived` 块：
+在现有 `schema_yaml` 中新增可选 `derived` 块：
 
 ```yaml
 header_pattern: "Interface\\s+InOctets\\s+Bandwidth"
@@ -148,13 +247,13 @@ derived:
     example: "3.14"
 ```
 
-`derived` 字段为可选，缺省时与现有行为完全兼容。
+`derived` 字段为可选，缺省时与现有行为完全兼容。`type` 只接受 `FieldType` 枚举值（`string` | `int` | `float` | `bool`），schema 解析时验证。
 
 ## Code Generator Changes
 
 ### GenerateParserFile 扩展
 
-对含 `derived` 的规则，在 `ParseTable` 调用之后插入派生字段骨架：
+对含 `derived` 的规则，在 `ParseTable` 调用之后插入派生字段骨架，并将 `tableResult.Rows` 赋给 `model.ParseResult.Rows`：
 
 ```go
 // ParseHuaweiTrafficPolicyStatisticsInterface — generated
@@ -173,7 +272,12 @@ func ParseHuaweiTrafficPolicyStatisticsInterface(raw string) (model.ParseResult,
         _ = row
     }
 
-    return model.ParseResult{Type: model.CommandType("generated:huawei:..."), RawText: raw}, nil
+    // Rows 非空时 pipeline 自动写入 scratch pad（category="generated"）
+    return model.ParseResult{
+        Type:    model.CommandType("generated:huawei:traffic_policy_statistics_interface"),
+        RawText: raw,
+        Rows:    tableResult.Rows,
+    }, nil
 }
 ```
 
@@ -181,15 +285,20 @@ func ParseHuaweiTrafficPolicyStatisticsInterface(raw string) (model.ParseResult,
 
 ### FieldSchema() 自动生成
 
+`FieldSchema` 通过 sentinel `// GENERATED FIELD CASES` 注入到 `generatedFieldSchema()` 函数中：
+
 ```go
-func (p *Parser) FieldSchema(cmdType model.CommandType) []parser.FieldDef {
+// huawei_generated.go — 由 PatchGeneratedFile 追加 case
+
+func generatedFieldSchema(cmdType model.CommandType) []parser.FieldDef {
     switch cmdType {
+    // GENERATED FIELD CASES — do not edit this comment
     case model.CommandType("generated:huawei:traffic_policy_statistics_interface"):
         return []parser.FieldDef{
-            {Name: "interface",      Type: "string", Description: "", Example: ""},
-            {Name: "in_bytes",       Type: "int",    Description: "", Example: ""},
-            {Name: "bandwidth_kbps", Type: "int",    Description: "", Example: ""},
-            {Name: "util_pct",       Type: "float",  Description: "入方向利用率百分比", Example: "3.14",
+            {Name: "interface",      Type: parser.FieldTypeString, Description: "", Example: ""},
+            {Name: "in_bytes",       Type: parser.FieldTypeInt,    Description: "", Example: ""},
+            {Name: "bandwidth_kbps", Type: parser.FieldTypeInt,    Description: "", Example: ""},
+            {Name: "util_pct",       Type: parser.FieldTypeFloat,  Description: "入方向利用率百分比", Example: "3.14",
              Derived: true, DerivedFrom: []string{"in_bytes", "bandwidth_kbps"}},
         }
     }
@@ -199,17 +308,31 @@ func (p *Parser) FieldSchema(cmdType model.CommandType) []parser.FieldDef {
 
 `Description` 和 `Example` 从 `schema_yaml` 的 `columns` 条目读取（如有）；`derived` 字段从 `derived` 块读取。
 
+## Pipeline: Rows 路由
+
+`internal/parser/pipeline.go` 的 `storeResult()` 新增路由分支：
+
+```go
+if len(result.Rows) > 0 {
+    // 生成 parser 的通用行数据写入 scratch pad
+    p.storeScratch(deviceID, snapshotID, "generated", result.Type.String(), result.Rows)
+    return nil
+}
+```
+
+与现有 `isBulkTableCommand` 路由逻辑平级，保持一致。
+
 ## CLI: `nethelper rule fields`
 
-新增 `internal/cli/fields.go`，挂在 `newRuleCmd()` 下：
+新增 `internal/cli/fields.go`，挂在 `newRuleCmd()`（已存在于 `internal/cli/rule.go`）下：
 
 ```
 nethelper rule fields <vendor> [command]
 
-# 列出某命令所有字段
+# 列出某命令所有字段（command 为用户可读命令字符串，CLI 内部调用 ClassifyCommand 转为 CommandType）
 nethelper rule fields huawei "display interface brief"
 
-# 列出某 vendor 所有已注册命令
+# 列出某 vendor 所有已注册 CommandType
 nethelper rule fields huawei
 
 # 列出所有 vendor
@@ -219,7 +342,7 @@ nethelper rule fields
 输出格式：
 
 ```
-Vendor: huawei  Command: display interface brief
+Vendor: huawei  Command: display interface brief  (CommandType: interface)
 Field             Type    Derived  From                     Description
 ─────────────────────────────────────────────────────────────────────
 name              string  no       —                        接口名称
@@ -235,14 +358,14 @@ util_pct          float   yes      in_bytes,bandwidth_kbps  入方向利用率
 - 主体：字段列表，每行显示名称、类型、是否派生、描述、示例值
 - 点击字段名 → 复制到剪贴板（`navigator.clipboard.writeText`）
 
-新增 API 端点：
+新增 API 端点（vendor 参数必填；command 为原始命令字符串，服务端调用 `ClassifyCommand` 转换）：
 
 ```
 GET /api/fields?vendor=huawei&command=display+interface+brief
-→ {"fields": [{"name":"phy_status","type":"string",...}, ...]}
+→ {"cmdType":"interface","fields": [{"name":"phy_status","type":"string",...}, ...]}
 
 GET /api/fields?vendor=huawei
-→ {"commands": ["display interface brief", "display bgp peer", ...]}
+→ {"cmdTypes": ["interface", "neighbor", "generated:huawei:traffic_policy_statistics_interface", ...]}
 
 GET /api/fields
 → {"vendors": ["huawei", "cisco", "h3c", "juniper"]}
@@ -254,8 +377,8 @@ GET /api/fields
 
 | File | Responsibility |
 |------|----------------|
-| `internal/parser/field.go` | `FieldDef` struct 定义 |
-| `internal/parser/field_registry.go` | `FieldRegistry` + `BuildFieldRegistry` |
+| `internal/parser/field.go` | `FieldType` 常量 + `FieldDef` struct 定义 |
+| `internal/parser/field_registry.go` | `FieldRegistry`（以 `CommandType` 为 key）+ `BuildFieldRegistry` |
 | `internal/parser/field_registry_test.go` | Unit tests |
 | `internal/cli/fields.go` | `nethelper rule fields` CLI 命令 |
 | `internal/cli/fields_test.go` | CLI 命令测试 |
@@ -264,13 +387,19 @@ GET /api/fields
 
 | File | Change |
 |------|--------|
-| `internal/parser/types.go` | `VendorParser` 接口新增 `FieldSchema()` |
-| `internal/parser/huawei/huawei.go` | 实现 `FieldSchema()` |
-| `internal/parser/cisco/cisco.go` | 实现 `FieldSchema()` |
-| `internal/parser/h3c/h3c.go` | 实现 `FieldSchema()` |
-| `internal/parser/juniper/juniper.go` | 实现 `FieldSchema()` |
-| `internal/cli/root.go` | 注册 `fieldRegistry` 全局变量 + 注入 CLI |
-| `internal/codegen/generator.go` | `schema_yaml` 解析 `derived` 块；生成派生骨架 + `FieldSchema()` |
+| `internal/model/parse_result.go` | 新增 `Rows []map[string]string` 字段 |
+| `internal/parser/types.go` | `VendorParser` 接口新增 `FieldSchema()` + `SupportedCmdTypes()` |
+| `internal/parser/pipeline.go` | `storeResult()` 新增 Rows → scratch pad 路由 |
+| `internal/parser/huawei/huawei.go` | 实现 `FieldSchema()` + `SupportedCmdTypes()`；升级接口检查为 `var _ parser.VendorParser = (*Parser)(nil)` |
+| `internal/parser/cisco/cisco.go` | 同上 |
+| `internal/parser/h3c/h3c.go` | 同上 |
+| `internal/parser/juniper/juniper.go` | 同上 |
+| `internal/parser/huawei/huawei_generated.go` | 新增 `generatedCmdTypes()` + `generatedFieldSchema()` + 两个新 sentinel；`PatchGeneratedFile` patch 四处 sentinel |
+| `internal/parser/cisco/cisco_generated.go` | 同上 |
+| `internal/parser/h3c/h3c_generated.go` | 同上 |
+| `internal/parser/juniper/juniper_generated.go` | 同上 |
+| `internal/cli/root.go` | 注册 `fieldRegistry` 全局变量；`BuildFieldRegistry` 在 pipeline 创建后调用 |
+| `internal/codegen/generator.go` | `schema_yaml` 解析 `derived` 块；生成派生骨架 + Rows return；`PatchGeneratedFile` 新增两处 sentinel patch |
 | `internal/studio/handlers.go` | 新增 `/api/fields` 端点 + 字段浏览侧边栏 HTML |
 
 ### Deferred
