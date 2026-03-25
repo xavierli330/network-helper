@@ -90,9 +90,9 @@ func (p *Parser) SupportedCmdTypes() []model.CommandType {
 		model.CmdInterface,
 		model.CmdNeighbor,
 		model.CmdRIB,
-		model.CmdFIB,
-		model.CmdLFIB,
 		model.CmdConfig,
+		// CmdFIB: classified but no structured parser (scratch pad only)
+		// CmdLFIB: stub parser, not yet structured (scratch pad only)
 		// CmdTunnel: not classified by H3C parser
 		// CmdSRMapping: not classified by H3C parser
 		// CmdConfigSet: not classified by H3C parser

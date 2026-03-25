@@ -92,8 +92,8 @@ func (p *Parser) SupportedCmdTypes() []model.CommandType {
 		model.CmdNeighbor,
 		model.CmdRIB,
 		model.CmdLFIB,
-		model.CmdTunnel,
 		model.CmdConfig,
+		// CmdTunnel: classified but no structured parser (scratch pad only)
 		// CmdFIB: "show ip cef" classified but no structured parser (scratch pad)
 		// CmdConfigSet: not classified by Cisco parser
 		// CmdSRMapping: not classified by Cisco parser

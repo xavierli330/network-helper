@@ -70,10 +70,10 @@ func (p *Parser) SupportedCmdTypes() []model.CommandType {
 		model.CmdInterface,
 		model.CmdNeighbor,
 		model.CmdRIB,
-		model.CmdLFIB,
-		model.CmdTunnel,
 		model.CmdConfig,
 		model.CmdConfigSet,
+		// CmdTunnel: classified but no structured parser (scratch pad only)
+		// CmdLFIB: stub parser, not yet structured (scratch pad only)
 		// CmdFIB: not classified by Juniper parser
 		// CmdSRMapping: not classified by Juniper parser
 	}
