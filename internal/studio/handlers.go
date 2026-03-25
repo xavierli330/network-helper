@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/xavierli/nethelper/internal/discovery"
+	"github.com/xavierli/nethelper/internal/model"
+	"github.com/xavierli/nethelper/internal/parser"
 	"github.com/xavierli/nethelper/internal/parser/engine"
 	"github.com/xavierli/nethelper/internal/store"
 	"gopkg.in/yaml.v3"
@@ -21,6 +23,7 @@ type handlers struct {
 	db       *store.DB
 	eng      *discovery.Engine
 	generate GenerateFn // may be nil
+	fieldReg *parser.FieldRegistry
 }
 
 var funcMap = template.FuncMap{
@@ -271,6 +274,54 @@ func jsonError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+// apiFields handles GET /api/fields
+// Query params:
+//
+//	(no params)                              → {"vendors": [...]}
+//	vendor=huawei                            → {"cmdTypes": [...]}
+//	vendor=huawei&command=display+interface  → {"cmdType":"interface","fields":[...]}
+func (h *handlers) apiFields(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if h.fieldReg == nil {
+		http.Error(w, `{"error":"field registry not available"}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	vendor := r.URL.Query().Get("vendor")
+	command := r.URL.Query().Get("command")
+
+	if vendor == "" {
+		vendors := h.fieldReg.Vendors()
+		json.NewEncoder(w).Encode(map[string]any{"vendors": vendors})
+		return
+	}
+
+	if command == "" {
+		types := h.fieldReg.CmdTypes(vendor)
+		if types == nil {
+			http.Error(w, `{"error":"unknown vendor"}`, http.StatusNotFound)
+			return
+		}
+		strs := make([]string, len(types))
+		for i, t := range types {
+			strs[i] = string(t)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"cmdTypes": strs})
+		return
+	}
+
+	cmdType := h.fieldReg.ClassifyCommand(vendor, command)
+	if cmdType == model.CmdUnknown {
+		http.Error(w, `{"error":"unknown command"}`, http.StatusNotFound)
+		return
+	}
+	fields := h.fieldReg.Fields(vendor, cmdType)
+	json.NewEncoder(w).Encode(map[string]any{
+		"cmdType": string(cmdType),
+		"fields":  fields,
+	})
 }
 
 // ── Inline HTML templates ────────────────────────────────────────────────────

@@ -48,7 +48,7 @@ func newRuleStudioCmd() *cobra.Command {
 					ApprovedBy: approvedBy,
 				})
 			})
-			srv := studio.NewServer(db, eng, llmRouter, generateFn)
+			srv := studio.NewServer(db, eng, llmRouter, generateFn, fieldRegistry)
 			addr := fmt.Sprintf(":%d", port)
 			fmt.Printf("🔬 Rule Studio running at http://localhost%s\nPress Ctrl+C to stop.\n", addr)
 			return srv.ListenAndServe(addr)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/xavierli/nethelper/internal/discovery"
 	"github.com/xavierli/nethelper/internal/llm"
+	"github.com/xavierli/nethelper/internal/parser"
 	"github.com/xavierli/nethelper/internal/store"
 )
 
@@ -23,11 +24,12 @@ type Server struct {
 	eng      *discovery.Engine
 	llmR     *llm.Router
 	generate GenerateFn // nil means codegen not available (dry-run mode)
+	fieldReg *parser.FieldRegistry
 }
 
-// NewServer creates a Rule Studio server. eng, llmR and generate may be nil.
-func NewServer(db *store.DB, eng *discovery.Engine, llmR *llm.Router, generate GenerateFn) *Server {
-	s := &Server{mux: http.NewServeMux(), db: db, eng: eng, llmR: llmR, generate: generate}
+// NewServer creates a Rule Studio server. eng, llmR, generate and fieldReg may be nil.
+func NewServer(db *store.DB, eng *discovery.Engine, llmR *llm.Router, generate GenerateFn, fieldReg *parser.FieldRegistry) *Server {
+	s := &Server{mux: http.NewServeMux(), db: db, eng: eng, llmR: llmR, generate: generate, fieldReg: fieldReg}
 	s.registerRoutes()
 	return s
 }
@@ -46,9 +48,10 @@ func (s *Server) registerRoutes() {
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Write(htmxJS)
 	})
-	h := &handlers{db: s.db, eng: s.eng, generate: s.generate}
+	h := &handlers{db: s.db, eng: s.eng, generate: s.generate, fieldReg: s.fieldReg}
 	s.mux.HandleFunc("/", h.list)
 	s.mux.HandleFunc("/rule/", h.ruleDispatch)    // /rule/:id and /rule/:id/sandbox
 	s.mux.HandleFunc("/api/rule/", h.apiDispatch) // /api/rule/:id/test|testcase|approve|ignore
 	s.mux.HandleFunc("/api/discover", h.apiDiscover)
+	s.mux.HandleFunc("/api/fields", h.apiFields)
 }
