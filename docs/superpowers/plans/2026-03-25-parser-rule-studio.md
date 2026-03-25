@@ -587,8 +587,8 @@ package parser_test
 import (
 	"testing"
 	"github.com/xavierli/nethelper/internal/parser"
-	"github.com/xavierli/nethelper/internal/parser/huawei"
 	"github.com/xavierli/nethelper/internal/store"
+	// "github.com/xavierli/nethelper/internal/parser/huawei" — added in Step 3.5
 )
 
 func TestCollectorNormalisesCommand(t *testing.T) {
@@ -737,7 +737,18 @@ Expected: PASS
 
 - [ ] **Step 3.5: Write failing integration test for pipeline → collector**
 
-Add to `internal/parser/collector_test.go` (already `package parser_test`):
+Add to `internal/parser/collector_test.go` (already `package parser_test`). First update the import block at the top to add `huawei`:
+
+```go
+import (
+	"testing"
+	"github.com/xavierli/nethelper/internal/parser"
+	"github.com/xavierli/nethelper/internal/parser/huawei" // added in this step
+	"github.com/xavierli/nethelper/internal/store"
+)
+```
+
+Then add the test function:
 
 ```go
 func TestPipelineCollectsUnknownCommands(t *testing.T) {
@@ -748,8 +759,9 @@ func TestPipelineCollectsUnknownCommands(t *testing.T) {
 	reg.Register(huawei.New())
 	pipe := parser.NewPipelineWithCollector(db, reg, parser.NewCollector(db))
 
+	// Hostname must be ≥3 chars — huawei.DetectPrompt rejects shorter hostnames
 	// "display traffic-policy" is not in huawei.ClassifyCommand → CmdUnknown
-	log := "<R1>display traffic-policy\nPolicy: p1\n"
+	log := "<RTR>display traffic-policy\nPolicy: p1\n"
 	_, err := pipe.Ingest("test.log", log)
 	if err != nil {
 		t.Fatal(err)
@@ -761,8 +773,6 @@ func TestPipelineCollectsUnknownCommands(t *testing.T) {
 	}
 }
 ```
-
-Note: `collector_test.go` already imports `store` and `huawei` from Step 3.1; add `"github.com/xavierli/nethelper/internal/parser/huawei"` if not yet present.
 
 - [ ] **Step 3.6: Run to confirm failure**
 
@@ -787,12 +797,29 @@ func NewPipelineWithCollector(db *store.DB, registry *Registry, c *Collector) *P
 }
 ```
 
-Inside `processBlocks()`, in the loop where `CmdUnknown` blocks are handled, add:
+Inside `processBlocks()`, in the **inner per-block loop** (the one that calls `vp.ParseOutput`), locate the branch that handles `CmdUnknown` — this is after `ClassifyCommand` is called and the `isBulkTableCommand` guard. Insert the collector call immediately before calling `vp.ParseOutput` for the `CmdUnknown` case (or after the guard), so the device hostname is already known:
 
 ```go
+// In the second loop (after device is identified):
+// After: cmdType := vp.ClassifyCommand(b.Command)
+// Add this block before the ParseOutput dispatch:
 if b.CmdType == model.CmdUnknown && p.collector != nil {
+	b.Vendor = vp.Vendor()
 	p.collector.Collect(b)
 }
+```
+
+The exact surrounding context in `pipeline.go` (for anchoring):
+```
+// existing code in the loop over blocks:
+cmdType := vp.ClassifyCommand(b.Command)
+b.CmdType = cmdType
+// ADD HERE:
+if b.CmdType == model.CmdUnknown && p.collector != nil {
+    b.Vendor = vp.Vendor()
+    p.collector.Collect(b)
+}
+result, err := vp.ParseOutput(cmdType, b.Output)
 ```
 
 - [ ] **Step 3.8: Update `internal/cli/root.go` to use collector**
@@ -1303,7 +1330,7 @@ func TestServerRoutes(t *testing.T) {
 	db, _ := store.Open(":memory:")
 	defer db.Close()
 
-	srv := studio.NewServer(db, nil, nil)
+	srv := studio.NewServer(db, nil, nil, nil) // generate=nil until Task 9 wires codegen
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
@@ -1346,17 +1373,22 @@ import (
 //go:embed static/htmx.min.js
 var htmxJS []byte
 
+// GenerateFn is a function that generates Go source files and creates a PR.
+// Injected at startup to avoid a hard import cycle between studio and codegen.
+type GenerateFn func(rule store.PendingRule, testCases []store.RuleTestCase, repoRoot, approvedBy string) (prURL string, err error)
+
 // Server is the Rule Studio HTTP server.
 type Server struct {
-	mux  *http.ServeMux
-	db   *store.DB
-	eng  *discovery.Engine
-	llmR *llm.Router
+	mux      *http.ServeMux
+	db       *store.DB
+	eng      *discovery.Engine
+	llmR     *llm.Router
+	generate GenerateFn // nil means codegen not available (dry-run mode)
 }
 
-// NewServer creates a Rule Studio server. eng and llmR may be nil.
-func NewServer(db *store.DB, eng *discovery.Engine, llmR *llm.Router) *Server {
-	s := &Server{mux: http.NewServeMux(), db: db, eng: eng, llmR: llmR}
+// NewServer creates a Rule Studio server. eng, llmR and generate may be nil.
+func NewServer(db *store.DB, eng *discovery.Engine, llmR *llm.Router, generate GenerateFn) *Server {
+	s := &Server{mux: http.NewServeMux(), db: db, eng: eng, llmR: llmR, generate: generate}
 	s.registerRoutes()
 	return s
 }
@@ -1375,7 +1407,7 @@ func (s *Server) registerRoutes() {
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Write(htmxJS)
 	})
-	h := &handlers{db: s.db, eng: s.eng}
+	h := &handlers{db: s.db, eng: s.eng, generate: s.generate}
 	s.mux.HandleFunc("/", h.list)
 	s.mux.HandleFunc("/rule/", h.ruleDispatch)    // /rule/:id and /rule/:id/sandbox
 	s.mux.HandleFunc("/api/rule/", h.apiDispatch) // /api/rule/:id/test|testcase|approve|ignore
@@ -1387,7 +1419,7 @@ func (s *Server) registerRoutes() {
 
 Key points to implement correctly:
 - `apiDispatch` must handle cases: `"test"`, `"testcase"`, `"approve"`, `"ignore"`
-- `apiApprove` calls `codegen.Generate` and then `db.ApprovePendingRule`
+- `apiApprove` calls `s.generate` (injected fn) and then `db.ApprovePendingRule`
 - Template FuncMap must register `"mul"` to avoid panic
 - Confidence displayed as `{{printf "%.0f%%" (mul .Confidence 100.0)}}` with FuncMap
 
@@ -1405,7 +1437,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xavierli/nethelper/internal/codegen"
 	"github.com/xavierli/nethelper/internal/discovery"
 	"github.com/xavierli/nethelper/internal/parser/engine"
 	"github.com/xavierli/nethelper/internal/store"
@@ -1413,8 +1444,9 @@ import (
 )
 
 type handlers struct {
-	db  *store.DB
-	eng *discovery.Engine
+	db       *store.DB
+	eng      *discovery.Engine
+	generate GenerateFn // may be nil
 }
 
 var funcMap = template.FuncMap{
@@ -1596,6 +1628,10 @@ func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 		http.Error(w, "POST only", 405)
 		return
 	}
+	if h.generate == nil {
+		jsonError(w, "code generator not available (codegen not wired)", 503)
+		return
+	}
 	rule, err := h.db.GetPendingRule(id)
 	if err != nil {
 		jsonError(w, "rule not found", 404)
@@ -1613,18 +1649,27 @@ func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 	}
 
 	repoRoot, _ := os.Getwd()
-	prURL, err := codegen.Generate(rule, testCases, codegen.GeneratorOptions{
-		RepoRoot:   repoRoot,
-		ApprovedBy: approvedBy,
-	})
+	prURL, err := h.generate(rule, testCases, repoRoot, approvedBy)
 	if err != nil {
 		jsonError(w, "code generation failed: "+err.Error(), 500)
 		return
 	}
 
-	relParser := codegen.TargetFilePath(rule.Vendor, rule.CommandPattern)
+	// Derive go_file_path from vendor/command using the same logic as codegen.TargetFilePath.
+	// (Avoids importing codegen in this package.)
+	vendor := strings.ToLower(rule.Vendor)
+	lower := strings.ToLower(strings.TrimSpace(rule.CommandPattern))
+	for _, p := range []string{"display ", "show ", "dis ", "sh "} {
+		lower = strings.TrimPrefix(lower, p)
+	}
+	import_re := `[\s\-]+`
+	_ = import_re // goFilePath derived below
+	// simplified: replace spaces/hyphens with underscores
+	import_parts := strings.FieldsFunc(lower, func(r rune) bool { return r == ' ' || r == '-' })
+	goFilePath := fmt.Sprintf("internal/parser/%s/%s.go", vendor, strings.Join(import_parts, "_"))
+
 	h.db.ApprovePendingRule(id, approvedBy, time.Now())
-	h.db.SetPendingRulePR(id, prURL, relParser)
+	h.db.SetPendingRulePR(id, prURL, goFilePath)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -1780,12 +1825,23 @@ git commit -m "feat(studio): P2 — embedded web server with list/editor/sandbox
 ## Task 8: `_generated.go` Stubs + Vendor Fallback Hooks
 
 **Files:**
+- Modify: `internal/model/parse_result.go` — add `CmdGenerated` constant
 - Create: `internal/parser/huawei/huawei_generated.go`
 - Create: `internal/parser/cisco/cisco_generated.go`
 - Create: `internal/parser/h3c/h3c_generated.go`
 - Create: `internal/parser/juniper/juniper_generated.go`
 - Modify: `internal/parser/huawei/huawei.go` (one-time manual change)
 - Same for cisco, h3c, juniper
+
+- [ ] **Step 8.0: Add `CmdGenerated` to `internal/model/parse_result.go`**
+
+The fallback hook in `ClassifyCommand` checks `if ct != model.CmdUnknown { return ct }`. Generated cases must return a distinct non-`CmdUnknown` value so the hook fires. Add after `CmdUnknown`:
+
+```go
+// CmdGenerated is returned by classifyGenerated() for Rule Studio-generated commands.
+// It signals ParseOutput to dispatch to parseGenerated().
+CmdGenerated CommandType = "generated"
+```
 
 - [ ] **Step 8.1: Write regression test**
 
@@ -2173,7 +2229,7 @@ import (
 
 {{range $i, $tc := .TestCases}}
 func Test{{$.FuncName}}_Case{{$i}}(t *testing.T) {
-	input := ` + "`" + `{{$tc.Input}}` + "`" + `
+	input := {{printf "%q" $tc.Input}}
 	_, err := {{$.Vendor}}.{{$.FuncName}}(input)
 	if err != nil {
 		t.Errorf("case {{$i}}: unexpected error: %v", err)
@@ -2193,9 +2249,9 @@ func Test{{$.FuncName}}_Case{{$i}}(t *testing.T) {
 	return buf.String(), err
 }
 
-// patchGeneratedFile appends a new case to classifyGenerated() and parseGenerated()
+// patchGeneratedFile appends a new case to classifyGenerated()
 // in <vendor>_generated.go. Uses a stable sentinel comment inside the switch body.
-func patchGeneratedFile(path, commandPattern, funcName string, cmdType string) error {
+func patchGeneratedFile(path, commandPattern, funcName string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
@@ -2203,7 +2259,7 @@ func patchGeneratedFile(path, commandPattern, funcName string, cmdType string) e
 	src := string(data)
 
 	const sentinel = "\t// GENERATED CASES — do not edit this comment"
-	newCase := fmt.Sprintf("\tcase strings.HasPrefix(cmd, %q):\n\t\treturn model.CmdUnknown // %s\n%s",
+	newCase := fmt.Sprintf("\tcase strings.HasPrefix(cmd, %q):\n\t\treturn model.CmdGenerated // %s\n%s",
 		commandPattern, funcName, sentinel)
 	patched := strings.Replace(src, sentinel, newCase, 1)
 	if patched == src {
@@ -2262,12 +2318,13 @@ func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts Gener
 	}
 
 	funcName := GoFuncName(rule.Vendor, rule.CommandPattern)
-	if err := patchGeneratedFile(generatedPath, rule.CommandPattern, funcName, rule.OutputType); err != nil {
+	if err := patchGeneratedFile(generatedPath, rule.CommandPattern, funcName); err != nil {
 		return "", fmt.Errorf("patch _generated.go: %w", err)
 	}
 
-	ident := strings.ToLower(strings.Join(strings.Fields(CmdNameToGoIdent(rule.CommandPattern)), "_"))
-	branch := fmt.Sprintf("rule/%s-%s-%d", rule.Vendor, ident, rule.ID)
+	// Branch name from relParser stem (already snake_case)
+	stem := strings.TrimSuffix(filepath.Base(relParser), ".go")
+	branch := fmt.Sprintf("rule/%s-%s-%d", rule.Vendor, stem, rule.ID)
 
 	run := func(args ...string) error {
 		cmd := exec.Command(args[0], args[1:]...)
@@ -2361,6 +2418,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xavierli/nethelper/internal/codegen"
 	"github.com/xavierli/nethelper/internal/discovery"
+	"github.com/xavierli/nethelper/internal/store"
 	"github.com/xavierli/nethelper/internal/studio"
 )
 
@@ -2390,7 +2448,13 @@ func newRuleStudioCmd() *cobra.Command {
 				port = 7070
 			}
 			eng := discovery.New(db, llmRouter)
-			srv := studio.NewServer(db, eng, llmRouter)
+			generateFn := studio.GenerateFn(func(rule store.PendingRule, testCases []store.RuleTestCase, repoRoot, approvedBy string) (string, error) {
+				return codegen.Generate(rule, testCases, codegen.GeneratorOptions{
+					RepoRoot:   repoRoot,
+					ApprovedBy: approvedBy,
+				})
+			})
+			srv := studio.NewServer(db, eng, llmRouter, generateFn)
 			addr := fmt.Sprintf(":%d", port)
 			fmt.Printf("🔬 Rule Studio running at http://localhost%s\nPress Ctrl+C to stop.\n", addr)
 			// Note: background discovery goroutine (cfg.Rule.DiscoveryInterval) is deferred to a future iteration.
@@ -2531,7 +2595,7 @@ func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
-	return s[:n-1] + "…"
+	return s[:n-3] + "..."
 }
 ```
 
