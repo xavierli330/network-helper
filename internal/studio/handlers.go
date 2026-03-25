@@ -57,7 +57,8 @@ func (h *handlers) list(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, struct {
 		Rules        []store.PendingRule
 		UnknownCount int
-	}{Rules: rules, UnknownCount: unknownCount})
+		ActivePage   string
+	}{Rules: rules, UnknownCount: unknownCount, ActivePage: "rules"})
 }
 
 func (h *handlers) ruleDispatch(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +95,11 @@ func (h *handlers) editor(w http.ResponseWriter, r *http.Request, id int) {
 		return
 	}
 	tmpl := template.Must(template.New("editor").Funcs(funcMap).Parse(editorHTML))
-	tmpl.Execute(w, rule)
+	tmpl.Execute(w, struct {
+		Rule       store.PendingRule
+		ActivePage string
+		UnknownCount int
+	}{Rule: rule, ActivePage: "rules"})
 }
 
 func (h *handlers) sandbox(w http.ResponseWriter, r *http.Request, id int) {
@@ -105,9 +110,11 @@ func (h *handlers) sandbox(w http.ResponseWriter, r *http.Request, id int) {
 	}
 	count, _ := h.db.CountRuleTestCases(id)
 	data := struct {
-		Rule      store.PendingRule
-		TestCount int
-	}{Rule: rule, TestCount: count}
+		Rule         store.PendingRule
+		TestCount    int
+		ActivePage   string
+		UnknownCount int
+	}{Rule: rule, TestCount: count, ActivePage: "rules"}
 	tmpl := template.Must(template.New("sandbox").Funcs(funcMap).Parse(sandboxHTML))
 	tmpl.Execute(w, data)
 }
@@ -275,7 +282,11 @@ func (h *handlers) tester(w http.ResponseWriter, r *http.Request) {
 		vendors = h.fieldReg.Vendors()
 	}
 	tmpl := template.Must(template.New("tester").Funcs(funcMap).Parse(testPageHTML))
-	tmpl.Execute(w, vendors)
+	tmpl.Execute(w, struct {
+		Vendors      []string
+		ActivePage   string
+		UnknownCount int
+	}{Vendors: vendors, ActivePage: "tester"})
 }
 
 func (h *handlers) apiParserTest(w http.ResponseWriter, r *http.Request) {
@@ -345,7 +356,11 @@ func (h *handlers) unknownList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tmpl := template.Must(template.New("unknown").Funcs(funcMap).Parse(unknownListHTML))
-	tmpl.Execute(w, outputs)
+	tmpl.Execute(w, struct {
+		Outputs      []store.UnknownOutput
+		ActivePage   string
+		UnknownCount int
+	}{Outputs: outputs, ActivePage: "unknown", UnknownCount: len(outputs)})
 }
 
 func (h *handlers) unknownDispatch(w http.ResponseWriter, r *http.Request) {
@@ -494,7 +509,11 @@ func (h *handlers) apiDiscover(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) fields(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprint(w, fieldsHTML)
+	tmpl := template.Must(template.New("fields").Funcs(funcMap).Parse(fieldsHTML))
+	tmpl.Execute(w, struct {
+		ActivePage   string
+		UnknownCount int
+	}{ActivePage: "fields"})
 }
 
 func (h *handlers) apiFieldsVendorsHTML(w http.ResponseWriter, r *http.Request) {
@@ -643,22 +662,46 @@ func (h *handlers) apiFields(w http.ResponseWriter, r *http.Request) {
 
 // ── Inline HTML templates ────────────────────────────────────────────────────
 
+// navHTML is the shared top navigation bar injected into every Studio page.
+// The {{.UnknownCount}} placeholder is only meaningful on the list page;
+// other pages substitute 0 (nav still renders correctly).
+const navCSS = `
+<style>
+.nav{display:flex;gap:0;align-items:stretch;background:#1a1a2e;padding:0;margin:-1rem -1rem 1.5rem -1rem;
+     border-radius:0;font-family:monospace;flex-wrap:wrap}
+.nav-brand{color:#fff;font-weight:bold;padding:0.6rem 1.2rem;font-size:1.1em;
+           border-right:1px solid #333;display:flex;align-items:center;text-decoration:none}
+.nav-brand:hover{background:#16213e;color:#fff}
+.nav a,.nav button.nav-link{color:#ccc;padding:0.6rem 1rem;text-decoration:none;
+           border:none;background:none;cursor:pointer;font-family:monospace;font-size:1em;
+           display:flex;align-items:center;gap:0.3rem;border-right:1px solid #2a2a4a}
+.nav a:hover,.nav button.nav-link:hover{background:#16213e;color:#fff}
+.nav a.active{background:#0066cc;color:#fff}
+.nav-badge{background:#e74c3c;color:white;border-radius:10px;padding:1px 6px;font-size:0.75em;margin-left:3px}
+.nav-sep{flex:1}
+</style>`
+
+const navHTML = `<nav class="nav">
+  <a class="nav-brand" href="/">🔬 Rule Studio</a>
+  <a href="/" {{if eq .ActivePage "rules"}}class="active"{{end}}>📋 Rules</a>
+  <a href="/unknown" {{if eq .ActivePage "unknown"}}class="active"{{end}}>⚠️ Unknown<span class="nav-badge">{{.UnknownCount}}</span></a>
+  <a href="/test" {{if eq .ActivePage "tester"}}class="active"{{end}}>🧪 Parser Tester</a>
+  <a href="/fields" {{if eq .ActivePage "fields"}}class="active"{{end}}>🔍 Field Browser</a>
+  <div class="nav-sep"></div>
+  <button class="nav-link" hx-post="/api/discover" hx-swap="none">🔄 Run Discovery</button>
+</nav>`
+
 const listHTML = `<!DOCTYPE html>
 <html><head><title>Rule Studio</title>
 <script src="/static/htmx.min.js"></script>
+` + navCSS + `
 <style>body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:0.4rem 0.8rem;border-bottom:1px solid #ddd}
 th{background:#f5f5f5}.badge{padding:2px 8px;border-radius:4px;font-size:0.85em}
 .draft{background:#fff3cd}.testing{background:#cce5ff}.approved{background:#d4edda}
 a{color:#0066cc}</style></head>
 <body>
-<h1>🔬 Rule Studio</h1>
-<div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem">
-  <button hx-post="/api/discover" hx-swap="none">🔄 Run Discovery</button>
-  <a href="/fields">🔍 Browse Fields</a>
-  <a href="/unknown">⚠️ Unknown ({{.UnknownCount}})</a>
-  <a href="/test">🧪 Parser Tester</a>
-</div>
+` + navHTML + `
 <table>
 <tr><th>Vendor</th><th>Command Pattern</th><th>Type</th><th>Confidence</th><th>Status</th><th>Created</th><th>Actions</th></tr>
 {{range .Rules}}
@@ -669,16 +712,19 @@ a{color:#0066cc}</style></head>
   <td>{{.CreatedAt.Format "2006-01-02"}}</td>
   <td><a href="/rule/{{.ID}}">Edit</a> · <a href="/rule/{{.ID}}/sandbox">Sandbox</a></td>
 </tr>
-{{else}}<tr><td colspan="7">No pending rules. Run discovery to populate.</td></tr>
+{{else}}<tr><td colspan="7">No pending rules. Click "Run Discovery" to populate.</td></tr>
 {{end}}</table></body></html>`
 
 const editorHTML = `<!DOCTYPE html>
-<html><head><title>Rule Editor</title>
+<html><head><title>Rule Editor — {{.Rule.CommandPattern}}</title>
 <script src="/static/htmx.min.js"></script>
+` + navCSS + `
 <style>body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}textarea{width:100%;height:400px;font-family:monospace}</style>
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}textarea{width:100%;height:400px;font-family:monospace}
+a{color:#0066cc}</style>
 </head><body>
-<h1>✏️ Rule Editor — <code>{{.CommandPattern}}</code></h1>
+` + navHTML + `
+<h2>✏️ Rule Editor — <code>{{.Rule.CommandPattern}}</code></h2>
 <details style="margin-bottom:1rem;border:1px solid #ddd;padding:0.5rem;border-radius:4px">
 <summary>ℹ️ Schema Guide</summary>
 <div style="margin-top:0.5rem;font-size:0.9em">
@@ -691,21 +737,21 @@ const editorHTML = `<!DOCTYPE html>
 </ul>
 </div>
 </details>
-<p>Vendor: {{.Vendor}} · Type: {{.OutputType}} · Confidence: {{printf "%.0f%%" (mul .Confidence 100.0)}}</p>
+<p>Vendor: {{.Rule.Vendor}} · Type: {{.Rule.OutputType}} · Confidence: {{printf "%.0f%%" (mul .Rule.Confidence 100.0)}}</p>
 <form method="POST"><div class="grid">
-  <div><h3>{{if eq .OutputType "table"}}Schema YAML{{else}}Go Code Draft{{end}}</h3>
-    {{if eq .OutputType "table"}}
-    <textarea name="schema_yaml">{{.SchemaYAML}}</textarea>
+  <div><h3>{{if eq .Rule.OutputType "table"}}Schema YAML{{else}}Go Code Draft{{end}}</h3>
+    {{if eq .Rule.OutputType "table"}}
+    <textarea name="schema_yaml">{{.Rule.SchemaYAML}}</textarea>
     {{else}}
-    <textarea name="go_code_draft">{{.GoCodeDraft}}</textarea>
+    <textarea name="go_code_draft">{{.Rule.GoCodeDraft}}</textarea>
     <p><em>⚠️ Go code rules: live test unavailable. Validation after PR merge.</em></p>
     {{end}}
   </div>
   <div><h3>Sample Inputs</h3>
-    <pre style="overflow:auto;max-height:400px;background:#f8f8f8;padding:1rem">{{.SampleInputs}}</pre>
+    <pre style="overflow:auto;max-height:400px;background:#f8f8f8;padding:1rem">{{.Rule.SampleInputs}}</pre>
   </div>
 </div>
-<button type="submit">💾 Save → Sandbox</button> <a href="/">← Back</a>
+<button type="submit">💾 Save → Sandbox</button>
 </form></body></html>`
 
 const fieldsHTML = `<!DOCTYPE html>
@@ -713,6 +759,7 @@ const fieldsHTML = `<!DOCTYPE html>
 <head>
 <title>Field Browser — Rule Studio</title>
 <script src="/static/htmx.min.js"></script>
+` + navCSS + `
 <style>
   body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
   .layout{display:grid;grid-template-columns:200px 1fr;gap:1.5rem;margin-top:1rem}
@@ -733,11 +780,13 @@ const fieldsHTML = `<!DOCTYPE html>
   .tag-derived{background:#fff3cd}
   #schema-panel{padding-left:1rem}
   h4{margin:0.5rem 0}
+  a{color:#0066cc}
 </style>
 </head>
 <body>
-<h1>🔍 Field Browser</h1>
-<p>Browse the field schema for each vendor's parsed commands. <a href="/">← Rule Studio</a></p>
+` + navHTML + `
+<h2>🔍 Field Browser</h2>
+<p>Browse the field schema for each vendor's parsed commands.</p>
 <div class="layout">
   <div class="vendor-list">
     <h4>Vendors</h4>
@@ -755,11 +804,14 @@ const fieldsHTML = `<!DOCTYPE html>
 const sandboxHTML = `<!DOCTYPE html>
 <html><head><title>Sandbox — {{.Rule.CommandPattern}}</title>
 <script src="/static/htmx.min.js"></script>
+` + navCSS + `
 <style>body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
 textarea{width:100%;height:200px;font-family:monospace}
-#result{background:#f0f8ff;padding:1rem;min-height:80px;white-space:pre-wrap}</style>
+#result{background:#f0f8ff;padding:1rem;min-height:80px;white-space:pre-wrap}
+a{color:#0066cc}</style>
 </head><body>
-<h1>🧪 Sandbox — <code>{{.Rule.CommandPattern}}</code></h1>
+` + navHTML + `
+<h2>🧪 Sandbox — <code>{{.Rule.CommandPattern}}</code></h2>
 <details style="margin-bottom:1rem;border:1px solid #ddd;padding:0.5rem;border-radius:4px">
 <summary>ℹ️ Schema Guide</summary>
 <div style="margin-top:0.5rem;font-size:0.9em">
@@ -810,23 +862,25 @@ textarea{width:100%;height:200px;font-family:monospace}
 </button>
 <div id="save-result" style="margin-top:0.5rem;font-family:monospace;white-space:pre-wrap"></div>
 {{else}}<p><em>Save at least one test case to enable approve.</em></p>{{end}}
-<br><a href="/">← Back</a>
 </body></html>`
 
 const testPageHTML = `<!DOCTYPE html>
 <html><head><title>Parser Tester — Rule Studio</title>
 <script src="/static/htmx.min.js"></script>
+` + navCSS + `
 <style>body{font-family:monospace;max-width:1100px;margin:2rem auto;padding:0 1rem}
 textarea{width:100%;height:250px;font-family:monospace}
 select,input{font-family:monospace;padding:0.3rem}
 #result{background:#f0f8ff;padding:1rem;min-height:80px;white-space:pre-wrap;margin-top:1rem}
-.matched{color:#28a745}.unmatched{color:#dc3545}</style></head>
+.matched{color:#28a745}.unmatched{color:#dc3545}
+a{color:#0066cc}</style></head>
 <body>
-<h1>🧪 Parser Tester</h1>
-<p>Paste CLI output, pick vendor + command to see what the existing parsers extract. <a href="/">← Rule Studio</a></p>
+` + navHTML + `
+<h2>🧪 Parser Tester</h2>
+<p>Paste CLI output, pick vendor + command to see what the existing parsers extract.</p>
 <label>Vendor:
   <select name="vendor" id="vendor">
-    {{range .}}<option value="{{.}}">{{.}}</option>{{end}}
+    {{range .Vendors}}<option value="{{.}}">{{.}}</option>{{end}}
   </select>
 </label>
 <br><br>
@@ -845,17 +899,20 @@ select,input{font-family:monospace;padding:0.3rem}
 const unknownListHTML = `<!DOCTYPE html>
 <html><head><title>Unknown Outputs — Rule Studio</title>
 <script src="/static/htmx.min.js"></script>
+` + navCSS + `
 <style>body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:0.4rem 0.8rem;border-bottom:1px solid #ddd}
 th{background:#f5f5f5}.badge{padding:2px 8px;border-radius:4px;font-size:0.85em;background:#fff3cd}
 pre{margin:0;font-size:0.8em;max-height:60px;overflow:hidden}
-button{cursor:pointer;padding:2px 8px;margin-right:4px}</style></head>
+button{cursor:pointer;padding:2px 8px;margin-right:4px}
+a{color:#0066cc}</style></head>
 <body>
-<h1>⚠️ Unknown Outputs</h1>
-<p>Commands seen in ingested logs that no parser matched. <a href="/">← Rule Studio</a></p>
+` + navHTML + `
+<h2>⚠️ Unknown Outputs</h2>
+<p>Commands seen in ingested logs that no parser matched.</p>
 <table>
 <tr><th>Vendor</th><th>Command</th><th>Count</th><th>First Seen</th><th>Preview</th><th>Actions</th></tr>
-{{range .}}
+{{range .Outputs}}
 <tr id="unknown-{{.ID}}">
   <td><span class="badge">{{.Vendor}}</span></td>
   <td><code>{{.CommandNorm}}</code></td>
