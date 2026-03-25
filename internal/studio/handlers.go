@@ -283,9 +283,8 @@ func jsonError(w http.ResponseWriter, msg string, code int) {
 //	vendor=huawei                            → {"cmdTypes": [...]}
 //	vendor=huawei&command=display+interface  → {"cmdType":"interface","fields":[...]}
 func (h *handlers) apiFields(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	if h.fieldReg == nil {
-		http.Error(w, `{"error":"field registry not available"}`, http.StatusServiceUnavailable)
+		jsonError(w, "field registry not available", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -293,6 +292,7 @@ func (h *handlers) apiFields(w http.ResponseWriter, r *http.Request) {
 	command := r.URL.Query().Get("command")
 
 	if vendor == "" {
+		w.Header().Set("Content-Type", "application/json")
 		vendors := h.fieldReg.Vendors()
 		json.NewEncoder(w).Encode(map[string]any{"vendors": vendors})
 		return
@@ -301,9 +301,10 @@ func (h *handlers) apiFields(w http.ResponseWriter, r *http.Request) {
 	if command == "" {
 		types := h.fieldReg.CmdTypes(vendor)
 		if types == nil {
-			http.Error(w, `{"error":"unknown vendor"}`, http.StatusNotFound)
+			jsonError(w, "unknown vendor", http.StatusNotFound)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		strs := make([]string, len(types))
 		for i, t := range types {
 			strs[i] = string(t)
@@ -314,9 +315,10 @@ func (h *handlers) apiFields(w http.ResponseWriter, r *http.Request) {
 
 	cmdType := h.fieldReg.ClassifyCommand(vendor, command)
 	if cmdType == model.CmdUnknown {
-		http.Error(w, `{"error":"unknown command"}`, http.StatusNotFound)
+		jsonError(w, "unknown command", http.StatusNotFound)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	fields := h.fieldReg.Fields(vendor, cmdType)
 	json.NewEncoder(w).Encode(map[string]any{
 		"cmdType": string(cmdType),

@@ -53,23 +53,69 @@ func TestAPIFields(t *testing.T) {
 	srv := studio.NewServer(db, nil, nil, nil, fr)
 
 	tests := []struct {
-		query   string
-		wantVal string
+		name     string
+		server   *studio.Server
+		query    string
+		wantCode int
+		wantBody string
 	}{
-		{"/api/fields", "testvendor"},
-		{"/api/fields?vendor=testvendor", "interface"},
-		{"/api/fields?vendor=testvendor&command=display+interface+brief", "interface"},
+		{
+			name:     "no params returns vendors",
+			query:    "/api/fields",
+			wantCode: http.StatusOK,
+			wantBody: "testvendor",
+		},
+		{
+			name:     "vendor param returns cmdTypes",
+			query:    "/api/fields?vendor=testvendor",
+			wantCode: http.StatusOK,
+			wantBody: "interface",
+		},
+		{
+			name:     "vendor+command returns fields",
+			query:    "/api/fields?vendor=testvendor&command=display+interface+brief",
+			wantCode: http.StatusOK,
+			wantBody: "interface",
+		},
+		{
+			name:     "nil registry returns 503",
+			server:   studio.NewServer(openTestDB(t), nil, nil, nil, nil),
+			query:    "/api/fields",
+			wantCode: http.StatusServiceUnavailable,
+			wantBody: "field registry not available",
+		},
+		{
+			name:     "unknown vendor returns 404",
+			query:    "/api/fields?vendor=unknownvendor",
+			wantCode: http.StatusNotFound,
+			wantBody: "unknown vendor",
+		},
+		{
+			name:     "unknown command returns 404",
+			query:    "/api/fields?vendor=testvendor&command=unknowncommand",
+			wantCode: http.StatusNotFound,
+			wantBody: "unknown command",
+		},
 	}
 	for _, tc := range tests {
-		req := httptest.NewRequest(http.MethodGet, tc.query, nil)
-		w := httptest.NewRecorder()
-		srv.ServeHTTP(w, req)
-		if w.Code != http.StatusOK {
-			t.Fatalf("GET %s: status %d, body: %s", tc.query, w.Code, w.Body.String())
-		}
-		if !strings.Contains(w.Body.String(), tc.wantVal) {
-			t.Errorf("GET %s: expected %q in body, got: %s", tc.query, tc.wantVal, w.Body.String())
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			s := srv
+			if tc.server != nil {
+				s = tc.server
+			}
+			req := httptest.NewRequest(http.MethodGet, tc.query, nil)
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, req)
+			if w.Code != tc.wantCode {
+				t.Fatalf("status %d, want %d, body: %s", w.Code, tc.wantCode, w.Body.String())
+			}
+			if !strings.Contains(w.Body.String(), tc.wantBody) {
+				t.Errorf("expected %q in body, got: %s", tc.wantBody, w.Body.String())
+			}
+			if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+				t.Errorf("Content-Type = %q, want application/json", ct)
+			}
+		})
 	}
 }
 
