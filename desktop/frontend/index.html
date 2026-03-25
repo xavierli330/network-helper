@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rule Studio</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e4e6ed;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 16px;
+    }
+    .loading h1 { font-size: 1.5rem; font-weight: 600; }
+    .loading p { color: #9ca3b8; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid #2a2f42;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    iframe {
+      width: 100%;
+      height: 100vh;
+      border: none;
+      display: none;
+    }
+    iframe.loaded { display: block; }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <h1>Rule Studio</h1>
+    <p>Starting backend services...</p>
+  </div>
+  <iframe id="studio-frame"></iframe>
+
+  <script>
+    // Wait for Wails runtime
+    window.onload = async function() {
+      try {
+        // Wait for backend to be ready
+        let url = '';
+        for (let i = 0; i < 30; i++) {
+          try {
+            url = await window.go.main.App.GetStudioURL();
+            if (url) break;
+          } catch(e) {}
+          await new Promise(r => setTimeout(r, 200));
+        }
+
+        if (!url) {
+          document.getElementById('loading').innerHTML = `
+            <h1 style="color: #ef4444">Failed to Start</h1>
+            <p>Could not connect to the Rule Studio backend.</p>
+            <p>Make sure the database is accessible.</p>
+          `;
+          return;
+        }
+
+        // Load the studio UI in an iframe
+        const frame = document.getElementById('studio-frame');
+        frame.src = url;
+        frame.onload = function() {
+          document.getElementById('loading').style.display = 'none';
+          frame.classList.add('loaded');
+        };
+
+        // Fallback timeout
+        setTimeout(() => {
+          document.getElementById('loading').style.display = 'none';
+          frame.classList.add('loaded');
+        }, 3000);
+      } catch(e) {
+        document.getElementById('loading').innerHTML = `
+          <h1 style="color: #ef4444">Error</h1>
+          <p>${e.message}</p>
+        `;
+      }
+    };
+  </script>
+</body>
+</html>

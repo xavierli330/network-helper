@@ -30,14 +30,182 @@ type handlers struct {
 }
 
 var funcMap = template.FuncMap{
-	"mul": func(a, b float64) float64 { return a * b },
+	"mul":      func(a, b float64) float64 { return a * b },
+	"truncate": func(s string, n int) string { if len(s) <= n { return s }; return s[:n-1] + "…" },
+	"confClass": func(c float64) string {
+		if c >= 0.8 { return "high" }
+		if c >= 0.5 { return "mid" }
+		return "low"
+	},
+	"confPct": func(c float64) string { return fmt.Sprintf("%.0f", c*100) },
+	"statusClass": func(s string) string {
+		switch s {
+		case "draft":    return "badge-draft"
+		case "testing":  return "badge-testing"
+		case "approved": return "badge-approved"
+		case "rejected": return "badge-rejected"
+		}
+		return ""
+	},
 }
 
-func (h *handlers) list(w http.ResponseWriter, r *http.Request) {
+// ── Helper: common page data ─────────────────────────────────────────────
+
+type pageData struct {
+	ActivePage   string
+	UnknownCount int
+	LLMAvailable bool
+	EngAvailable bool
+	GitAvailable bool
+}
+
+func (h *handlers) newPageData(active string) pageData {
+	unknowns, _ := h.db.ListUnknownOutputs("", "new", 1000)
+	_, gitErr := exec.LookPath("gh")
+	return pageData{
+		ActivePage:   active,
+		UnknownCount: len(unknowns),
+		LLMAvailable: h.eng != nil,
+		EngAvailable: h.eng != nil,
+		GitAvailable: gitErr == nil,
+	}
+}
+
+// ── Page: Dashboard ──────────────────────────────────────────────────────
+
+func (h *handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
 	}
+	pd := h.newPageData("dashboard")
+
+	// Gather dashboard data
+	unknowns, _ := h.db.ListUnknownOutputs("", "new", 1000)
+	drafts, _ := h.db.ListPendingRules("draft", 100)
+	testing_, _ := h.db.ListPendingRules("testing", 100)
+	approved, _ := h.db.ListPendingRules("approved", 100)
+
+	// Compute distinct unknown command count per vendor
+	type vendorUnknown struct {
+		Vendor string
+		Count  int
+	}
+	vendorMap := map[string]int{}
+	for _, u := range unknowns {
+		vendorMap[u.Vendor]++
+	}
+	var vendorUnknowns []vendorUnknown
+	for v, c := range vendorMap {
+		vendorUnknowns = append(vendorUnknowns, vendorUnknown{v, c})
+	}
+
+	// Compute supported command count per vendor from FieldRegistry
+	type vendorCoverage struct {
+		Vendor         string
+		SupportedTypes int
+	}
+	var vendorCoverages []vendorCoverage
+	if h.fieldReg != nil {
+		for _, v := range h.fieldReg.Vendors() {
+			types := h.fieldReg.CmdTypes(v)
+			vendorCoverages = append(vendorCoverages, vendorCoverage{v, len(types)})
+		}
+	}
+
+	// Build "needs attention" items
+	type attentionItem struct {
+		Icon    string
+		Title   string
+		Detail  string
+		Link    string
+		Urgency string // high, medium, low
+	}
+	var attention []attentionItem
+
+	if len(unknowns) > 0 {
+		attention = append(attention, attentionItem{
+			Icon: "⚠️", Title: fmt.Sprintf("%d unknown commands need classification", len(unknowns)),
+			Detail: "Ingested commands that no parser matched. Generate rules or ignore.",
+			Link: "/unknown", Urgency: "high",
+		})
+	}
+	if len(drafts) > 0 {
+		attention = append(attention, attentionItem{
+			Icon: "📝", Title: fmt.Sprintf("%d draft rules need review", len(drafts)),
+			Detail: "LLM-generated rule drafts awaiting your review and testing.",
+			Link: "/rules", Urgency: "high",
+		})
+	}
+	if len(testing_) > 0 {
+		attention = append(attention, attentionItem{
+			Icon: "🧪", Title: fmt.Sprintf("%d rules in testing", len(testing_)),
+			Detail: "Rules being tested. Add test cases and approve when ready.",
+			Link: "/rules", Urgency: "medium",
+		})
+	}
+	if len(approved) > 0 {
+		attention = append(attention, attentionItem{
+			Icon: "✅", Title: fmt.Sprintf("%d rules approved", len(approved)),
+			Detail: "Approved rules in history.",
+			Link: "/history", Urgency: "low",
+		})
+	}
+	if len(attention) == 0 {
+		attention = append(attention, attentionItem{
+			Icon: "✨", Title: "All clear — no action needed",
+			Detail: "All commands are classified. Import more logs to expand coverage.",
+			Link: "", Urgency: "low",
+		})
+	}
+
+	tmpl := template.Must(template.New("dashboard").Funcs(funcMap).Parse(baseHTML + dashboardHTML))
+	tmpl.Execute(w, struct {
+		pageData
+		UnknownCommands  int
+		DraftCount       int
+		TestingCount     int
+		ApprovedCount    int
+		VendorUnknowns   []vendorUnknown
+		VendorCoverages  []vendorCoverage
+		Attention        []attentionItem
+	}{
+		pageData:        pd,
+		UnknownCommands: len(unknowns),
+		DraftCount:      len(drafts),
+		TestingCount:    len(testing_),
+		ApprovedCount:   len(approved),
+		VendorUnknowns:  vendorUnknowns,
+		VendorCoverages: vendorCoverages,
+		Attention:       attention,
+	})
+}
+
+func (h *handlers) apiDashboard(w http.ResponseWriter, r *http.Request) {
+	unknowns, _ := h.db.ListUnknownOutputs("", "new", 1000)
+	drafts, _ := h.db.ListPendingRules("draft", 100)
+	testing_, _ := h.db.ListPendingRules("testing", 100)
+	approved, _ := h.db.ListPendingRules("approved", 100)
+
+	vendorMap := map[string]int{}
+	for _, u := range unknowns {
+		vendorMap[u.Vendor]++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"unknownCount":    len(unknowns),
+		"draftCount":      len(drafts),
+		"testingCount":    len(testing_),
+		"approvedCount":   len(approved),
+		"vendorUnknowns":  vendorMap,
+		"needsAttention":  len(unknowns) + len(drafts) + len(testing_),
+	})
+}
+
+// ── Page: Rules List ─────────────────────────────────────────────────────
+
+func (h *handlers) list(w http.ResponseWriter, r *http.Request) {
 	draft, err := h.db.ListPendingRules("draft", 50)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
@@ -49,17 +217,15 @@ func (h *handlers) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rules := append(draft, testing_...)
-
-	unknowns, _ := h.db.ListUnknownOutputs("", "new", 1000)
-	unknownCount := len(unknowns)
-
-	tmpl := template.Must(template.New("list").Funcs(funcMap).Parse(listHTML))
+	pd := h.newPageData("rules")
+	tmpl := template.Must(template.New("list").Funcs(funcMap).Parse(baseHTML + listHTML))
 	tmpl.Execute(w, struct {
-		Rules        []store.PendingRule
-		UnknownCount int
-		ActivePage   string
-	}{Rules: rules, UnknownCount: unknownCount, ActivePage: "rules"})
+		pageData
+		Rules []store.PendingRule
+	}{pageData: pd, Rules: rules})
 }
+
+// ── Page: Rule Editor + Sandbox (merged) ─────────────────────────────────
 
 func (h *handlers) ruleDispatch(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/rule/"), "/")
@@ -72,52 +238,241 @@ func (h *handlers) ruleDispatch(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if len(parts) == 2 && parts[1] == "sandbox" {
-		h.sandbox(w, r, id)
-		return
-	}
-	h.editor(w, r, id)
-}
-
-func (h *handlers) editor(w http.ResponseWriter, r *http.Request, id int) {
-	rule, err := h.db.GetPendingRule(id)
-	if err != nil {
-		http.Error(w, "rule not found", 404)
-		return
-	}
+	// POST = save schema/code
 	if r.Method == "POST" {
+		rule, err := h.db.GetPendingRule(id)
+		if err != nil {
+			http.Error(w, "rule not found", 404)
+			return
+		}
 		r.ParseForm()
 		rule.SchemaYAML = r.FormValue("schema_yaml")
 		rule.GoCodeDraft = r.FormValue("go_code_draft")
 		rule.Status = "testing"
 		h.db.UpdatePendingRule(rule)
-		http.Redirect(w, r, fmt.Sprintf("/rule/%d/sandbox", id), http.StatusFound)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		return
 	}
-	tmpl := template.Must(template.New("editor").Funcs(funcMap).Parse(editorHTML))
-	tmpl.Execute(w, struct {
-		Rule       store.PendingRule
-		ActivePage string
-		UnknownCount int
-	}{Rule: rule, ActivePage: "rules"})
+	h.ruleEditor(w, r, id)
 }
 
-func (h *handlers) sandbox(w http.ResponseWriter, r *http.Request, id int) {
+func (h *handlers) ruleEditor(w http.ResponseWriter, r *http.Request, id int) {
 	rule, err := h.db.GetPendingRule(id)
 	if err != nil {
 		http.Error(w, "rule not found", 404)
 		return
 	}
 	count, _ := h.db.CountRuleTestCases(id)
-	data := struct {
-		Rule         store.PendingRule
-		TestCount    int
-		ActivePage   string
-		UnknownCount int
-	}{Rule: rule, TestCount: count, ActivePage: "rules"}
-	tmpl := template.Must(template.New("sandbox").Funcs(funcMap).Parse(sandboxHTML))
-	tmpl.Execute(w, data)
+	testCases, _ := h.db.ListRuleTestCases(id)
+	pd := h.newPageData("rules")
+	tmpl := template.Must(template.New("editor").Funcs(funcMap).Parse(baseHTML + editorHTML))
+	tmpl.Execute(w, struct {
+		pageData
+		Rule      store.PendingRule
+		TestCount int
+		TestCases []store.RuleTestCase
+	}{pageData: pd, Rule: rule, TestCount: count, TestCases: testCases})
 }
+
+// ── Page: Parser Tester ──────────────────────────────────────────────────
+
+func (h *handlers) tester(w http.ResponseWriter, r *http.Request) {
+	var vendors []string
+	if h.fieldReg != nil {
+		vendors = h.fieldReg.Vendors()
+	}
+	pd := h.newPageData("tester")
+	tmpl := template.Must(template.New("tester").Funcs(funcMap).Parse(baseHTML + testPageHTML))
+	tmpl.Execute(w, struct {
+		pageData
+		Vendors []string
+	}{pageData: pd, Vendors: vendors})
+}
+
+// ── Page: Field Browser ──────────────────────────────────────────────────
+
+func (h *handlers) fields(w http.ResponseWriter, r *http.Request) {
+	pd := h.newPageData("fields")
+	tmpl := template.Must(template.New("fields").Funcs(funcMap).Parse(baseHTML + fieldsHTML))
+	tmpl.Execute(w, struct{ pageData }{pageData: pd})
+}
+
+// ── Page: Unknown Outputs ────────────────────────────────────────────────
+
+func (h *handlers) unknownList(w http.ResponseWriter, r *http.Request) {
+	outputs, err := h.db.ListUnknownOutputs("", "new", 500)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	pd := h.newPageData("unknown")
+	tmpl := template.Must(template.New("unknown").Funcs(funcMap).Parse(baseHTML + unknownListHTML))
+	tmpl.Execute(w, struct {
+		pageData
+		Outputs []store.UnknownOutput
+	}{pageData: pd, Outputs: outputs})
+}
+
+// ── Page: History ────────────────────────────────────────────────────────
+
+func (h *handlers) history(w http.ResponseWriter, r *http.Request) {
+	approved, _ := h.db.ListPendingRules("approved", 100)
+	rejected, _ := h.db.ListPendingRules("rejected", 100)
+	rules := append(approved, rejected...)
+	pd := h.newPageData("history")
+	tmpl := template.Must(template.New("history").Funcs(funcMap).Parse(baseHTML + historyHTML))
+	tmpl.Execute(w, struct {
+		pageData
+		Rules []store.PendingRule
+	}{pageData: pd, Rules: rules})
+}
+
+// ── Page: Command Patterns ───────────────────────────────────────────────
+
+func (h *handlers) patterns(w http.ResponseWriter, r *http.Request) {
+	pd := h.newPageData("patterns")
+
+	type prefixRule struct {
+		Prefix  string
+		CmdType string
+	}
+	type vendorPatterns struct {
+		Vendor  string
+		Rules   []prefixRule
+	}
+
+	// Build the classification prefix rules from each vendor's ClassifyCommand
+	// We statically define the known prefixes since they're hardcoded in Go
+	allPatterns := []vendorPatterns{
+		{Vendor: "huawei", Rules: []prefixRule{
+			{"display ip routing-table", "rib"}, {"display ip rout", "rib"},
+			{"display fib", "fib"},
+			{"display mpls lsp", "lfib"}, {"display mpls forwarding", "lfib"},
+			{"display interface", "interface"}, {"display int", "interface"},
+			{"display ospf peer", "neighbor"}, {"display bgp peer", "neighbor"},
+			{"display isis peer", "neighbor"}, {"display mpls ldp session", "neighbor"},
+			{"display mpls ldp peer", "neighbor"}, {"display rsvp session", "neighbor"},
+			{"display lldp neighbor", "neighbor"},
+			{"display mpls te tunnel", "tunnel"},
+			{"display segment-routing", "sr_mapping"}, {"display isis segment-routing", "sr_mapping"},
+			{"display current-configuration", "config"}, {"display saved-configuration", "config"},
+			{"display cur", "config"}, {"display sa", "config"},
+		}},
+		{Vendor: "cisco", Rules: []prefixRule{
+			{"show ip route", "rib"}, {"show route", "rib"},
+			{"show ip cef", "fib"},
+			{"show mpls forwarding", "lfib"},
+			{"show interface", "interface"}, {"show ip interface", "interface"},
+			{"show ip ospf neighbor", "neighbor"}, {"show ip bgp summary", "neighbor"},
+			{"show bgp summary", "neighbor"}, {"show isis neighbor", "neighbor"},
+			{"show mpls ldp neighbor", "neighbor"}, {"show lldp neighbor", "neighbor"},
+			{"show mpls traffic-eng tunnel", "tunnel"},
+			{"show running-config", "config"}, {"show startup-config", "config"},
+		}},
+		{Vendor: "h3c", Rules: []prefixRule{
+			{"display ip routing-table", "rib"},
+			{"display fib", "fib"},
+			{"display mpls lsp", "lfib"}, {"display mpls forwarding", "lfib"},
+			{"display ip interface", "interface"}, {"display interface", "interface"},
+			{"display ospf peer", "neighbor"}, {"display bgp peer", "neighbor"},
+			{"display isis peer", "neighbor"}, {"display mpls ldp session", "neighbor"},
+			{"display current-configuration", "config"},
+		}},
+		{Vendor: "juniper", Rules: []prefixRule{
+			{"show route", "rib"},
+			{"show interface", "interface"},
+			{"show ospf neighbor", "neighbor"}, {"show bgp summary", "neighbor"},
+			{"show isis adjacency", "neighbor"}, {"show ldp session", "neighbor"},
+			{"show rsvp session", "tunnel"},
+			{"show route table mpls", "lfib"},
+			{"show configuration", "config"},
+			{"| display set", "config_set"},
+		}},
+	}
+
+	// Add unknown command samples from DB
+	unknowns, _ := h.db.ListUnknownOutputs("", "new", 100)
+
+	tmpl := template.Must(template.New("patterns").Funcs(funcMap).Parse(baseHTML + patternsHTML))
+	tmpl.Execute(w, struct {
+		pageData
+		Patterns []vendorPatterns
+		Unknowns []store.UnknownOutput
+	}{pageData: pd, Patterns: allPatterns, Unknowns: unknowns})
+}
+
+// ── Page: Cross-Vendor Field Compare ─────────────────────────────────────
+
+func (h *handlers) compare(w http.ResponseWriter, r *http.Request) {
+	pd := h.newPageData("compare")
+
+	type cmdTypeFields struct {
+		Vendor string
+		Fields []string
+	}
+	type compareRow struct {
+		CmdType string
+		Vendors []cmdTypeFields
+	}
+
+	var rows []compareRow
+	if h.fieldReg != nil {
+		// Collect all unique CmdTypes across all vendors
+		typeSet := map[string]bool{}
+		vendors := h.fieldReg.Vendors()
+		for _, v := range vendors {
+			for _, ct := range h.fieldReg.CmdTypes(v) {
+				typeSet[string(ct)] = true
+			}
+		}
+		for ct := range typeSet {
+			row := compareRow{CmdType: ct}
+			for _, v := range vendors {
+				defs := h.fieldReg.Fields(v, model.CommandType(ct))
+				var names []string
+				for _, d := range defs {
+					names = append(names, d.Name)
+				}
+				row.Vendors = append(row.Vendors, cmdTypeFields{Vendor: v, Fields: names})
+			}
+			rows = append(rows, row)
+		}
+	}
+
+	var vendors []string
+	if h.fieldReg != nil {
+		vendors = h.fieldReg.Vendors()
+	}
+
+	tmpl := template.Must(template.New("compare").Funcs(funcMap).Parse(baseHTML + compareHTML))
+	tmpl.Execute(w, struct {
+		pageData
+		Rows    []compareRow
+		Vendors []string
+	}{pageData: pd, Rows: rows, Vendors: vendors})
+}
+
+// ── API: Status ──────────────────────────────────────────────────────────
+
+func (h *handlers) apiStatus(w http.ResponseWriter, r *http.Request) {
+	unknowns, _ := h.db.ListUnknownOutputs("", "new", 1000)
+	drafts, _ := h.db.ListPendingRules("draft", 100)
+	testing_, _ := h.db.ListPendingRules("testing", 100)
+	approved, _ := h.db.ListPendingRules("approved", 100)
+	_, gitErr := exec.LookPath("gh")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"unknownCount":  len(unknowns),
+		"draftCount":    len(drafts),
+		"testingCount":  len(testing_),
+		"approvedCount": len(approved),
+		"llmAvailable":  h.eng != nil,
+		"gitAvailable":  gitErr == nil,
+	})
+}
+
+// ── API: Test / TestCase / Approve / Ignore / SaveLocal ──────────────────
 
 func (h *handlers) apiDispatch(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/rule/"), "/")
@@ -135,6 +490,10 @@ func (h *handlers) apiDispatch(w http.ResponseWriter, r *http.Request) {
 		h.apiTest(w, r, id)
 	case "testcase":
 		h.apiSaveTestCase(w, r, id)
+	case "delete-testcase":
+		h.apiDeleteTestCase(w, r, id, parts)
+	case "get-testcase":
+		h.apiGetTestCase(w, r, id, parts)
 	case "approve":
 		h.apiApprove(w, r, id)
 	case "ignore":
@@ -158,7 +517,6 @@ func (h *handlers) apiTest(w http.ResponseWriter, r *http.Request, id int) {
 	}
 	r.ParseForm()
 	input := r.FormValue("input")
-
 	var schemaDef struct {
 		HeaderPattern string `yaml:"header_pattern"`
 		SkipLines     int    `yaml:"skip_lines"`
@@ -217,7 +575,53 @@ func (h *handlers) apiSaveTestCase(w http.ResponseWriter, r *http.Request, id in
 	json.NewEncoder(w).Encode(map[string]int{"id": tcID})
 }
 
-// apiApprove triggers the code generator and records approval.
+func (h *handlers) apiDeleteTestCase(w http.ResponseWriter, r *http.Request, ruleID int, parts []string) {
+	if r.Method != "POST" {
+		http.Error(w, "POST only", 405)
+		return
+	}
+	if len(parts) < 3 {
+		http.NotFound(w, r)
+		return
+	}
+	tcID, err := strconv.Atoi(parts[2])
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := h.db.DeleteRuleTestCase(tcID); err != nil {
+		jsonError(w, err.Error(), 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+}
+
+func (h *handlers) apiGetTestCase(w http.ResponseWriter, r *http.Request, ruleID int, parts []string) {
+	if len(parts) < 3 {
+		http.NotFound(w, r)
+		return
+	}
+	tcID, err := strconv.Atoi(parts[2])
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	testCases, err := h.db.ListRuleTestCases(ruleID)
+	if err != nil {
+		jsonError(w, err.Error(), 500)
+		return
+	}
+	for _, tc := range testCases {
+		if tc.ID == tcID {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(tc)
+			return
+		}
+	}
+	jsonError(w, "test case not found", 404)
+}
+
 func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 	if r.Method != "POST" {
 		http.Error(w, "POST only", 405)
@@ -237,19 +641,16 @@ func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 		jsonError(w, "at least one test case is required before approving", 400)
 		return
 	}
-
 	approvedBy := ""
 	if u, err := user.Current(); err == nil {
 		approvedBy = u.Username
 	}
-
 	repoRoot, _ := os.Getwd()
 	prURL, err := h.generate(rule, testCases, repoRoot, approvedBy)
 	if err != nil {
 		jsonError(w, "code generation failed: "+err.Error(), 500)
 		return
 	}
-
 	vendor := strings.ToLower(rule.Vendor)
 	lower := strings.ToLower(strings.TrimSpace(rule.CommandPattern))
 	for _, p := range []string{"display ", "show ", "dis ", "sh "} {
@@ -257,10 +658,10 @@ func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 	}
 	importParts := strings.FieldsFunc(lower, func(r rune) bool { return r == ' ' || r == '-' })
 	goFilePath := fmt.Sprintf("internal/parser/%s/%s.go", vendor, strings.Join(importParts, "_"))
-
 	h.db.ApprovePendingRule(id, approvedBy, time.Now())
 	h.db.SetPendingRulePR(id, prURL, goFilePath)
-	http.Redirect(w, r, "/", http.StatusFound)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "approved", "pr_url": prURL})
 }
 
 func (h *handlers) apiIgnore(w http.ResponseWriter, r *http.Request, id int) {
@@ -271,23 +672,67 @@ func (h *handlers) apiIgnore(w http.ResponseWriter, r *http.Request, id int) {
 	}
 	rule.Status = "rejected"
 	h.db.UpdatePendingRule(rule)
-	http.Redirect(w, r, "/", http.StatusFound)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "rejected"})
 }
 
-// ── Parser Tester ────────────────────────────────────────────────────────────
-
-func (h *handlers) tester(w http.ResponseWriter, r *http.Request) {
-	var vendors []string
-	if h.fieldReg != nil {
-		vendors = h.fieldReg.Vendors()
+func (h *handlers) apiSaveLocal(w http.ResponseWriter, r *http.Request, id int) {
+	if r.Method != "POST" {
+		http.Error(w, "POST only", 405)
+		return
 	}
-	tmpl := template.Must(template.New("tester").Funcs(funcMap).Parse(testPageHTML))
-	tmpl.Execute(w, struct {
-		Vendors      []string
-		ActivePage   string
-		UnknownCount int
-	}{Vendors: vendors, ActivePage: "tester"})
+	rule, err := h.db.GetPendingRule(id)
+	if err != nil {
+		jsonError(w, "rule not found", 404)
+		return
+	}
+	testCases, err := h.db.ListRuleTestCases(id)
+	if err != nil || len(testCases) == 0 {
+		jsonError(w, "at least one test case is required before saving locally", 400)
+		return
+	}
+	root := h.repoRoot
+	if root == "" {
+		root, err = discoverRepoRoot()
+		if err != nil {
+			jsonError(w, "cannot detect repo root: "+err.Error(), 500)
+			return
+		}
+	}
+	paths, buildOut, buildErr := codegen.GenerateLocal(rule, testCases, root)
+	type saveResult struct {
+		Success     bool     `json:"success"`
+		Paths       []string `json:"paths,omitempty"`
+		BuildOutput string   `json:"build_output"`
+		Error       string   `json:"error,omitempty"`
+		Message     string   `json:"message,omitempty"`
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if buildErr != nil {
+		json.NewEncoder(w).Encode(saveResult{Success: false, Paths: paths, BuildOutput: buildOut, Error: buildErr.Error()})
+		return
+	}
+	approvedBy := ""
+	if u, err2 := user.Current(); err2 == nil {
+		approvedBy = u.Username
+	}
+	h.db.ApprovePendingRule(id, approvedBy, time.Now())
+	if len(paths) > 0 {
+		h.db.SetPendingRulePR(id, "local", paths[0])
+	}
+	json.NewEncoder(w).Encode(saveResult{Success: true, Paths: paths, BuildOutput: buildOut, Message: "Parser active. Run `go test ./internal/parser/...` to verify."})
 }
+
+func discoverRepoRoot() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse --show-toplevel: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// ── Parser Tester API ────────────────────────────────────────────────────
 
 func (h *handlers) apiParserTest(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -302,7 +747,6 @@ func (h *handlers) apiParserTest(w http.ResponseWriter, r *http.Request) {
 	vendor := r.FormValue("vendor")
 	command := r.FormValue("command")
 	output := r.FormValue("output")
-
 	reg := h.fieldReg.Reg()
 	p, ok := reg.Get(vendor)
 	if !ok {
@@ -311,60 +755,47 @@ func (h *handlers) apiParserTest(w http.ResponseWriter, r *http.Request) {
 	}
 	cmdType := p.ClassifyCommand(command)
 	matched := cmdType != model.CmdUnknown
-
 	result, _ := p.ParseOutput(cmdType, output)
-
 	preview := map[string]any{
-		"cmdType":        string(cmdType),
-		"matched":        matched,
-		"interfaceCount": len(result.Interfaces),
-		"neighborCount":  len(result.Neighbors),
-		"rowCount":       len(result.Rows),
+		"cmdType": string(cmdType), "matched": matched,
+		"interfaceCount": len(result.Interfaces), "neighborCount": len(result.Neighbors), "rowCount": len(result.Rows),
 	}
 	if len(result.Interfaces) > 0 {
-		n := 5
-		if len(result.Interfaces) < n {
-			n = len(result.Interfaces)
-		}
+		n := 5; if len(result.Interfaces) < n { n = len(result.Interfaces) }
 		preview["interfaces"] = result.Interfaces[:n]
 	}
 	if len(result.Neighbors) > 0 {
-		n := 5
-		if len(result.Neighbors) < n {
-			n = len(result.Neighbors)
-		}
+		n := 5; if len(result.Neighbors) < n { n = len(result.Neighbors) }
 		preview["neighbors"] = result.Neighbors[:n]
 	}
 	if len(result.Rows) > 0 {
-		n := 5
-		if len(result.Rows) < n {
-			n = len(result.Rows)
-		}
+		n := 5; if len(result.Rows) < n { n = len(result.Rows) }
 		preview["rows"] = result.Rows[:n]
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(preview)
 }
 
-// ── Unknown Outputs Browser ───────────────────────────────────────────────────
+// ── Discovery API ────────────────────────────────────────────────────────
 
-func (h *handlers) unknownList(w http.ResponseWriter, r *http.Request) {
-	outputs, err := h.db.ListUnknownOutputs("", "new", 500)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
+func (h *handlers) apiDiscover(w http.ResponseWriter, r *http.Request) {
+	if h.eng == nil {
+		jsonError(w, "discovery engine not configured", 503)
 		return
 	}
-	tmpl := template.Must(template.New("unknown").Funcs(funcMap).Parse(unknownListHTML))
-	tmpl.Execute(w, struct {
-		Outputs      []store.UnknownOutput
-		ActivePage   string
-		UnknownCount int
-	}{Outputs: outputs, ActivePage: "unknown", UnknownCount: len(outputs)})
+	vendor := r.URL.Query().Get("vendor")
+	n, err := h.eng.RunOnce(r.Context(), vendor)
+	if err != nil {
+		jsonError(w, err.Error(), 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"created": n})
 }
 
+// ── Unknown Outputs API ──────────────────────────────────────────────────
+
 func (h *handlers) unknownDispatch(w http.ResponseWriter, r *http.Request) {
-	// Path: /api/unknown/:id/generate or /api/unknown/:id/ignore
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/unknown/"), "/")
 	if len(parts) < 2 {
 		http.NotFound(w, r)
@@ -399,7 +830,8 @@ func (h *handlers) apiUnknownGenerate(w http.ResponseWriter, r *http.Request, id
 		jsonError(w, "generate failed: "+err.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/rule/%d/sandbox", ruleID), http.StatusFound)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"status": "ok", "rule_id": ruleID, "redirect": fmt.Sprintf("/rule/%d", ruleID)})
 }
 
 func (h *handlers) apiUnknownIgnore(w http.ResponseWriter, r *http.Request, id int) {
@@ -413,124 +845,57 @@ func (h *handlers) apiUnknownIgnore(w http.ResponseWriter, r *http.Request, id i
 		return
 	}
 	h.db.UpdateUnknownOutputStatus(u.Vendor, u.CommandNorm, "ignored")
-	// Return HTMX fragment to remove the row
 	fmt.Fprintf(w, `<tr id="unknown-%d" style="display:none"></tr>`, id)
 }
 
-// ── Local Save ────────────────────────────────────────────────────────────────
+// ── Fields API ───────────────────────────────────────────────────────────
 
-func (h *handlers) apiSaveLocal(w http.ResponseWriter, r *http.Request, id int) {
-	if r.Method != "POST" {
-		http.Error(w, "POST only", 405)
-		return
-	}
-	rule, err := h.db.GetPendingRule(id)
-	if err != nil {
-		jsonError(w, "rule not found", 404)
-		return
-	}
-	testCases, err := h.db.ListRuleTestCases(id)
-	if err != nil || len(testCases) == 0 {
-		jsonError(w, "at least one test case is required before saving locally", 400)
-		return
-	}
-
-	root := h.repoRoot
-	if root == "" {
-		root, err = discoverRepoRoot()
-		if err != nil {
-			jsonError(w, "cannot detect repo root: "+err.Error(), 500)
-			return
-		}
-	}
-
-	paths, buildOut, buildErr := codegen.GenerateLocal(rule, testCases, root)
-
-	type saveResult struct {
-		Success     bool     `json:"success"`
-		Paths       []string `json:"paths,omitempty"`
-		BuildOutput string   `json:"build_output"`
-		Error       string   `json:"error,omitempty"`
-		Message     string   `json:"message,omitempty"`
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if buildErr != nil {
-		json.NewEncoder(w).Encode(saveResult{
-			Success:     false,
-			Paths:       paths,
-			BuildOutput: buildOut,
-			Error:       buildErr.Error(),
-		})
-		return
-	}
-
-	approvedBy := ""
-	if u, err2 := user.Current(); err2 == nil {
-		approvedBy = u.Username
-	}
-	h.db.ApprovePendingRule(id, approvedBy, time.Now())
-	if len(paths) > 0 {
-		h.db.SetPendingRulePR(id, "local", paths[0])
-	}
-
-	json.NewEncoder(w).Encode(saveResult{
-		Success:     true,
-		Paths:       paths,
-		BuildOutput: buildOut,
-		Message:     "Parser active. Run `go test ./internal/parser/...` to verify.",
-	})
-}
-
-// discoverRepoRoot runs git rev-parse --show-toplevel to find the repo root.
-func discoverRepoRoot() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("git rev-parse --show-toplevel: %w", err)
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-func (h *handlers) apiDiscover(w http.ResponseWriter, r *http.Request) {
-	if h.eng == nil {
-		jsonError(w, "discovery engine not configured", 503)
+func (h *handlers) apiFields(w http.ResponseWriter, r *http.Request) {
+	if h.fieldReg == nil {
+		jsonError(w, "field registry not available", http.StatusServiceUnavailable)
 		return
 	}
 	vendor := r.URL.Query().Get("vendor")
-	n, err := h.eng.RunOnce(r.Context(), vendor)
-	if err != nil {
-		jsonError(w, err.Error(), 500)
+	command := r.URL.Query().Get("command")
+	if vendor == "" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"vendors": h.fieldReg.Vendors()})
+		return
+	}
+	if command == "" {
+		types := h.fieldReg.CmdTypes(vendor)
+		if types == nil {
+			jsonError(w, "unknown vendor", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		strs := make([]string, len(types))
+		for i, t := range types { strs[i] = string(t) }
+		json.NewEncoder(w).Encode(map[string]any{"cmdTypes": strs})
+		return
+	}
+	cmdType := h.fieldReg.ClassifyCommand(vendor, command)
+	if cmdType == model.CmdUnknown {
+		jsonError(w, "unknown command", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]int{"created": n})
-}
-
-func (h *handlers) fields(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	tmpl := template.Must(template.New("fields").Funcs(funcMap).Parse(fieldsHTML))
-	tmpl.Execute(w, struct {
-		ActivePage   string
-		UnknownCount int
-	}{ActivePage: "fields"})
+	json.NewEncoder(w).Encode(map[string]any{"cmdType": string(cmdType), "fields": h.fieldReg.Fields(vendor, cmdType)})
 }
 
 func (h *handlers) apiFieldsVendorsHTML(w http.ResponseWriter, r *http.Request) {
 	if h.fieldReg == nil {
-		fmt.Fprint(w, `<p style="color:red">Field registry not available</p>`)
+		fmt.Fprint(w, `<p style="color:var(--danger)">Field registry not available</p>`)
 		return
 	}
 	vendors := h.fieldReg.Vendors()
 	var b strings.Builder
-	b.WriteString(`<div>`)
+	b.WriteString(`<div style="display:flex;flex-direction:column;gap:4px">`)
 	for _, v := range vendors {
 		fmt.Fprintf(&b,
-			`<button class="vendor-btn" `+
-				`hx-get="/api/fields/schema-html?vendor=%s" `+
-				`hx-target="#schema-panel" `+
-				`hx-swap="innerHTML" `+
-				`onclick="document.querySelectorAll('.vendor-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">`+
+			`<button class="btn btn-ghost btn-sm" style="justify-content:flex-start" `+
+				`hx-get="/api/fields/schema-html?vendor=%s" hx-target="#schema-panel" hx-swap="innerHTML" `+
+				`onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('btn-primary'));this.classList.add('btn-primary');this.classList.remove('btn-ghost')">`+
 				`%s</button>`, v, v)
 	}
 	b.WriteString(`</div>`)
@@ -539,55 +904,42 @@ func (h *handlers) apiFieldsVendorsHTML(w http.ResponseWriter, r *http.Request) 
 
 func (h *handlers) apiFieldsSchemaHTML(w http.ResponseWriter, r *http.Request) {
 	if h.fieldReg == nil {
-		fmt.Fprint(w, `<p style="color:red">Field registry not available</p>`)
+		fmt.Fprint(w, `<p style="color:var(--danger)">Field registry not available</p>`)
 		return
 	}
 	vendor := r.URL.Query().Get("vendor")
 	cmdtype := r.URL.Query().Get("cmdtype")
-
 	types := h.fieldReg.CmdTypes(vendor)
 	if types == nil {
-		fmt.Fprintf(w, `<p style="color:red">Unknown vendor: %s</p>`, vendor)
+		fmt.Fprintf(w, `<p style="color:var(--danger)">Unknown vendor: %s</p>`, vendor)
 		return
 	}
-
 	var b strings.Builder
-
-	b.WriteString(`<div style="display:grid;grid-template-columns:220px 1fr;gap:1rem">`)
-
-	// CmdType list
+	b.WriteString(`<div style="display:grid;grid-template-columns:220px 1fr;gap:16px">`)
 	b.WriteString(`<div>`)
-	fmt.Fprintf(&b, `<h4>%s — CommandTypes</h4>`, vendor)
+	fmt.Fprintf(&b, `<div style="font-weight:600;margin-bottom:8px;color:var(--text-secondary)">%s — Types</div>`, vendor)
 	for _, ct := range types {
 		defs := h.fieldReg.Fields(vendor, ct)
-		activeClass := ""
-		if string(ct) == cmdtype {
-			activeClass = " active"
-		}
+		cls := "btn btn-ghost btn-sm"
+		if string(ct) == cmdtype { cls = "btn btn-primary btn-sm" }
 		fmt.Fprintf(&b,
-			`<div class="cmdtype-row%s" `+
-				`hx-get="/api/fields/schema-html?vendor=%s&cmdtype=%s" `+
-				`hx-target="closest .layout > #schema-panel" `+
-				`hx-swap="innerHTML">`+
-				`<span>%s</span><span class="field-count">%d fields</span></div>`,
-			activeClass, vendor, string(ct), string(ct), len(defs))
+			`<button class="%s" style="width:100%%;justify-content:space-between;margin-bottom:2px" `+
+				`hx-get="/api/fields/schema-html?vendor=%s&cmdtype=%s" hx-target="#schema-panel" hx-swap="innerHTML">`+
+				`<span>%s</span><span class="tag">%d</span></button>`,
+			cls, vendor, string(ct), string(ct), len(defs))
 	}
-	b.WriteString(`</div>`)
-
-	// Field table for selected cmdtype (if any)
-	b.WriteString(`<div>`)
+	b.WriteString(`</div><div>`)
 	if cmdtype != "" {
 		defs := h.fieldReg.Fields(vendor, model.CommandType(cmdtype))
 		if len(defs) == 0 {
-			fmt.Fprintf(&b, `<p style="color:#888">No fields defined for <code>%s / %s</code> yet.</p>`, vendor, cmdtype)
+			fmt.Fprintf(&b, `<p style="color:var(--text-muted)">No fields for %s / %s</p>`, vendor, cmdtype)
 		} else {
-			fmt.Fprintf(&b, `<h4>%s / %s</h4>`, vendor, cmdtype)
-			b.WriteString(`<table><tr><th>Field</th><th>Type</th><th>Description</th><th>Example</th><th>Derived</th></tr>`)
+			fmt.Fprintf(&b, `<div style="font-weight:600;margin-bottom:8px">%s / %s</div>`, vendor, cmdtype)
+			b.WriteString(`<table class="data-table"><tr><th>Field</th><th>Type</th><th>Description</th><th>Example</th><th>Derived</th></tr>`)
 			for _, d := range defs {
 				derived := ""
 				if d.Derived {
-					from := strings.Join(d.DerivedFrom, ", ")
-					derived = fmt.Sprintf(`<span class="tag tag-derived">from: %s</span>`, from)
+					derived = fmt.Sprintf(`<span class="tag tag-derived">from: %s</span>`, strings.Join(d.DerivedFrom, ", "))
 				}
 				fmt.Fprintf(&b, `<tr><td><code>%s</code></td><td><span class="tag">%s</span></td><td>%s</td><td><code>%s</code></td><td>%s</td></tr>`,
 					d.Name, string(d.Type), d.Description, d.Example, derived)
@@ -595,12 +947,9 @@ func (h *handlers) apiFieldsSchemaHTML(w http.ResponseWriter, r *http.Request) {
 			b.WriteString(`</table>`)
 		}
 	} else {
-		b.WriteString(`<p style="color:#888">← Select a command type</p>`)
+		b.WriteString(`<p style="color:var(--text-muted)">← Select a command type</p>`)
 	}
-	b.WriteString(`</div>`)
-
-	b.WriteString(`</div>`) // close grid
-
+	b.WriteString(`</div></div>`)
 	fmt.Fprint(w, b.String())
 }
 
@@ -610,322 +959,619 @@ func jsonError(w http.ResponseWriter, msg string, code int) {
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
-// apiFields handles GET /api/fields
-// Query params:
-//
-//	(no params)                              → {"vendors": [...]}
-//	vendor=huawei                            → {"cmdTypes": [...]}
-//	vendor=huawei&command=display+interface  → {"cmdType":"interface","fields":[...]}
-func (h *handlers) apiFields(w http.ResponseWriter, r *http.Request) {
-	if h.fieldReg == nil {
-		jsonError(w, "field registry not available", http.StatusServiceUnavailable)
-		return
-	}
+// ══════════════════════════════════════════════════════════════════════════
+// HTML Templates — Dark theme with sidebar layout
+// ══════════════════════════════════════════════════════════════════════════
 
-	vendor := r.URL.Query().Get("vendor")
-	command := r.URL.Query().Get("command")
-
-	if vendor == "" {
-		w.Header().Set("Content-Type", "application/json")
-		vendors := h.fieldReg.Vendors()
-		json.NewEncoder(w).Encode(map[string]any{"vendors": vendors})
-		return
-	}
-
-	if command == "" {
-		types := h.fieldReg.CmdTypes(vendor)
-		if types == nil {
-			jsonError(w, "unknown vendor", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		strs := make([]string, len(types))
-		for i, t := range types {
-			strs[i] = string(t)
-		}
-		json.NewEncoder(w).Encode(map[string]any{"cmdTypes": strs})
-		return
-	}
-
-	cmdType := h.fieldReg.ClassifyCommand(vendor, command)
-	if cmdType == model.CmdUnknown {
-		jsonError(w, "unknown command", http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	fields := h.fieldReg.Fields(vendor, cmdType)
-	json.NewEncoder(w).Encode(map[string]any{
-		"cmdType": string(cmdType),
-		"fields":  fields,
-	})
-}
-
-// ── Inline HTML templates ────────────────────────────────────────────────────
-
-// navHTML is the shared top navigation bar injected into every Studio page.
-// The {{.UnknownCount}} placeholder is only meaningful on the list page;
-// other pages substitute 0 (nav still renders correctly).
-const navCSS = `
-<style>
-.nav{display:flex;gap:0;align-items:stretch;background:#1a1a2e;padding:0;margin:-1rem -1rem 1.5rem -1rem;
-     border-radius:0;font-family:monospace;flex-wrap:wrap}
-.nav-brand{color:#fff;font-weight:bold;padding:0.6rem 1.2rem;font-size:1.1em;
-           border-right:1px solid #333;display:flex;align-items:center;text-decoration:none}
-.nav-brand:hover{background:#16213e;color:#fff}
-.nav a,.nav button.nav-link{color:#ccc;padding:0.6rem 1rem;text-decoration:none;
-           border:none;background:none;cursor:pointer;font-family:monospace;font-size:1em;
-           display:flex;align-items:center;gap:0.3rem;border-right:1px solid #2a2a4a}
-.nav a:hover,.nav button.nav-link:hover{background:#16213e;color:#fff}
-.nav a.active{background:#0066cc;color:#fff}
-.nav-badge{background:#e74c3c;color:white;border-radius:10px;padding:1px 6px;font-size:0.75em;margin-left:3px}
-.nav-sep{flex:1}
-</style>`
-
-const navHTML = `<nav class="nav">
-  <a class="nav-brand" href="/">🔬 Rule Studio</a>
-  <a href="/" {{if eq .ActivePage "rules"}}class="active"{{end}}>📋 Rules</a>
-  <a href="/unknown" {{if eq .ActivePage "unknown"}}class="active"{{end}}>⚠️ Unknown<span class="nav-badge">{{.UnknownCount}}</span></a>
-  <a href="/test" {{if eq .ActivePage "tester"}}class="active"{{end}}>🧪 Parser Tester</a>
-  <a href="/fields" {{if eq .ActivePage "fields"}}class="active"{{end}}>🔍 Field Browser</a>
-  <div class="nav-sep"></div>
-  <button class="nav-link" hx-post="/api/discover" hx-swap="none">🔄 Run Discovery</button>
-</nav>`
-
-const listHTML = `<!DOCTYPE html>
-<html><head><title>Rule Studio</title>
+const baseHTML = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rule Studio</title>
+<link rel="stylesheet" href="/static/style.css">
 <script src="/static/htmx.min.js"></script>
-` + navCSS + `
-<style>body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:0.4rem 0.8rem;border-bottom:1px solid #ddd}
-th{background:#f5f5f5}.badge{padding:2px 8px;border-radius:4px;font-size:0.85em}
-.draft{background:#fff3cd}.testing{background:#cce5ff}.approved{background:#d4edda}
-a{color:#0066cc}</style></head>
-<body>
-` + navHTML + `
-<table>
-<tr><th>Vendor</th><th>Command Pattern</th><th>Type</th><th>Confidence</th><th>Status</th><th>Created</th><th>Actions</th></tr>
-{{range .Rules}}
-<tr>
-  <td>{{.Vendor}}</td><td><code>{{.CommandPattern}}</code></td><td>{{.OutputType}}</td>
-  <td>{{printf "%.0f%%" (mul .Confidence 100.0)}}</td>
-  <td><span class="badge {{.Status}}">{{.Status}}</span></td>
-  <td>{{.CreatedAt.Format "2006-01-02"}}</td>
-  <td><a href="/rule/{{.ID}}">Edit</a> · <a href="/rule/{{.ID}}/sandbox">Sandbox</a></td>
-</tr>
-{{else}}<tr><td colspan="7">No pending rules. Click "Run Discovery" to populate.</td></tr>
-{{end}}</table></body></html>`
-
-const editorHTML = `<!DOCTYPE html>
-<html><head><title>Rule Editor — {{.Rule.CommandPattern}}</title>
-<script src="/static/htmx.min.js"></script>
-` + navCSS + `
-<style>body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}textarea{width:100%;height:400px;font-family:monospace}
-a{color:#0066cc}</style>
+<script src="/static/app.js" defer></script>
 </head><body>
-` + navHTML + `
-<h2>✏️ Rule Editor — <code>{{.Rule.CommandPattern}}</code></h2>
-<details style="margin-bottom:1rem;border:1px solid #ddd;padding:0.5rem;border-radius:4px">
-<summary>ℹ️ Schema Guide</summary>
-<div style="margin-top:0.5rem;font-size:0.9em">
-<ul>
-<li>Generated types auto-register as <code>generated:{vendor}:{cmd_stem}</code></li>
-<li>Results stored in <code>ParseResult.Rows[]</code> → queryable via <code>nethelper show scratch</code></li>
-<li>Table YAML: <code>columns</code> indexed by position; <code>derived</code> for computed fields</li>
-<li>Go code: must return <code>model.ParseResult{Type: cmdType, Rows: [...]}</code></li>
-<li><a href="/fields">🔍 Browse existing field schemas</a></li>
-</ul>
-</div>
-</details>
-<p>Vendor: {{.Rule.Vendor}} · Type: {{.Rule.OutputType}} · Confidence: {{printf "%.0f%%" (mul .Rule.Confidence 100.0)}}</p>
-<form method="POST"><div class="grid">
-  <div><h3>{{if eq .Rule.OutputType "table"}}Schema YAML{{else}}Go Code Draft{{end}}</h3>
-    {{if eq .Rule.OutputType "table"}}
-    <textarea name="schema_yaml">{{.Rule.SchemaYAML}}</textarea>
-    {{else}}
-    <textarea name="go_code_draft">{{.Rule.GoCodeDraft}}</textarea>
-    <p><em>⚠️ Go code rules: live test unavailable. Validation after PR merge.</em></p>
-    {{end}}
-  </div>
-  <div><h3>Sample Inputs</h3>
-    <pre style="overflow:auto;max-height:400px;background:#f8f8f8;padding:1rem">{{.Rule.SampleInputs}}</pre>
-  </div>
-</div>
-<button type="submit">💾 Save → Sandbox</button>
-</form></body></html>`
-
-const fieldsHTML = `<!DOCTYPE html>
-<html>
-<head>
-<title>Field Browser — Rule Studio</title>
-<script src="/static/htmx.min.js"></script>
-` + navCSS + `
-<style>
-  body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
-  .layout{display:grid;grid-template-columns:200px 1fr;gap:1.5rem;margin-top:1rem}
-  .vendor-list{border-right:1px solid #ddd;padding-right:1rem}
-  .vendor-btn{display:block;width:100%;text-align:left;padding:0.4rem 0.6rem;
-    margin:2px 0;border:1px solid #ddd;background:#f9f9f9;cursor:pointer;
-    font-family:monospace;font-size:1em;border-radius:3px}
-  .vendor-btn:hover,.vendor-btn.active{background:#0066cc;color:white;border-color:#0066cc}
-  .cmdtype-row{display:flex;justify-content:space-between;align-items:center;
-    padding:0.35rem 0.6rem;border-bottom:1px solid #eee;cursor:pointer}
-  .cmdtype-row:hover{background:#f0f8ff}
-  .cmdtype-row.active{background:#e8f4fd}
-  .field-count{color:#888;font-size:0.9em}
-  table{width:100%;border-collapse:collapse;margin-top:0.5rem}
-  th,td{text-align:left;padding:0.4rem 0.8rem;border-bottom:1px solid #ddd}
-  th{background:#f5f5f5}
-  .tag{padding:1px 6px;border-radius:3px;font-size:0.85em;background:#e9ecef}
-  .tag-derived{background:#fff3cd}
-  #schema-panel{padding-left:1rem}
-  h4{margin:0.5rem 0}
-  a{color:#0066cc}
-</style>
-</head>
-<body>
-` + navHTML + `
-<h2>🔍 Field Browser</h2>
-<p>Browse the field schema for each vendor's parsed commands.</p>
-<div class="layout">
-  <div class="vendor-list">
-    <h4>Vendors</h4>
-    <div hx-get="/api/fields/vendors-html" hx-trigger="load" hx-swap="outerHTML">
-      Loading...
+<div class="app-layout">
+  <div class="status-bar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Rule Studio
+    </div>
+    <div class="status-indicators">
+      <span><span class="status-dot {{if .LLMAvailable}}ok{{else}}warn{{end}}"></span>LLM</span>
+      <span><span class="status-dot {{if .GitAvailable}}ok{{else}}warn{{end}}"></span>Git</span>
+      <span><span class="status-dot ok"></span>DB</span>
     </div>
   </div>
-  <div id="schema-panel">
-    <p style="color:#888">← Select a vendor</p>
+  <nav class="sidebar">
+    <div class="sidebar-label">Navigation</div>
+    <a href="/" {{if eq .ActivePage "dashboard"}}class="active"{{end}}>
+      <span class="nav-icon">📊</span>Dashboard
+    </a>
+    <a href="/rules" {{if eq .ActivePage "rules"}}class="active"{{end}}>
+      <span class="nav-icon">📋</span>Rules
+    </a>
+    <a href="/unknown" {{if eq .ActivePage "unknown"}}class="active"{{end}}>
+      <span class="nav-icon">⚠️</span>Unknown{{if gt .UnknownCount 0}}<span class="nav-badge">{{.UnknownCount}}</span>{{end}}
+    </a>
+    <div class="sidebar-sep"></div>
+    <div class="sidebar-label">Inspect</div>
+    <a href="/patterns" {{if eq .ActivePage "patterns"}}class="active"{{end}}>
+      <span class="nav-icon">🔗</span>Command Patterns
+    </a>
+    <a href="/fields" {{if eq .ActivePage "fields"}}class="active"{{end}}>
+      <span class="nav-icon">🔍</span>Field Browser
+    </a>
+    <a href="/compare" {{if eq .ActivePage "compare"}}class="active"{{end}}>
+      <span class="nav-icon">⚖️</span>Cross-Vendor Compare
+    </a>
+    <a href="/test" {{if eq .ActivePage "tester"}}class="active"{{end}}>
+      <span class="nav-icon">🧪</span>Parser Tester
+    </a>
+    <div class="sidebar-sep"></div>
+    <a href="/history" {{if eq .ActivePage "history"}}class="active"{{end}}>
+      <span class="nav-icon">📜</span>History
+    </a>
+    <div class="sidebar-sep"></div>
+    <button class="nav-btn" onclick="runDiscovery()">
+      <span class="nav-icon">🔄</span>Run Discovery
+    </button>
+  </nav>
+  <main class="main-content">
+`
+
+const pageFooter = `
+  </main>
+</div>
+<div id="toast-container"></div>
+</body></html>`
+
+// ── Dashboard ────────────────────────────────────────────────────────────
+
+const dashboardHTML = `
+<div class="page-header">
+  <h1>📊 Dashboard</h1>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="runDiscovery()">🔄 Run Discovery</button>
   </div>
 </div>
-</body>
-</html>`
 
-const sandboxHTML = `<!DOCTYPE html>
-<html><head><title>Sandbox — {{.Rule.CommandPattern}}</title>
-<script src="/static/htmx.min.js"></script>
-` + navCSS + `
-<style>body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
-textarea{width:100%;height:200px;font-family:monospace}
-#result{background:#f0f8ff;padding:1rem;min-height:80px;white-space:pre-wrap}
-a{color:#0066cc}</style>
-</head><body>
-` + navHTML + `
-<h2>🧪 Sandbox — <code>{{.Rule.CommandPattern}}</code></h2>
-<details style="margin-bottom:1rem;border:1px solid #ddd;padding:0.5rem;border-radius:4px">
-<summary>ℹ️ Schema Guide</summary>
-<div style="margin-top:0.5rem;font-size:0.9em">
-<ul>
-<li>Generated types auto-register as <code>generated:{vendor}:{cmd_stem}</code></li>
-<li>Results stored in <code>ParseResult.Rows[]</code> → queryable via <code>nethelper show scratch</code></li>
-<li>Table YAML: <code>columns</code> indexed by position; <code>derived</code> for computed fields</li>
-<li>Go code: must return <code>model.ParseResult{Type: cmdType, Rows: [...]}</code></li>
-<li><a href="/fields">🔍 Browse existing field schemas</a></li>
-</ul>
+<!-- Needs Attention -->
+{{if .Attention}}
+<div class="card" style="border-color:var(--warning);border-width:2px">
+  <div class="card-header"><h3 style="color:var(--warning)">🔔 Needs Your Attention</h3></div>
+  <div class="card-body">
+    {{range .Attention}}
+    <div class="attention-item {{.Urgency}}">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:1.2rem">{{.Icon}}</span>
+        <div>
+          <div style="font-weight:600">{{.Title}}</div>
+          <div style="font-size:0.82rem;color:var(--text-secondary)">{{.Detail}}</div>
+        </div>
+      </div>
+      {{if .Link}}<a href="{{.Link}}" class="btn btn-ghost btn-sm">Go →</a>{{end}}
+    </div>
+    {{end}}
+  </div>
 </div>
-</details>
-<p>Vendor: {{.Rule.Vendor}} · Type: {{.Rule.OutputType}} · Test cases: {{.TestCount}}</p>
-
-{{if eq .Rule.OutputType "table"}}
-<h3>Paste device output:</h3>
-<textarea id="input-area" name="input"></textarea><br>
-<button hx-post="/api/rule/{{.Rule.ID}}/test"
-        hx-include="#input-area" hx-target="#result">▶ Run Parse</button>
-<div id="result"></div>
-{{else}}
-<p><em>⚠️ Go code rule — live execution unavailable. Review draft below, save test cases manually.</em></p>
-<pre style="background:#f8f8f8;padding:1rem;overflow:auto">{{.Rule.GoCodeDraft}}</pre>
-<textarea id="input-area" name="input" placeholder="Paste CLI output..."></textarea>
 {{end}}
 
-<h3>Save test case:</h3>
-<input id="tc-desc" name="description" type="text" placeholder="Description (optional)" style="width:300px"><br>
-<textarea id="tc-expected" name="expected" placeholder='Expected JSON result, e.g. {"rows":[...]}'></textarea>
-<button hx-post="/api/rule/{{.Rule.ID}}/testcase"
-        hx-include="#input-area,#tc-desc,#tc-expected"
-        hx-target="#tc-status">💾 Save Test Case</button>
-<span id="tc-status"></span>
+<!-- Stats Grid -->
+<div class="info-grid" style="grid-template-columns:repeat(4,1fr)">
+  <div class="info-item">
+    <div class="label">Unknown Commands</div>
+    <div class="value" style="{{if gt .UnknownCommands 0}}color:var(--warning){{end}}">{{.UnknownCommands}}</div>
+  </div>
+  <div class="info-item">
+    <div class="label">Draft Rules</div>
+    <div class="value" style="{{if gt .DraftCount 0}}color:var(--accent){{end}}">{{.DraftCount}}</div>
+  </div>
+  <div class="info-item">
+    <div class="label">In Testing</div>
+    <div class="value">{{.TestingCount}}</div>
+  </div>
+  <div class="info-item">
+    <div class="label">Approved</div>
+    <div class="value" style="color:var(--success)">{{.ApprovedCount}}</div>
+  </div>
+</div>
 
-{{if gt .TestCount 0}}
-<br><br>
-<form method="POST" action="/api/rule/{{.Rule.ID}}/approve">
-  <button style="background:#28a745;color:white;padding:0.5rem 1rem;border:none;cursor:pointer">
-    ✅ Approve &amp; Generate PR ({{.TestCount}} test case{{if gt .TestCount 1}}s{{end}})
-  </button>
-</form>
-<br>
-<button hx-post="/api/rule/{{.Rule.ID}}/save-local"
-        hx-target="#save-result"
-        hx-swap="innerHTML"
-        style="background:#0066cc;color:white;padding:0.5rem 1rem;border:none;cursor:pointer">
-  💾 Save to Local Files
-</button>
-<div id="save-result" style="margin-top:0.5rem;font-family:monospace;white-space:pre-wrap"></div>
-{{else}}<p><em>Save at least one test case to enable approve.</em></p>{{end}}
-</body></html>`
+<!-- Vendor Coverage -->
+{{if .VendorCoverages}}
+<div class="card">
+  <div class="card-header"><h3>🏭 Vendor Parser Coverage</h3></div>
+  <div class="card-body">
+    <table class="data-table">
+      <tr><th>Vendor</th><th>Supported CommandTypes</th><th>Unknown Commands</th><th>Coverage Status</th></tr>
+      {{range .VendorCoverages}}
+      <tr>
+        <td><span class="badge badge-vendor">{{.Vendor}}</span></td>
+        <td><span class="tag">{{.SupportedTypes}} types</span></td>
+        <td>{{range $.VendorUnknowns}}{{if eq .Vendor $.VendorCoverages}}{{.Count}}{{end}}{{end}}—</td>
+        <td>
+          {{if gt .SupportedTypes 5}}<span style="color:var(--success)">● Good</span>
+          {{else if gt .SupportedTypes 3}}<span style="color:var(--warning)">● Basic</span>
+          {{else}}<span style="color:var(--danger)">● Minimal</span>{{end}}
+        </td>
+      </tr>
+      {{end}}
+    </table>
+    {{if .VendorUnknowns}}
+    <div style="margin-top:12px;font-size:0.82rem;color:var(--text-secondary)">
+      Unknown commands by vendor:
+      {{range .VendorUnknowns}}
+        <span class="badge badge-vendor" style="margin-left:4px">{{.Vendor}}: {{.Count}}</span>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
 
-const testPageHTML = `<!DOCTYPE html>
-<html><head><title>Parser Tester — Rule Studio</title>
-<script src="/static/htmx.min.js"></script>
-` + navCSS + `
-<style>body{font-family:monospace;max-width:1100px;margin:2rem auto;padding:0 1rem}
-textarea{width:100%;height:250px;font-family:monospace}
-select,input{font-family:monospace;padding:0.3rem}
-#result{background:#f0f8ff;padding:1rem;min-height:80px;white-space:pre-wrap;margin-top:1rem}
-.matched{color:#28a745}.unmatched{color:#dc3545}
-a{color:#0066cc}</style></head>
-<body>
-` + navHTML + `
-<h2>🧪 Parser Tester</h2>
-<p>Paste CLI output, pick vendor + command to see what the existing parsers extract.</p>
-<label>Vendor:
-  <select name="vendor" id="vendor">
-    {{range .Vendors}}<option value="{{.}}">{{.}}</option>{{end}}
-  </select>
-</label>
-<br><br>
-<label>Command: <input type="text" name="command" id="command" size="50" placeholder="e.g. display bgp peer"></label>
-<br><br>
-<label>CLI Output:</label>
-<textarea name="output" id="output" placeholder="Paste device output here..."></textarea>
-<br>
-<button hx-post="/api/test"
-        hx-include="#vendor,#command,#output"
-        hx-target="#result"
-        hx-swap="innerHTML">▶ Parse</button>
-<div id="result"><em>Paste output and click ▶ Parse</em></div>
-</body></html>`
+<!-- Quick Links -->
+<div class="card">
+  <div class="card-header"><h3>⚡ Quick Actions</h3></div>
+  <div class="card-body" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+    <a href="/patterns" class="btn btn-ghost" style="justify-content:center;padding:16px">🔗 View Command Patterns</a>
+    <a href="/compare" class="btn btn-ghost" style="justify-content:center;padding:16px">⚖️ Cross-Vendor Compare</a>
+    <a href="/test" class="btn btn-ghost" style="justify-content:center;padding:16px">🧪 Test a Parser</a>
+  </div>
+</div>
+` + pageFooter
 
-const unknownListHTML = `<!DOCTYPE html>
-<html><head><title>Unknown Outputs — Rule Studio</title>
-<script src="/static/htmx.min.js"></script>
-` + navCSS + `
-<style>body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:0.4rem 0.8rem;border-bottom:1px solid #ddd}
-th{background:#f5f5f5}.badge{padding:2px 8px;border-radius:4px;font-size:0.85em;background:#fff3cd}
-pre{margin:0;font-size:0.8em;max-height:60px;overflow:hidden}
-button{cursor:pointer;padding:2px 8px;margin-right:4px}
-a{color:#0066cc}</style></head>
-<body>
-` + navHTML + `
-<h2>⚠️ Unknown Outputs</h2>
-<p>Commands seen in ingested logs that no parser matched.</p>
-<table>
-<tr><th>Vendor</th><th>Command</th><th>Count</th><th>First Seen</th><th>Preview</th><th>Actions</th></tr>
-{{range .Outputs}}
-<tr id="unknown-{{.ID}}">
-  <td><span class="badge">{{.Vendor}}</span></td>
-  <td><code>{{.CommandNorm}}</code></td>
-  <td>{{.OccurrenceCount}}</td>
-  <td>{{.FirstSeen.Format "2006-01-02"}}</td>
-  <td><pre>{{.RawOutput}}</pre></td>
-  <td>
-    <button hx-post="/api/unknown/{{.ID}}/generate"
-            hx-swap="none">🔬 Generate Rule</button>
-    <button hx-post="/api/unknown/{{.ID}}/ignore"
-            hx-target="#unknown-{{.ID}}"
-            hx-swap="outerHTML">✕ Ignore</button>
-  </td>
-</tr>
-{{else}}<tr><td colspan="6">No new unknown outputs.</td></tr>
-{{end}}</table></body></html>`
+// ── Rules List ───────────────────────────────────────────────────────────
+
+const listHTML = `
+<div class="page-header">
+  <h1>📋 Pending Rules</h1>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="runDiscovery()">🔄 Run Discovery</button>
+  </div>
+</div>
+{{if .Rules}}
+<div class="card">
+  <table class="data-table">
+    <tr>
+      <th>Vendor</th><th>Command Pattern</th><th>Type</th>
+      <th>Confidence</th><th>Status</th><th>Created</th><th>Actions</th>
+    </tr>
+    {{range .Rules}}
+    <tr>
+      <td><span class="badge badge-vendor">{{.Vendor}}</span></td>
+      <td><code>{{truncate .CommandPattern 50}}</code></td>
+      <td><span class="tag">{{.OutputType}}</span></td>
+      <td>
+        <div class="confidence-bar">
+          <div class="confidence-track">
+            <div class="confidence-fill {{confClass .Confidence}}" style="width:{{confPct .Confidence}}%"></div>
+          </div>
+          <span style="font-size:0.8rem;color:var(--text-muted)">{{confPct .Confidence}}%</span>
+        </div>
+      </td>
+      <td><span class="badge {{statusClass .Status}}">{{.Status}}</span></td>
+      <td style="font-size:0.8rem;color:var(--text-muted)">{{.CreatedAt.Format "2006-01-02"}}</td>
+      <td>
+        <div class="btn-group">
+          <a href="/rule/{{.ID}}" class="btn btn-ghost btn-sm">Edit & Test</a>
+        </div>
+      </td>
+    </tr>
+    {{end}}
+  </table>
+</div>
+{{else}}
+<div class="empty-state">
+  <h3>No Pending Rules</h3>
+  <p>Import device logs and run discovery to generate parser rule drafts.</p>
+  <div class="steps-flow">
+    <div class="step-item done"><span class="step-num">1</span>Import logs</div>
+    <div class="step-item active"><span class="step-num">2</span>Unknown commands appear</div>
+    <div class="step-item"><span class="step-num">3</span>LLM generates drafts</div>
+    <div class="step-item"><span class="step-num">4</span>Review & approve</div>
+  </div>
+  <div style="margin-top:16px">
+    <code style="color:var(--text-muted)">nethelper watch ingest ~/logs/session.log</code>
+  </div>
+  <button class="btn btn-primary" style="margin-top:16px" onclick="runDiscovery()">🔄 Run Discovery Now</button>
+</div>
+{{end}}
+` + pageFooter
+
+// ── Rule Editor + Sandbox (merged) ───────────────────────────────────────
+
+const editorHTML = `
+<div class="breadcrumb"><a href="/">Rules</a> / {{.Rule.CommandPattern}}</div>
+<div class="page-header">
+  <h1>{{.Rule.CommandPattern}}</h1>
+  <div class="actions">
+    <span class="badge {{statusClass .Rule.Status}}">{{.Rule.Status}}</span>
+    <span class="badge badge-vendor">{{.Rule.Vendor}}</span>
+  </div>
+</div>
+
+<div class="info-grid">
+  <div class="info-item"><div class="label">Output Type</div><div class="value"><span class="tag">{{.Rule.OutputType}}</span></div></div>
+  <div class="info-item">
+    <div class="label">Confidence</div>
+    <div class="value">
+      <div class="confidence-bar">
+        <div class="confidence-track" style="width:80px">
+          <div class="confidence-fill {{confClass .Rule.Confidence}}" style="width:{{confPct .Rule.Confidence}}%"></div>
+        </div>
+        {{confPct .Rule.Confidence}}%
+      </div>
+    </div>
+  </div>
+  <div class="info-item"><div class="label">Occurrences</div><div class="value">{{.Rule.OccurrenceCount}}</div></div>
+  <div class="info-item"><div class="label">Test Cases</div><div class="value"><span id="tc-count">{{.TestCount}}</span></div></div>
+</div>
+
+<!-- ═══ Section 1: Schema / Code Editor ═══ -->
+<div class="card">
+  <div class="card-header">
+    <h3>{{if eq .Rule.OutputType "table"}}📝 Schema YAML{{else}}📝 Go Code Draft{{end}}</h3>
+    <div class="btn-group">
+      {{if .LLMAvailable}}<button class="btn btn-sm btn-ghost" onclick="askLLMImprove({{.Rule.ID}}, '{{.Rule.OutputType}}')">🤖 Ask LLM to Improve</button>{{end}}
+      <button class="btn btn-sm btn-primary" onclick="saveSchema({{.Rule.ID}})">💾 Save (⌘S)</button>
+    </div>
+  </div>
+  <div class="card-body">
+    {{if eq .Rule.OutputType "table"}}
+    <textarea name="schema_yaml" class="code-editor" id="schema-editor">{{.Rule.SchemaYAML}}</textarea>
+    {{else}}
+    <textarea name="go_code_draft" class="code-editor" id="code-editor">{{.Rule.GoCodeDraft}}</textarea>
+    {{end}}
+  </div>
+</div>
+
+<!-- ═══ Section 2: Sample Inputs (from discovery) ═══ -->
+<div class="card">
+  <div class="card-header">
+    <h3>📋 Sample Inputs</h3>
+    <span style="font-size:0.78rem;color:var(--text-muted)">Raw device output collected during discovery</span>
+  </div>
+  <div class="card-body" id="sample-inputs-container">
+    <div class="sample-inputs-raw" style="display:none">{{.Rule.SampleInputs}}</div>
+  </div>
+</div>
+
+<!-- ═══ Section 3: Test & Validate (unified workflow) ═══ -->
+<div class="card">
+  <div class="card-header">
+    <h3>🧪 Test & Validate</h3>
+    <span style="font-size:0.78rem;color:var(--text-muted)">Paste output → Parse → Review → Save as test case</span>
+  </div>
+  <div class="card-body">
+    <!-- Step 1: Input -->
+    <div class="test-step">
+      <div class="test-step-header">
+        <span class="step-indicator">1</span>
+        <label style="margin:0">Device CLI Output</label>
+      </div>
+      <textarea id="input-area" placeholder="Paste device CLI output here, or click 'Use Sample' above to load a sample..." style="min-height:160px"></textarea>
+    </div>
+
+    <!-- Step 2: Parse -->
+    <div class="test-step" style="margin-top:12px">
+      <div class="test-step-header">
+        <span class="step-indicator">2</span>
+        <label style="margin:0">Parse & Review</label>
+        <div class="btn-group" style="margin-left:auto">
+          {{if eq .Rule.OutputType "table"}}
+          <button class="btn btn-primary btn-sm" onclick="runParse({{.Rule.ID}})">▶ Run Parse (⌘↵)</button>
+          {{else}}
+          <span style="font-size:0.78rem;color:var(--text-muted)">Go code rules: live execution unavailable, review code above</span>
+          {{end}}
+        </div>
+      </div>
+      <div id="parse-result" class="result-area empty">
+        Click "Run Parse" to test the schema against your input
+      </div>
+    </div>
+
+    <!-- Step 3: Save Test Case -->
+    <div class="test-step" style="margin-top:12px">
+      <div class="test-step-header">
+        <span class="step-indicator">3</span>
+        <label style="margin:0">Save as Test Case</label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-top:8px">
+        <div>
+          <label style="font-size:0.78rem">Description</label>
+          <input type="text" id="tc-desc" placeholder="e.g. NE40E with 3 interfaces up">
+        </div>
+        <div>
+          <label style="font-size:0.78rem">Expected Result <span style="color:var(--text-muted)">(auto-filled from parse result if available)</span></label>
+          <textarea id="tc-expected" placeholder="Parse result will be auto-filled here, or enter manually..." style="min-height:60px"></textarea>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="saveTestCase({{.Rule.ID}})">💾 Save Test Case</button>
+        <span style="font-size:0.78rem;color:var(--text-muted)">Input from step 1 + expected from here will be saved</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Section 4: Test Cases List ═══ -->
+<div class="card">
+  <div class="card-header">
+    <h3>📋 Test Cases (<span id="tc-count-header">{{.TestCount}}</span>)</h3>
+    {{if .TestCases}}<button class="btn btn-sm btn-ghost" onclick="runAllTestCases({{.Rule.ID}})">▶ Run All</button>{{end}}
+  </div>
+  <div class="card-body" id="test-cases-list">
+    {{if .TestCases}}
+    {{range .TestCases}}
+    <div class="test-case-item" id="tc-{{.ID}}">
+      <div class="test-case-main" onclick="toggleTestCase({{.ID}})">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="tc-expand-icon" id="tc-icon-{{.ID}}">▸</span>
+          <span class="tc-status-dot" id="tc-dot-{{.ID}}"></span>
+          <span>{{if .Description}}{{.Description}}{{else}}Test #{{.ID}}{{end}}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="test-case-meta">{{.CreatedAt.Format "01-02 15:04"}}</span>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();loadTestCase({{.ID}}, {{.RuleID}})" title="Load into test area">↑ Load</button>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteTestCase({{.ID}}, {{.RuleID}})" title="Delete" style="color:var(--danger)">✕</button>
+        </div>
+      </div>
+      <div class="test-case-detail" id="tc-detail-{{.ID}}" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+          <div>
+            <label style="font-size:0.75rem;color:var(--text-muted)">Input</label>
+            <div class="output-preview" style="max-height:150px;font-size:0.78rem">{{.Input}}</div>
+          </div>
+          <div>
+            <label style="font-size:0.75rem;color:var(--text-muted)">Expected</label>
+            <div class="output-preview" style="max-height:150px;font-size:0.78rem">{{.Expected}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {{end}}
+    {{else}}
+    <div class="empty-state" style="padding:24px">
+      <p style="color:var(--text-muted);font-size:0.85rem">No test cases yet. Use the workflow above to parse output and save test cases.</p>
+    </div>
+    {{end}}
+  </div>
+</div>
+
+<!-- ═══ Action Bar ═══ -->
+<div class="action-bar">
+  <div>
+    <a href="/" class="btn btn-ghost">← Back to Rules</a>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-danger btn-sm" onclick="confirmAction('Reject Rule','This will mark the rule as rejected and moved to history.',function(){fetch('/api/rule/{{.Rule.ID}}/ignore',{method:'POST'}).then(()=>{Toast.success('Rule rejected');setTimeout(()=>location.href='/',500)})})">
+      ✕ Reject
+    </button>
+    {{if gt .TestCount 0}}
+    <button class="btn btn-ghost" onclick="saveLocal({{.Rule.ID}})">💾 Save to Local Files</button>
+    <button class="btn btn-success" onclick="confirmAction('Approve & Generate PR','This will generate Go code and create a PR. Requires gh CLI.',function(){fetch('/api/rule/{{.Rule.ID}}/approve',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.error){Toast.error(d.error)}else{Toast.success('PR created: '+d.pr_url);setTimeout(()=>location.href='/',1500)}})})">
+      ✅ Approve & Generate PR
+    </button>
+    {{else}}
+    <span style="color:var(--warning);font-size:0.85rem">⚠ Save at least 1 test case to enable approve</span>
+    {{end}}
+  </div>
+</div>
+<div id="save-result" style="margin-top:8px"></div>
+` + pageFooter
+
+// ── Parser Tester ────────────────────────────────────────────────────────
+
+const testPageHTML = `
+<div class="page-header"><h1>🧪 Parser Tester</h1></div>
+<p style="color:var(--text-secondary);margin-bottom:16px">Test existing parsers against CLI output.</p>
+<div class="card">
+  <div class="card-body">
+    <div style="display:grid;grid-template-columns:200px 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label>Vendor</label>
+        <select id="vendor">
+          {{range .Vendors}}<option value="{{.}}">{{.}}</option>{{end}}
+        </select>
+      </div>
+      <div>
+        <label>Command</label>
+        <input type="text" id="command" placeholder="e.g. display bgp peer">
+      </div>
+    </div>
+    <label>CLI Output</label>
+    <textarea id="output" placeholder="Paste device output here..." style="min-height:200px"></textarea>
+    <div style="margin-top:12px">
+      <button class="btn btn-primary" hx-post="/api/test" hx-include="#vendor,#command,#output" hx-target="#tester-result" hx-swap="innerHTML">▶ Parse</button>
+    </div>
+    <div id="tester-result" class="result-area empty" style="margin-top:12px">Paste output and click ▶ Parse</div>
+  </div>
+</div>
+<script>
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+  if (evt.detail.target.id === 'tester-result') {
+    formatParseResult(evt.detail.xhr.responseText, 'tester-result');
+  }
+});
+</script>
+` + pageFooter
+
+// ── Field Browser ────────────────────────────────────────────────────────
+
+const fieldsHTML = `
+<div class="page-header"><h1>🔍 Field Browser</h1></div>
+<p style="color:var(--text-secondary);margin-bottom:16px">Browse parsed field schemas for each vendor.</p>
+<div class="card">
+  <div class="card-body">
+    <div style="display:grid;grid-template-columns:200px 1fr;gap:16px;min-height:300px">
+      <div>
+        <div style="font-weight:600;margin-bottom:8px;font-size:0.85rem;color:var(--text-secondary)">Vendors</div>
+        <div hx-get="/api/fields/vendors-html" hx-trigger="load" hx-swap="outerHTML">
+          <span class="spinner"></span> Loading...
+        </div>
+      </div>
+      <div id="schema-panel">
+        <p style="color:var(--text-muted)">← Select a vendor</p>
+      </div>
+    </div>
+  </div>
+</div>
+` + pageFooter
+
+// ── Unknown Outputs ──────────────────────────────────────────────────────
+
+const unknownListHTML = `
+<div class="page-header">
+  <h1>⚠️ Unknown Outputs</h1>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="runDiscovery()">🔄 Discover Rules</button>
+  </div>
+</div>
+<p style="color:var(--text-secondary);margin-bottom:16px">Commands from ingested logs that no parser matched.</p>
+{{if .Outputs}}
+<div class="card">
+  <table class="data-table">
+    <tr><th>Vendor</th><th>Command</th><th>Count</th><th>First Seen</th><th>Preview</th><th>Actions</th></tr>
+    {{range .Outputs}}
+    <tr id="unknown-{{.ID}}">
+      <td><span class="badge badge-vendor">{{.Vendor}}</span></td>
+      <td><code>{{.CommandNorm}}</code></td>
+      <td>{{.OccurrenceCount}}</td>
+      <td style="font-size:0.8rem;color:var(--text-muted)">{{.FirstSeen.Format "2006-01-02"}}</td>
+      <td><div class="truncate output-preview" style="max-height:40px;padding:4px 8px;max-width:300px;font-size:0.78rem">{{truncate .RawOutput 120}}</div></td>
+      <td>
+        <div class="btn-group">
+          <button class="btn btn-primary btn-sm" onclick="(async()=>{Toast.info('Generating rule...');const r=await fetch('/api/unknown/{{.ID}}/generate',{method:'POST'});const d=await r.json();if(d.error){Toast.error(d.error)}else{Toast.success('Rule created');location.href=d.redirect}})()">
+            🔬 Generate
+          </button>
+          <button class="btn btn-ghost btn-sm" hx-post="/api/unknown/{{.ID}}/ignore" hx-target="#unknown-{{.ID}}" hx-swap="outerHTML"
+                  onclick="Toast.info('Ignored')">✕</button>
+        </div>
+      </td>
+    </tr>
+    {{end}}
+  </table>
+</div>
+{{else}}
+<div class="empty-state">
+  <h3>No Unknown Outputs</h3>
+  <p>All ingested commands are matched by existing parsers, or no logs have been imported yet.</p>
+</div>
+{{end}}
+` + pageFooter
+
+// ── History ──────────────────────────────────────────────────────────────
+
+const historyHTML = `
+<div class="page-header"><h1>📊 Rule History</h1></div>
+<p style="color:var(--text-secondary);margin-bottom:16px">Previously approved and rejected rules.</p>
+{{if .Rules}}
+<div class="card">
+  <table class="data-table">
+    <tr><th>ID</th><th>Vendor</th><th>Command</th><th>Status</th><th>Approved By</th><th>PR</th><th>Date</th></tr>
+    {{range .Rules}}
+    <tr>
+      <td style="color:var(--text-muted)">#{{.ID}}</td>
+      <td><span class="badge badge-vendor">{{.Vendor}}</span></td>
+      <td><code>{{truncate .CommandPattern 45}}</code></td>
+      <td><span class="badge {{statusClass .Status}}">{{.Status}}</span></td>
+      <td style="color:var(--text-secondary)">{{if .ApprovedBy}}{{.ApprovedBy}}{{else}}—{{end}}</td>
+      <td>{{if .PRURL}}<a href="{{.PRURL}}" target="_blank" style="color:var(--accent)">{{truncate .PRURL 30}}</a>{{else}}—{{end}}</td>
+      <td style="font-size:0.8rem;color:var(--text-muted)">{{.CreatedAt.Format "2006-01-02"}}</td>
+    </tr>
+    {{end}}
+  </table>
+</div>
+{{else}}
+<div class="empty-state">
+  <h3>No History</h3>
+  <p>Approved and rejected rules will appear here.</p>
+</div>
+{{end}}
+` + pageFooter
+
+// ── Command Patterns ─────────────────────────────────────────────────────
+
+const patternsHTML = `
+<div class="page-header"><h1>🔗 Command Patterns</h1></div>
+<p style="color:var(--text-secondary);margin-bottom:16px">Classification prefix rules per vendor. Commands matching these prefixes are parsed; others become "unknown".</p>
+
+{{range .Patterns}}
+<div class="card">
+  <div class="card-header">
+    <h3><span class="badge badge-vendor">{{.Vendor}}</span> — {{len .Rules}} prefix rules</h3>
+  </div>
+  <div class="card-body">
+    <table class="data-table">
+      <tr><th style="width:50%">Command Prefix</th><th>Maps to CommandType</th></tr>
+      {{range .Rules}}
+      <tr>
+        <td><code>{{.Prefix}}</code></td>
+        <td><span class="tag">{{.CmdType}}</span></td>
+      </tr>
+      {{end}}
+    </table>
+  </div>
+</div>
+{{end}}
+
+{{if .Unknowns}}
+<div class="card" style="border-color:var(--warning)">
+  <div class="card-header"><h3 style="color:var(--warning)">⚠️ Unmatched Commands ({{len .Unknowns}} unique)</h3></div>
+  <div class="card-body">
+    <p style="color:var(--text-secondary);margin-bottom:12px;font-size:0.85rem">These commands were seen in ingested logs but matched no prefix rule above.</p>
+    {{range .Unknowns}}
+    <div class="pattern-unknown-item">
+      <div>
+        <span class="badge badge-vendor" style="margin-right:8px">{{.Vendor}}</span>
+        <code>{{.CommandNorm}}</code>
+        <span style="font-size:0.75rem;color:var(--text-muted);margin-left:8px">({{.OccurrenceCount}}x)</span>
+      </div>
+      <details style="margin-top:4px">
+        <summary style="font-size:0.78rem;color:var(--text-muted);cursor:pointer">Show sample output</summary>
+        <div class="output-preview" style="max-height:200px;margin-top:4px;font-size:0.75rem">{{truncate .RawOutput 500}}</div>
+      </details>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+` + pageFooter
+
+// ── Cross-Vendor Compare ─────────────────────────────────────────────────
+
+const compareHTML = `
+<div class="page-header"><h1>⚖️ Cross-Vendor Field Compare</h1></div>
+<p style="color:var(--text-secondary);margin-bottom:16px">Compare parsed fields for the same CommandType across different vendors.</p>
+
+{{if .Rows}}
+{{range .Rows}}
+<div class="card">
+  <div class="card-header"><h3><span class="tag" style="font-size:0.9rem">{{.CmdType}}</span></h3></div>
+  <div class="card-body">
+    <div style="display:grid;grid-template-columns:repeat({{len .Vendors}}, 1fr);gap:16px">
+      {{range .Vendors}}
+      <div>
+        <div style="font-weight:600;margin-bottom:8px"><span class="badge badge-vendor">{{.Vendor}}</span></div>
+        {{if .Fields}}
+        <div style="display:flex;flex-direction:column;gap:2px">
+          {{range .Fields}}
+          <code style="font-size:0.78rem;color:var(--text-secondary);padding:2px 6px;background:var(--bg-tertiary);border-radius:3px">{{.}}</code>
+          {{end}}
+        </div>
+        {{else}}
+        <span style="font-size:0.82rem;color:var(--text-muted);font-style:italic">Not supported</span>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+</div>
+{{end}}
+{{else}}
+<div class="empty-state">
+  <h3>No Field Data</h3>
+  <p>Field registry not available. Parser vendors may not be registered.</p>
+</div>
+{{end}}
+` + pageFooter

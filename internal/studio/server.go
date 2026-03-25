@@ -1,7 +1,8 @@
 package studio
 
 import (
-	_ "embed"
+	"embed"
+	"io/fs"
 	"net/http"
 
 	"github.com/xavierli/nethelper/internal/discovery"
@@ -10,8 +11,8 @@ import (
 	"github.com/xavierli/nethelper/internal/store"
 )
 
-//go:embed static/htmx.min.js
-var htmxJS []byte
+//go:embed static/htmx.min.js static/style.css static/app.js
+var staticFS embed.FS
 
 // GenerateFn is a function that generates Go source files and creates a PR.
 // Injected at startup to avoid a hard import cycle between studio and codegen.
@@ -45,21 +46,31 @@ func (s *Server) ListenAndServe(addr string) error {
 }
 
 func (s *Server) registerRoutes() {
-	s.mux.HandleFunc("/static/htmx.min.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript")
-		w.Write(htmxJS)
-	})
+	// Serve embedded static files
+	staticSub, _ := fs.Sub(staticFS, "static")
+	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))))
+
 	h := &handlers{db: s.db, eng: s.eng, generate: s.generate, fieldReg: s.fieldReg, repoRoot: s.repoRoot}
-	s.mux.HandleFunc("/", h.list)
-	s.mux.HandleFunc("/rule/", h.ruleDispatch)    // /rule/:id and /rule/:id/sandbox
-	s.mux.HandleFunc("/api/rule/", h.apiDispatch) // /api/rule/:id/test|testcase|approve|ignore
-	s.mux.HandleFunc("/api/discover", h.apiDiscover)
-	s.mux.HandleFunc("/api/fields", h.apiFields)
+
+	// Pages
+	s.mux.HandleFunc("/", h.dashboard)
+	s.mux.HandleFunc("/rules", h.list)
+	s.mux.HandleFunc("/rule/", h.ruleDispatch)
+	s.mux.HandleFunc("/test", h.tester)
 	s.mux.HandleFunc("/fields", h.fields)
+	s.mux.HandleFunc("/compare", h.compare)
+	s.mux.HandleFunc("/patterns", h.patterns)
+	s.mux.HandleFunc("/unknown", h.unknownList)
+	s.mux.HandleFunc("/history", h.history)
+
+	// APIs
+	s.mux.HandleFunc("/api/rule/", h.apiDispatch)
+	s.mux.HandleFunc("/api/discover", h.apiDiscover)
+	s.mux.HandleFunc("/api/dashboard", h.apiDashboard)
+	s.mux.HandleFunc("/api/fields", h.apiFields)
 	s.mux.HandleFunc("/api/fields/vendors-html", h.apiFieldsVendorsHTML)
 	s.mux.HandleFunc("/api/fields/schema-html", h.apiFieldsSchemaHTML)
-	s.mux.HandleFunc("/test", h.tester)
 	s.mux.HandleFunc("/api/test", h.apiParserTest)
-	s.mux.HandleFunc("/unknown", h.unknownList)
 	s.mux.HandleFunc("/api/unknown/", h.unknownDispatch)
+	s.mux.HandleFunc("/api/status", h.apiStatus)
 }
