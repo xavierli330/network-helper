@@ -57,7 +57,7 @@ func NewRootCmd() *cobra.Command {
 			registry.Register(cisco.New())
 			registry.Register(h3c.New())
 			registry.Register(juniper.New())
-			pipeline = parser.NewPipeline(db, registry)
+			pipeline = parser.NewPipelineWithCollector(db, registry, parser.NewCollector(db))
 
 			// Initialize LLM router from config
 			llmRouter = llm.BuildFromConfig(cfg.LLM)
