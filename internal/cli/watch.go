@@ -130,6 +130,28 @@ func newWatchStartCmd() *cobra.Command {
 			fmt.Printf("Watching directories: %v\n", watchDirs)
 			fmt.Println("Press Ctrl+C to stop.")
 
+			// Initial scan: process existing files that have new content since last ingest.
+			fmt.Println("Scanning existing files...")
+			initialCount := 0
+			for _, dir := range watchDirs {
+				entries, err := os.ReadDir(dir)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "scan %s: %v\n", dir, err)
+					continue
+				}
+				for _, entry := range entries {
+					if entry.IsDir() {
+						continue
+					}
+					fullPath := filepath.Join(dir, entry.Name())
+					w.TriggerFile(fullPath)
+					initialCount++
+				}
+			}
+			if initialCount > 0 {
+				fmt.Printf("Initial scan queued %d file(s).\n", initialCount)
+			}
+
 			// Handle Ctrl+C / SIGTERM for graceful shutdown
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
