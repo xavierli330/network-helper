@@ -270,6 +270,99 @@ func (h *handlers) apiDiscover(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"created": n})
 }
 
+func (h *handlers) fields(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, fieldsHTML)
+}
+
+func (h *handlers) apiFieldsVendorsHTML(w http.ResponseWriter, r *http.Request) {
+	if h.fieldReg == nil {
+		fmt.Fprint(w, `<p style="color:red">Field registry not available</p>`)
+		return
+	}
+	vendors := h.fieldReg.Vendors()
+	var b strings.Builder
+	b.WriteString(`<div>`)
+	for _, v := range vendors {
+		fmt.Fprintf(&b,
+			`<button class="vendor-btn" `+
+				`hx-get="/api/fields/schema-html?vendor=%s" `+
+				`hx-target="#schema-panel" `+
+				`hx-swap="innerHTML" `+
+				`onclick="document.querySelectorAll('.vendor-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">`+
+				`%s</button>`, v, v)
+	}
+	b.WriteString(`</div>`)
+	fmt.Fprint(w, b.String())
+}
+
+func (h *handlers) apiFieldsSchemaHTML(w http.ResponseWriter, r *http.Request) {
+	if h.fieldReg == nil {
+		fmt.Fprint(w, `<p style="color:red">Field registry not available</p>`)
+		return
+	}
+	vendor := r.URL.Query().Get("vendor")
+	cmdtype := r.URL.Query().Get("cmdtype")
+
+	types := h.fieldReg.CmdTypes(vendor)
+	if types == nil {
+		fmt.Fprintf(w, `<p style="color:red">Unknown vendor: %s</p>`, vendor)
+		return
+	}
+
+	var b strings.Builder
+
+	b.WriteString(`<div style="display:grid;grid-template-columns:220px 1fr;gap:1rem">`)
+
+	// CmdType list
+	b.WriteString(`<div>`)
+	fmt.Fprintf(&b, `<h4>%s — CommandTypes</h4>`, vendor)
+	for _, ct := range types {
+		defs := h.fieldReg.Fields(vendor, ct)
+		activeClass := ""
+		if string(ct) == cmdtype {
+			activeClass = " active"
+		}
+		fmt.Fprintf(&b,
+			`<div class="cmdtype-row%s" `+
+				`hx-get="/api/fields/schema-html?vendor=%s&cmdtype=%s" `+
+				`hx-target="closest .layout > #schema-panel" `+
+				`hx-swap="innerHTML">`+
+				`<span>%s</span><span class="field-count">%d fields</span></div>`,
+			activeClass, vendor, string(ct), string(ct), len(defs))
+	}
+	b.WriteString(`</div>`)
+
+	// Field table for selected cmdtype (if any)
+	b.WriteString(`<div>`)
+	if cmdtype != "" {
+		defs := h.fieldReg.Fields(vendor, model.CommandType(cmdtype))
+		if len(defs) == 0 {
+			fmt.Fprintf(&b, `<p style="color:#888">No fields defined for <code>%s / %s</code> yet.</p>`, vendor, cmdtype)
+		} else {
+			fmt.Fprintf(&b, `<h4>%s / %s</h4>`, vendor, cmdtype)
+			b.WriteString(`<table><tr><th>Field</th><th>Type</th><th>Description</th><th>Example</th><th>Derived</th></tr>`)
+			for _, d := range defs {
+				derived := ""
+				if d.Derived {
+					from := strings.Join(d.DerivedFrom, ", ")
+					derived = fmt.Sprintf(`<span class="tag tag-derived">from: %s</span>`, from)
+				}
+				fmt.Fprintf(&b, `<tr><td><code>%s</code></td><td><span class="tag">%s</span></td><td>%s</td><td><code>%s</code></td><td>%s</td></tr>`,
+					d.Name, string(d.Type), d.Description, d.Example, derived)
+			}
+			b.WriteString(`</table>`)
+		}
+	} else {
+		b.WriteString(`<p style="color:#888">← Select a command type</p>`)
+	}
+	b.WriteString(`</div>`)
+
+	b.WriteString(`</div>`) // close grid
+
+	fmt.Fprint(w, b.String())
+}
+
 func jsonError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
@@ -338,7 +431,10 @@ th{background:#f5f5f5}.badge{padding:2px 8px;border-radius:4px;font-size:0.85em}
 a{color:#0066cc}</style></head>
 <body>
 <h1>🔬 Rule Studio</h1>
-<button hx-post="/api/discover" hx-swap="none">🔄 Run Discovery</button>
+<div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem">
+  <button hx-post="/api/discover" hx-swap="none">🔄 Run Discovery</button>
+  <a href="/fields">🔍 Browse Fields</a>
+</div>
 <table>
 <tr><th>Vendor</th><th>Command Pattern</th><th>Type</th><th>Confidence</th><th>Status</th><th>Created</th><th>Actions</th></tr>
 {{range .}}
@@ -375,6 +471,50 @@ const editorHTML = `<!DOCTYPE html>
 </div>
 <button type="submit">💾 Save → Sandbox</button> <a href="/">← Back</a>
 </form></body></html>`
+
+const fieldsHTML = `<!DOCTYPE html>
+<html>
+<head>
+<title>Field Browser — Rule Studio</title>
+<script src="/static/htmx.min.js"></script>
+<style>
+  body{font-family:monospace;max-width:1200px;margin:2rem auto;padding:0 1rem}
+  .layout{display:grid;grid-template-columns:200px 1fr;gap:1.5rem;margin-top:1rem}
+  .vendor-list{border-right:1px solid #ddd;padding-right:1rem}
+  .vendor-btn{display:block;width:100%;text-align:left;padding:0.4rem 0.6rem;
+    margin:2px 0;border:1px solid #ddd;background:#f9f9f9;cursor:pointer;
+    font-family:monospace;font-size:1em;border-radius:3px}
+  .vendor-btn:hover,.vendor-btn.active{background:#0066cc;color:white;border-color:#0066cc}
+  .cmdtype-row{display:flex;justify-content:space-between;align-items:center;
+    padding:0.35rem 0.6rem;border-bottom:1px solid #eee;cursor:pointer}
+  .cmdtype-row:hover{background:#f0f8ff}
+  .cmdtype-row.active{background:#e8f4fd}
+  .field-count{color:#888;font-size:0.9em}
+  table{width:100%;border-collapse:collapse;margin-top:0.5rem}
+  th,td{text-align:left;padding:0.4rem 0.8rem;border-bottom:1px solid #ddd}
+  th{background:#f5f5f5}
+  .tag{padding:1px 6px;border-radius:3px;font-size:0.85em;background:#e9ecef}
+  .tag-derived{background:#fff3cd}
+  #schema-panel{padding-left:1rem}
+  h4{margin:0.5rem 0}
+</style>
+</head>
+<body>
+<h1>🔍 Field Browser</h1>
+<p>Browse the field schema for each vendor's parsed commands. <a href="/">← Rule Studio</a></p>
+<div class="layout">
+  <div class="vendor-list">
+    <h4>Vendors</h4>
+    <div hx-get="/api/fields/vendors-html" hx-trigger="load" hx-swap="outerHTML">
+      Loading...
+    </div>
+  </div>
+  <div id="schema-panel">
+    <p style="color:#888">← Select a vendor</p>
+  </div>
+</div>
+</body>
+</html>`
 
 const sandboxHTML = `<!DOCTYPE html>
 <html><head><title>Sandbox — {{.Rule.CommandPattern}}</title>

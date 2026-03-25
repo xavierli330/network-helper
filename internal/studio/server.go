@@ -54,4 +54,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/rule/", h.apiDispatch) // /api/rule/:id/test|testcase|approve|ignore
 	s.mux.HandleFunc("/api/discover", h.apiDiscover)
 	s.mux.HandleFunc("/api/fields", h.apiFields)
+	s.mux.HandleFunc("/fields", h.fields)
+	s.mux.HandleFunc("/api/fields/vendors-html", h.apiFieldsVendorsHTML)
+	s.mux.HandleFunc("/api/fields/schema-html", h.apiFieldsSchemaHTML)
 }
