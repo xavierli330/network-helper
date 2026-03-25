@@ -1,5 +1,6 @@
 .superpowers/
 .claude/worktrees/
+.worktrees/
 .claude/settings.local.json
 *.db
 *.log
