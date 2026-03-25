@@ -376,7 +376,7 @@ var migrations = []string{
     updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`,
 	// Trigger to auto-update updated_at on any UPDATE
-	`CREATE TRIGGER pending_rules_updated_at
+	`CREATE TRIGGER IF NOT EXISTS pending_rules_updated_at
  AFTER UPDATE ON pending_rules
  BEGIN
      UPDATE pending_rules SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
