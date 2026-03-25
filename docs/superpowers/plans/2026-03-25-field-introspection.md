@@ -1275,7 +1275,21 @@ func (h *handlers) apiFields(w http.ResponseWriter, r *http.Request) {
 
 **Important implementation note on `ClassifyCommand` in the API handler:** This is already handled — `FieldRegistry` stores a `reg *Registry` (set in `BuildFieldRegistry`) and exposes a `ClassifyCommand(vendor, rawCmd string) model.CommandType` method (defined in Task 2's `field_registry.go`). The handler simply calls `h.fieldReg.ClassifyCommand(vendor, command)`. No changes to `field_registry.go` are needed in this task.
 
-- [ ] **Step 3: Update `NewServer()` call in `rule.go`**
+- [ ] **Step 3: Update existing `NewServer()` call in `server_test.go`**
+
+The existing `server_test.go` calls `NewServer` with 4 arguments (line 17):
+
+```go
+srv := studio.NewServer(db, nil, nil, nil)
+```
+
+After adding the 5th parameter, this will fail to compile. Update it to pass `nil` for `fieldReg`:
+
+```go
+srv := studio.NewServer(db, nil, nil, nil, nil)
+```
+
+- [ ] **Step 5: Update `NewServer()` call in `rule.go`**
 
 Open `internal/cli/rule.go`, find `newRuleStudioCmd()`. The current call to `studio.NewServer` (around line 42) is:
 
@@ -1289,7 +1303,7 @@ Replace with:
 srv := studio.NewServer(db, eng, llmRouter, generateFn, fieldRegistry)
 ```
 
-- [ ] **Step 4: Build**
+- [ ] **Step 6: Build**
 
 ```bash
 go build ./...
@@ -1297,7 +1311,7 @@ go build ./...
 
 Expected: no errors.
 
-- [ ] **Step 5: Write a test for the `/api/fields` endpoint**
+- [ ] **Step 7: Write a test for the `/api/fields` endpoint**
 
 Open `internal/studio/server_test.go` (already exists). Add:
 
@@ -1359,7 +1373,7 @@ func (s *stubFieldParser) FieldSchema(ct model.CommandType) []parser.FieldDef {
 
 Add the necessary imports to `server_test.go` (`net/http/httptest`, `strings`, `github.com/xavierli/nethelper/internal/parser`, `github.com/xavierli/nethelper/internal/model`).
 
-- [ ] **Step 7: Run tests**
+- [ ] **Step 8: Run tests**
 
 ```bash
 go test ./internal/studio/... -v
@@ -1367,7 +1381,7 @@ go test ./internal/studio/... -v
 
 Expected: all tests pass including the new `TestAPIFields`.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add internal/studio/server.go internal/studio/handlers.go internal/studio/server_test.go internal/cli/rule.go internal/parser/field_registry.go
