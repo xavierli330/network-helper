@@ -21,9 +21,7 @@ func BuildFieldRegistry(reg *Registry) *FieldRegistry {
 		vendor := p.Vendor()
 		fr.index[vendor] = make(map[model.CommandType][]FieldDef)
 		for _, ct := range p.SupportedCmdTypes() {
-			if defs := p.FieldSchema(ct); len(defs) > 0 {
-				fr.index[vendor][ct] = defs
-			}
+			fr.index[vendor][ct] = p.FieldSchema(ct) // nil schema is valid
 		}
 	}
 	return fr

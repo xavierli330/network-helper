@@ -45,8 +45,8 @@ func TestBuildFieldRegistry(t *testing.T) {
 	}
 
 	types := fr.CmdTypes("test")
-	if len(types) != 1 {
-		t.Fatalf("expected 1 cmd type (only CmdInterface has schema), got %d", len(types))
+	if len(types) != 2 {
+		t.Fatalf("expected 2 cmd types, got %d", len(types))
 	}
 
 	fields := fr.Fields("test", model.CmdInterface)
