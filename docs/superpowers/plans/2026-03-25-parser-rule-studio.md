@@ -797,30 +797,31 @@ func NewPipelineWithCollector(db *store.DB, registry *Registry, c *Collector) *P
 }
 ```
 
-Inside `processBlocks()`, in the **inner per-block loop** (the one that calls `vp.ParseOutput`), locate the branch that handles `CmdUnknown` — this is after `ClassifyCommand` is called and the `isBulkTableCommand` guard. Insert the collector call immediately before calling `vp.ParseOutput` for the `CmdUnknown` case (or after the guard), so the device hostname is already known:
+Inside `processBlocks()`, in the **second (per-device) inner loop** (lines ~150–183, the one that calls `vp.ParseOutput`), insert the collector call **after** the `isBulkTableCommand` guard and **before** `vp.ParseOutput`. The device hostname is already known at this point because we're inside the device-group loop.
 
 ```go
 // In the second loop (after device is identified):
-// After: cmdType := vp.ClassifyCommand(b.Command)
 // Add this block before the ParseOutput dispatch:
 if b.CmdType == model.CmdUnknown && p.collector != nil {
-	b.Vendor = vp.Vendor()
 	p.collector.Collect(b)
 }
 ```
 
-The exact surrounding context in `pipeline.go` (for anchoring):
-```
-// existing code in the loop over blocks:
-cmdType := vp.ClassifyCommand(b.Command)
-b.CmdType = cmdType
+The exact surrounding context in `pipeline.go` (for anchoring the insertion):
+```go
+// Existing code in the second (per-device) loop:
+if isBulkTableCommand(b.CmdType) {
+    // ... scratch pad code ...
+    continue
+}
 // ADD HERE:
 if b.CmdType == model.CmdUnknown && p.collector != nil {
-    b.Vendor = vp.Vendor()
     p.collector.Collect(b)
 }
-result, err := vp.ParseOutput(cmdType, b.Output)
+parseResult, err := vp.ParseOutput(b.CmdType, b.Output)
 ```
+
+Note: `b.Vendor` is already set by the pipeline's first pass (`ClassifyCommand` loop at lines ~65–75), so there is no need to set it again here.
 
 - [ ] **Step 3.8: Update `internal/cli/root.go` to use collector**
 
@@ -1835,13 +1836,22 @@ git commit -m "feat(studio): P2 — embedded web server with list/editor/sandbox
 
 - [ ] **Step 8.0: Add `CmdGenerated` to `internal/model/parse_result.go`**
 
-The fallback hook in `ClassifyCommand` checks `if ct != model.CmdUnknown { return ct }`. Generated cases must return a distinct non-`CmdUnknown` value so the hook fires. Add after `CmdUnknown`:
+Each generated rule gets a **unique** `CommandType` string at runtime: `model.CommandType("generated:huawei:traffic_policy_statistics")`. This is constructed dynamically by `patchGeneratedFile` and never conflicts. The `CmdGenerated` constant is a **prefix sentinel** only — it is used by `classifyGenerated()` to signal to `ParseOutput` that the command matched a generated rule:
 
 ```go
-// CmdGenerated is returned by classifyGenerated() for Rule Studio-generated commands.
-// It signals ParseOutput to dispatch to parseGenerated().
+// CmdGenerated is the prefix for all Rule Studio-generated CommandType values.
+// Individual commands use the full form: "generated:<vendor>:<stem>"
+// This constant is only used in the fallback hook check `ct != model.CmdUnknown`.
 CmdGenerated CommandType = "generated"
 ```
+
+Add this after `CmdUnknown`. The hook in `ClassifyCommand` uses:
+```go
+if ct := classifyGenerated(lower); ct != model.CmdUnknown {
+    return ct
+}
+```
+Since unique types like `"generated:huawei:traffic_policy_statistics"` are not equal to `CmdUnknown`, the hook fires correctly. The `CmdGenerated` constant itself is not used at runtime — it is documentation only.
 
 - [ ] **Step 8.1: Write regression test**
 
@@ -1895,10 +1905,18 @@ func classifyGenerated(cmd string) model.CommandType {
 }
 
 // parseGenerated is a fallback called by ParseOutput for Rule Studio-generated commands.
+// Rule Studio inserts dispatch cases here automatically (one per approved rule).
 func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, error) {
+	switch cmdType {
+	// GENERATED PARSE CASES — do not edit this comment
+	}
 	return model.ParseResult{Type: cmdType, RawText: raw}, nil
 }
 ```
+
+`patchGeneratedFile` uses **two** sentinels — one for `classifyGenerated`, one for `parseGenerated` — so each approved rule gets both a classify case (using `strings.HasPrefix`) and a parse case (switching on the unique `model.CommandType` string like `"generated:huawei:traffic_policy_statistics"`). See Task 9 for the updated `patchGeneratedFile` implementation.
+
+Note on unique CommandType values: each generated rule gets a unique `CommandType` string composed as `"generated:" + vendor + ":" + snakeCaseStem` (e.g., `model.CommandType("generated:huawei:traffic_policy_statistics")`). This is constructed inline in `patchGeneratedFile` — no global constant is needed. The `classifyGenerated` case returns this unique type; the `parseGenerated` case dispatches on it to call the specific generated function.
 
 When `patchGeneratedFile` inserts the first case, it also patches the import to add `"strings"`:
 
@@ -1914,9 +1932,9 @@ return os.WriteFile(path, []byte(patched), 0644)
 
 Create the same file for each vendor, adjusting `package` name.
 
-- [ ] **Step 8.4: Add fallback hook in `huawei.go` ClassifyCommand()**
+- [ ] **Step 8.4: Wire fallback hooks in `huawei.go`**
 
-At the end of the switch, before `return model.CmdUnknown`:
+**In `ClassifyCommand()`**, replace the body of the existing `default:` case:
 
 ```go
 default:
@@ -1926,14 +1944,14 @@ default:
     return model.CmdUnknown
 ```
 
-In `ParseOutput()`, add a default case:
+**In `ParseOutput()`**, replace the body of the existing `default:` case with:
 
 ```go
 default:
     return parseGenerated(cmdType, raw)
 ```
 
-Repeat for cisco, h3c, juniper.
+Both `ClassifyCommand` and `ParseOutput` already have a `default:` case — you are **replacing** the body, not adding a second one (which would be a compile error). Repeat for cisco, h3c, juniper.
 
 - [ ] **Step 8.5: Run all parser tests**
 
@@ -1971,6 +1989,7 @@ Key corrections from review:
 package codegen_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"github.com/xavierli/nethelper/internal/codegen"
@@ -2059,7 +2078,64 @@ func TestGenerateTestFile(t *testing.T) {
 		t.Error("expected test function name")
 	}
 }
+
+func TestPatchGeneratedFile(t *testing.T) {
+	// Write a stub file matching the huawei_generated.go template
+	stub := `package huawei
+
+import "github.com/xavierli/nethelper/internal/model"
+
+func classifyGenerated(cmd string) model.CommandType {
+	switch {
+	// GENERATED CASES — do not edit this comment
+	}
+	return model.CmdUnknown
+}
+
+func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, error) {
+	switch cmdType {
+	// GENERATED PARSE CASES — do not edit this comment
+	}
+	return model.ParseResult{Type: cmdType, RawText: raw}, nil
+}
+`
+	tmp, err := os.CreateTemp(t.TempDir(), "huawei_generated_*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tmp.WriteString(stub); err != nil {
+		t.Fatal(err)
+	}
+	tmp.Close()
+
+	// Patch: simulate approving "display traffic-policy statistics interface"
+	if err := codegen.PatchGeneratedFile(tmp.Name(), "display traffic-policy statistics interface",
+		"ParseHuaweiTrafficPolicyStatisticsInterface"); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(tmp.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(data)
+
+	if !strings.Contains(got, `strings.HasPrefix(cmd, "display traffic-policy statistics interface")`) {
+		t.Error("classifyGenerated case not inserted")
+	}
+	if !strings.Contains(got, `generated:huawei:traffic_policy_statistics_interface`) {
+		t.Error("unique cmdType string not inserted")
+	}
+	if !strings.Contains(got, `ParseHuaweiTrafficPolicyStatisticsInterface(raw)`) {
+		t.Error("parseGenerated dispatch case not inserted")
+	}
+	if !strings.Contains(got, `"strings"`) {
+		t.Error("strings import not added")
+	}
+}
 ```
+
+Note: export `PatchGeneratedFile` (capital P) so it is testable from `codegen_test` package.
 
 - [ ] **Step 9.2: Run to confirm failure**
 
@@ -2249,28 +2325,56 @@ func Test{{$.FuncName}}_Case{{$i}}(t *testing.T) {
 	return buf.String(), err
 }
 
-// patchGeneratedFile appends a new case to classifyGenerated()
-// in <vendor>_generated.go. Uses a stable sentinel comment inside the switch body.
-func patchGeneratedFile(path, commandPattern, funcName string) error {
+// PatchGeneratedFile appends new cases to both classifyGenerated() and parseGenerated()
+// in <vendor>_generated.go. Uses stable sentinel comments inside each switch body.
+// Exported so it can be tested from codegen_test package.
+func PatchGeneratedFile(path, commandPattern, funcName string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}
 	src := string(data)
 
-	const sentinel = "\t// GENERATED CASES — do not edit this comment"
-	newCase := fmt.Sprintf("\tcase strings.HasPrefix(cmd, %q):\n\t\treturn model.CmdGenerated // %s\n%s",
-		commandPattern, funcName, sentinel)
-	patched := strings.Replace(src, sentinel, newCase, 1)
+	// Derive unique CommandType: "generated:huawei:traffic_policy_statistics"
+	// Use the snake_case stem from commandPattern (after stripping display/show prefix)
+	lower := strings.ToLower(strings.TrimSpace(commandPattern))
+	for _, pfx := range []string{"display ", "show ", "dis ", "sh "} {
+		lower = strings.TrimPrefix(lower, pfx)
+	}
+	snakeRe := regexp.MustCompile(`[\s\-]+`)
+	stem := snakeRe.ReplaceAllString(lower, "_")
+	// Extract vendor from funcName prefix "ParseHuawei..." → "huawei"
+	// (vendor is always the first field in the path, but we derive it from the path argument)
+	// Instead, accept vendor as a parameter — add it to the function signature:
+	// patchGeneratedFile(path, commandPattern, funcName, vendor string) error
+	// (Update caller in Generate() accordingly)
+	// cmdType string example: "generated:huawei:traffic_policy_statistics"
+	vendor := filepath.Base(filepath.Dir(path))  // e.g. "huawei" from "internal/parser/huawei/huawei_generated.go"
+	cmdTypeStr := fmt.Sprintf("generated:%s:%s", vendor, stem)
+
+	// Patch classifyGenerated: insert before classify sentinel
+	const classifySentinel = "\t// GENERATED CASES — do not edit this comment"
+	newClassifyCase := fmt.Sprintf("\tcase strings.HasPrefix(cmd, %q):\n\t\treturn model.CommandType(%q) // %s\n%s",
+		commandPattern, cmdTypeStr, funcName, classifySentinel)
+	patched := strings.Replace(src, classifySentinel, newClassifyCase, 1)
 	if patched == src {
-		return fmt.Errorf("patchGeneratedFile: sentinel not found in %s", path)
+		return fmt.Errorf("patchGeneratedFile: classify sentinel not found in %s", path)
 	}
 
-	// Add "strings" import if this is the first case being inserted
+	// Patch parseGenerated: insert before parse sentinel
+	const parseSentinel = "\t// GENERATED PARSE CASES — do not edit this comment"
+	newParseCase := fmt.Sprintf("\tcase model.CommandType(%q):\n\t\treturn %s(raw)\n%s",
+		cmdTypeStr, funcName, parseSentinel)
+	patched = strings.Replace(patched, parseSentinel, newParseCase, 1)
+	if patched == src {
+		return fmt.Errorf("patchGeneratedFile: parse sentinel not found in %s", path)
+	}
+
+	// Add "strings" and "regexp" imports if this is the first case being inserted
 	if !strings.Contains(patched, `"strings"`) {
 		patched = strings.Replace(patched,
 			`import "github.com/xavierli/nethelper/internal/model"`,
-			"import (\n\t\"strings\"\n\n\t\"github.com/xavierli/nethelper/internal/model\"\n)", 1)
+			"import (\n\t\"regexp\"\n\t\"strings\"\n\n\t\"github.com/xavierli/nethelper/internal/model\"\n)", 1)
 	}
 
 	return os.WriteFile(path, []byte(patched), 0644)
@@ -2318,7 +2422,7 @@ func Generate(rule store.PendingRule, testCases []store.RuleTestCase, opts Gener
 	}
 
 	funcName := GoFuncName(rule.Vendor, rule.CommandPattern)
-	if err := patchGeneratedFile(generatedPath, rule.CommandPattern, funcName); err != nil {
+	if err := PatchGeneratedFile(generatedPath, rule.CommandPattern, funcName); err != nil {
 		return "", fmt.Errorf("patch _generated.go: %w", err)
 	}
 
