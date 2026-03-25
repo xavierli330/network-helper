@@ -31,6 +31,7 @@ type ParseResult struct {
 	SRMappings  []SRMapping    `json:"sr_mappings,omitempty"`
 	ConfigText  string         `json:"config_text,omitempty"`
 	RawText     string         `json:"raw_text"`
+	Rows        []map[string]string `json:"rows,omitempty"` // generic row data from generated parsers
 }
 
 func (pr ParseResult) IsEmpty() bool {
@@ -40,5 +41,6 @@ func (pr ParseResult) IsEmpty() bool {
 		len(pr.LFIBEntries) == 0 &&
 		len(pr.Neighbors) == 0 &&
 		len(pr.Tunnels) == 0 &&
-		len(pr.SRMappings) == 0
+		len(pr.SRMappings) == 0 &&
+		len(pr.Rows) == 0
 }
