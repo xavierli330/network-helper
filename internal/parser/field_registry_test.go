@@ -63,4 +63,19 @@ func TestBuildFieldRegistry(t *testing.T) {
 	if fr.Fields("test", model.CmdRIB) != nil {
 		t.Fatal("expected nil for unknown cmdType")
 	}
+
+	// Unknown vendor → nil for CmdTypes
+	if fr.CmdTypes("unknown") != nil {
+		t.Fatal("expected nil for unknown vendor CmdTypes")
+	}
+
+	// ClassifyCommand: unknown vendor → CmdUnknown
+	if ct := fr.ClassifyCommand("unknown", "display interface"); ct != model.CmdUnknown {
+		t.Fatalf("expected CmdUnknown for unknown vendor, got %q", ct)
+	}
+
+	// ClassifyCommand: known vendor delegates to parser (stubParser always returns CmdUnknown)
+	if ct := fr.ClassifyCommand("test", "display interface"); ct != model.CmdUnknown {
+		t.Fatalf("expected CmdUnknown from stub, got %q", ct)
+	}
 }

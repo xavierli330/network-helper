@@ -1,11 +1,16 @@
 package parser
 
-import "github.com/xavierli/nethelper/internal/model"
+import (
+	"sort"
+
+	"github.com/xavierli/nethelper/internal/model"
+)
 
 // FieldRegistry is an in-memory index of field definitions,
 // keyed by vendor → CommandType.
 type FieldRegistry struct {
 	index map[string]map[model.CommandType][]FieldDef
+	order []string // vendor insertion order
 	reg   *Registry // kept for ClassifyCommand lookups in the Studio API
 }
 
@@ -19,6 +24,9 @@ func BuildFieldRegistry(reg *Registry) *FieldRegistry {
 	}
 	for _, p := range reg.Parsers() {
 		vendor := p.Vendor()
+		if _, exists := fr.index[vendor]; !exists {
+			fr.order = append(fr.order, vendor)
+		}
 		fr.index[vendor] = make(map[model.CommandType][]FieldDef)
 		for _, ct := range p.SupportedCmdTypes() {
 			fr.index[vendor][ct] = p.FieldSchema(ct) // nil schema is valid
@@ -38,14 +46,13 @@ func (r *FieldRegistry) Fields(vendor string, cmdType model.CommandType) []Field
 
 // Vendors returns all vendor names in registration order.
 func (r *FieldRegistry) Vendors() []string {
-	vendors := make([]string, 0, len(r.index))
-	for v := range r.index {
-		vendors = append(vendors, v)
-	}
-	return vendors
+	out := make([]string, len(r.order))
+	copy(out, r.order)
+	return out
 }
 
-// CmdTypes returns all CommandType values registered for the given vendor.
+// CmdTypes returns all CommandType values registered for the given vendor,
+// sorted alphabetically for deterministic output.
 func (r *FieldRegistry) CmdTypes(vendor string) []model.CommandType {
 	m, ok := r.index[vendor]
 	if !ok {
@@ -55,15 +62,18 @@ func (r *FieldRegistry) CmdTypes(vendor string) []model.CommandType {
 	for ct := range m {
 		types = append(types, ct)
 	}
+	sort.Slice(types, func(i, j int) bool {
+		return string(types[i]) < string(types[j])
+	})
 	return types
 }
 
 // ClassifyCommand resolves a raw command string to a CommandType for the given vendor.
-// Returns empty string ("") if the vendor is unknown.
+// Returns model.CmdUnknown if the vendor is unknown.
 func (r *FieldRegistry) ClassifyCommand(vendor, rawCmd string) model.CommandType {
 	p, ok := r.reg.Get(vendor)
 	if !ok {
-		return ""
+		return model.CmdUnknown
 	}
 	return p.ClassifyCommand(rawCmd)
 }
