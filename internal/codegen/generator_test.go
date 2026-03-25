@@ -114,6 +114,19 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 	}
 	return model.ParseResult{Type: cmdType, RawText: raw}, nil
 }
+
+func knownGeneratedCmdTypes() []model.CommandType {
+	return []model.CommandType{
+		// GENERATED CMDTYPES — do not edit this comment
+	}
+}
+
+func generatedFieldSchema(cmdType model.CommandType) []model.FieldDef {
+	switch cmdType {
+	// GENERATED FIELD CASES — do not edit this comment
+	}
+	return nil
+}
 `
 	tmp, err := os.CreateTemp(t.TempDir(), "huawei_generated_*.go")
 	if err != nil {
@@ -153,6 +166,12 @@ columns:
 	}
 	if !strings.Contains(got, `"strings"`) {
 		t.Error("strings import not added")
+	}
+	if !strings.Contains(got, `model.CommandType("generated:huawei:traffic_policy_statistics_interface")`) {
+		t.Error("knownGeneratedCmdTypes entry not inserted")
+	}
+	if !strings.Contains(got, `"interface"`) {
+		t.Error("generatedFieldSchema column name not inserted")
 	}
 }
 

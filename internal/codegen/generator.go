@@ -154,6 +154,11 @@ func generateTableBody(schemaYAML, funcName, cmdTypeStr string) (string, error) 
 	for _, c := range schema.Columns {
 		colNames[c.Name] = true
 	}
+	for _, c := range schema.Columns {
+		if c.Type != "" && !validFieldTypes[c.Type] {
+			return "", fmt.Errorf("column %q has invalid type %q (must be string|int|float|bool)", c.Name, c.Type)
+		}
+	}
 	for _, d := range schema.Derived {
 		if !validFieldTypes[d.Type] {
 			return "", fmt.Errorf("derived field %q has invalid type %q (must be string|int|float|bool)", d.Name, d.Type)
@@ -246,7 +251,7 @@ func Test{{$.FuncName}}_Case{{$i}}(t *testing.T) {
 // Uses stable sentinel comments inside each switch/slice body.
 // Exported so it can be tested from codegen_test package.
 // vendor must be passed explicitly — do not derive from path (breaks in temp dirs).
-// schemaYAML is used to populate the generatedFieldSchema case; pass "" to emit a nil-return stub.
+// schemaYAML is used to populate the generatedFieldSchema case; pass "" for an empty (no-column) schema
 func PatchGeneratedFile(path, commandPattern, funcName, vendor, schemaYAML string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -255,6 +260,11 @@ func PatchGeneratedFile(path, commandPattern, funcName, vendor, schemaYAML strin
 	src := string(data)
 
 	cmdTypeStr := computeCmdTypeStr(vendor, commandPattern)
+
+	// Check for idempotency — skip patches if this cmdType is already patched
+	if strings.Contains(src, cmdTypeStr) {
+		return nil
+	}
 
 	// Patch 1: classifyGenerated
 	const classifySentinel = "\t// GENERATED CASES — do not edit this comment"
