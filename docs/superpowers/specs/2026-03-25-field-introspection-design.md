@@ -351,11 +351,12 @@ func generatedFieldSchema(cmdType model.CommandType) []parser.FieldDef {
 ```go
 if len(result.Rows) > 0 {
     // 生成 parser 的通用行数据：JSON 序列化后写入 scratch pad
+    // 注意：storeResult() 中实际参数名为 pr，此处用 result 做说明，实现时统一。
     rowsJSON, err := json.Marshal(result.Rows)
     if err != nil {
         rowsJSON = []byte("[]")
     }
-    p.db.InsertScratch(model.ScratchEntry{
+    p.db.InsertScratch(model.ScratchEntry{ // nolint: errcheck — 与现有大表路由一致，忽略 error
         DeviceID: deviceID,
         Category: "generated",
         Query:    string(result.Type), // CommandType 是 string alias，直接转换
@@ -448,7 +449,9 @@ GET /api/fields
 | `internal/parser/juniper/juniper_generated.go` | 同上 |
 | `internal/cli/root.go` | `registry` 升级为 package-level var；新增 `fieldRegistry *parser.FieldRegistry` package-level var；`PersistentPreRunE` 赋值并调用 `BuildFieldRegistry` |
 | `internal/codegen/generator.go` | `schema_yaml` 解析 `derived` 块（含 `from` 引用校验）；生成派生骨架 + `Rows` return；`PatchGeneratedFile` 新增两处 sentinel patch（`// GENERATED CMDTYPES`、`// GENERATED FIELD CASES`）；`FieldType` 枚举校验 |
-| `internal/studio/handlers.go` | 新增 `/api/fields` 端点 + 字段浏览侧边栏 HTML |
+| `internal/studio/server.go` | `Server` struct 新增 `fieldReg *parser.FieldRegistry` 字段；`NewServer()` 新增同名参数；`registerRoutes()` 传入 handlers 并注册 `/api/fields` 路由 |
+| `internal/studio/handlers.go` | `handlers` struct 新增 `fieldReg *parser.FieldRegistry` 字段；实现 `/api/fields` 端点 + 字段浏览侧边栏 HTML |
+| `internal/cli/rule.go` | `rule studio` 子命令调用 `studio.NewServer(...)` 时传入 `fieldRegistry`（package-level var）作为新参数 |
 
 ### Deferred
 
