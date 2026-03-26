@@ -2,12 +2,18 @@
 // This file is maintained by the Code Generator. Add rules via `nethelper rule studio`.
 package h3c
 
-import "github.com/xavierli/nethelper/internal/model"
+import (
+	"strings"
+
+	"github.com/xavierli/nethelper/internal/model"
+)
 
 // classifyGenerated is a fallback called by ClassifyCommand when the main switch
 // returns CmdUnknown. Rule Studio inserts cases here automatically.
 func classifyGenerated(cmd string) model.CommandType {
 	switch {
+	case strings.HasPrefix(cmd, "display ip inter brief"):
+		return model.CommandType("generated:h3c:ip_inter_brief") // ParseH3cIpInterBrief
 	// GENERATED CASES — do not edit this comment
 	}
 	return model.CmdUnknown
@@ -17,6 +23,8 @@ func classifyGenerated(cmd string) model.CommandType {
 // Rule Studio inserts dispatch cases here automatically (one per approved rule).
 func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, error) {
 	switch cmdType {
+	case model.CommandType("generated:h3c:ip_inter_brief"):
+		return ParseH3cIpInterBrief(raw)
 	// GENERATED PARSE CASES — do not edit this comment
 	}
 	return model.ParseResult{Type: cmdType, RawText: raw}, nil
@@ -25,6 +33,7 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 // generatedCmdTypes returns CommandType values for all approved Rule Studio rules.
 func generatedCmdTypes() []model.CommandType {
 	return []model.CommandType{
+		model.CommandType("generated:h3c:ip_inter_brief"),
 		// GENERATED CMDTYPES — do not edit this comment
 	}
 }
@@ -32,6 +41,8 @@ func generatedCmdTypes() []model.CommandType {
 // generatedFieldSchema returns FieldDef slices for Rule Studio generated parsers.
 func generatedFieldSchema(cmdType model.CommandType) []model.FieldDef {
 	switch cmdType {
+	case model.CommandType("generated:h3c:ip_inter_brief"):
+		return nil
 	// GENERATED FIELD CASES — do not edit this comment
 	}
 	return nil
