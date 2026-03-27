@@ -1,0 +1,7724 @@
+# Source: b-cnbng-user-plane-cr-asr9000.pdf
+# Total pages: 96
+
+
+--- Page 1 ---
+
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000
+Series Routers
+First Published: 2021-02-01
+Americas Headquarters
+Cisco Systems, Inc.
+170 West Tasman Drive
+San Jose, CA 95134-1706
+USA
+http://www.cisco.com
+Tel: 408 526-4000
+800 553-NETS (6387)
+Fax: 408 527-0883
+
+
+--- Page 2 ---
+
+THE SPECIFICATIONS AND INFORMATION REGARDING THE PRODUCTS IN THIS MANUAL ARE SUBJECT TO CHANGE WITHOUT NOTICE. ALL STATEMENTS,
+INFORMATION, AND RECOMMENDATIONS IN THIS MANUAL ARE BELIEVED TO BE ACCURATE BUT ARE PRESENTED WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED. USERS MUST TAKE FULL RESPONSIBILITY FOR THEIR APPLICATION OF ANY PRODUCTS.
+THE SOFTWARE LICENSE AND LIMITED WARRANTY FOR THE ACCOMPANYING PRODUCT ARE SET FORTH IN THE INFORMATION PACKET THAT SHIPPED WITH
+THE PRODUCT AND ARE INCORPORATED HEREIN BY THIS REFERENCE. IF YOU ARE UNABLE TO LOCATE THE SOFTWARE LICENSE OR LIMITED WARRANTY,
+CONTACT YOUR CISCO REPRESENTATIVE FOR A COPY.
+The Cisco implementation of TCP header compression is an adaptation of a program developed by the University of California, Berkeley (UCB) as part of UCB's public domain version of
+the UNIX operating system. All rights reserved. Copyright © 1981, Regents of the University of California.
+NOTWITHSTANDING ANY OTHER WARRANTY HEREIN, ALL DOCUMENT FILES AND SOFTWARE OF THESE SUPPLIERS ARE PROVIDED “AS IS" WITH ALL FAULTS.
+CISCO AND THE ABOVE-NAMED SUPPLIERS DISCLAIM ALL WARRANTIES, EXPRESSED OR IMPLIED, INCLUDING, WITHOUT LIMITATION, THOSE OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OR ARISING FROM A COURSE OF DEALING, USAGE, OR TRADE PRACTICE.
+IN NO EVENT SHALL CISCO OR ITS SUPPLIERS BE LIABLE FOR ANY INDIRECT, SPECIAL, CONSEQUENTIAL, OR INCIDENTAL DAMAGES, INCLUDING, WITHOUT
+LIMITATION, LOST PROFITS OR LOSS OR DAMAGE TO DATA ARISING OUT OF THE USE OR INABILITY TO USE THIS MANUAL, EVEN IF CISCO OR ITS SUPPLIERS
+HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+Any Internet Protocol (IP) addresses and phone numbers used in this document are not intended to be actual addresses and phone numbers. Any examples, command display output, network
+topology diagrams, and other figures included in the document are shown for illustrative purposes only. Any use of actual IP addresses or phone numbers in illustrative content is unintentional
+and coincidental.
+All printed copies and duplicate soft copies of this document are considered uncontrolled. See the current online version for the latest version.
+Cisco has more than 200 offices worldwide. Addresses and phone numbers are listed on the Cisco website at www.cisco.com/go/offices.
+Cisco and the Cisco logo are trademarks or registered trademarks of Cisco and/or its affiliates in the U.S. and other countries. To view a list of Cisco trademarks, go to this URL:
+https://www.cisco.com/c/en/us/about/legal/trademarks.html. Third-party trademarks mentioned are the property of their respective owners. The use of the word partner does not imply a
+partnership relationship between Cisco and any other company. (1721R)
+© 2001 Cisco Systems, Inc. All rights reserved.
+
+
+--- Page 3 ---
+
+C O N T E N T S
+Preface
+v
+P R E F A C E
+Changes to This Document
+v
+Communications, Services, and Additional Information
+v
+cnBNG User Plane Configuration Commands
+1
+C H A P T E R 1
+auto-loopback
+2
+cnbng-nal
+3
+cp-association
+4
+cp-server
+6
+disable-secondary-address-notification
+7
+hostidentifier
+8
+ipoe fsol-flow-control
+9
+pppoe fsol-flow-control
+10
+route-summary
+11
+secondary-address-update
+12
+slaac
+13
+up-cp-notification flow-control
+14
+up-cp-stats flow-control
+15
+up-server
+16
+cnBNG User Plane Verification Commands
+17
+C H A P T E R 2
+show cnbng-nal access-interface
+18
+show cnbng-nal aipc
+21
+show cnbng-nal chunk statistics
+23
+show cnbng-nal configuration
+26
+show cnbng-nal counters
+28
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+iii
+
+
+--- Page 4 ---
+
+show cnbng-nal cp connection status
+36
+show cnbng-nal dynamic-routes
+38
+show cnbng-nal main events
+42
+show cnbng-nal periodic-stats
+45
+show cnbng-nal process-info
+51
+show cnbng-nal process-readiness
+53
+Show cnbng-nal spa
+54
+show cnbng-nal srg-group
+57
+show cnbng-nal statistics
+62
+show cnbng-nal subscriber
+63
+show cnbng-nal subscriber disconnect-history
+76
+show cnbng-nal vrf-table-info
+79
+cnBNG User Plane Subscriber Management Commands
+81
+C H A P T E R 3
+clear cnbng-nal subscriber sub-type
+82
+dhcp profile
+83
+initiator dhcp
+84
+l2tp enable
+86
+lns enable
+87
+pppoe enable
+88
+subscriber redundancy
+89
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+iv
+Contents
+
+
+--- Page 5 ---
+
+Preface
+The Cisco IOS XR Software Release 7.3.1 introduces the support for cloud native broadband network gateway
+(cnBNG) user plane for the Cisco IOS XR platform. cnBNG is an architectural evolution that is based on
+Control and User Plane Separation (CUPS), where the control plane (CP) and user plane (UP) run in distinct
+and independent environments. This book describes the commands used for configuring and verifying cnBNG
+user plane functionality on Cisco ASR 9000 Series Routers.
+For details on the cnBNG user plane functionality and related configurations, see the Cloud Native BNG User
+Plane Configuration Guide for Cisco ASR 9000 Series Routers.
+The Preface contains these topics:
+• Changes to This Document, on page v
+• Communications, Services, and Additional Information, on page v
+Changes to This Document
+This table lists the changes made to this document since it was first printed.
+Table 1: Changes to This Document
+Change Summary
+Date
+Republished for Release 25.4.1
+December 2025
+Republished for Release 7.4.2.
+February 2022
+Initial release of this document.
+February 2021
+Communications, Services, and Additional Information
+• To receive timely, relevant information from Cisco, sign up at Cisco Profile Manager.
+• To get the business results you’re looking for with the technologies that matter, visit Cisco Services.
+• To submit a service request, visit Cisco Support.
+• To discover and browse secure, validated enterprise-class apps, products, solutions and services, visit
+Cisco DevNet.
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+v
+
+
+--- Page 6 ---
+
+• To obtain general networking, training, and certification titles, visit Cisco Press.
+• To find warranty information for a specific product or product family, access Cisco Warranty Finder.
+Cisco Bug Search Tool
+Cisco Bug Search Tool (BST) is a web-based tool that acts as a gateway to the Cisco bug tracking system
+that maintains a comprehensive list of defects and vulnerabilities in Cisco products and software. BST provides
+you with detailed defect information about your products and software.
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+vi
+Preface
+Preface
+
+
+--- Page 7 ---
+
+cnBNG User Plane Configuration Commands
+This chapter describes the Cisco IOS XR software commands that are used to configure the cloud native
+Broadband Network Gateway (cnBNG) user plane on Cisco ASR 9000 Series Routers. For details regarding
+the related configurations, see the Cloud Native BNG User Plane Configuration Guide for Cisco ASR 9000
+Series Routers.
+• auto-loopback, on page 2
+• cnbng-nal, on page 3
+• cp-association, on page 4
+• cp-server, on page 6
+• disable-secondary-address-notification, on page 7
+• hostidentifier, on page 8
+• ipoe fsol-flow-control, on page 9
+• pppoe fsol-flow-control, on page 10
+• route-summary, on page 11
+• secondary-address-update, on page 12
+• slaac, on page 13
+• up-cp-notification flow-control , on page 14
+• up-cp-stats flow-control , on page 15
+• up-server, on page 16
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+1
+
+
+--- Page 8 ---
+
+auto-loopback
+To configure NOS adaptation layer (NAL) auto-loopback on the user plane of cloud native BNG, use the
+auto-loopback command in cnbng-nal configuration mode. To remove this configuration, use the no form
+of this command.
+auto-loopback
+vrf
+{ vrf-name | default }
+[ interface
+Loopback
+loopback-num ]
+[
+primary-address
+ip-address ]
+Syntax Description
+Configures the VRF for the NAL auto-loopback.
+vrf
+Specifies the name of the NAL auto-loopback VRF.
+vrf-name
+Configures the default NAL auto-loopback VRF.
+default
+Configures the NAL auto-loopback interface.
+interface Loopback
+Specifies the NAL auto-loopback interface number.
+loopback-num
+Configures the primary IP address of the NAL auto-loopback.
+primary-address
+Specifies the primary IP address of the NAL auto-loopback.
+ip-address
+Command Default
+None
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.3.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to configure NAL auto-loopback for a default VRF on the user plane of
+cloud native BNG:
+Router(config)#cnbng-nal location 0/1/CPU0
+Router(config-cnbng-nal)#auto-loopback vrf default interface Loopback1 primary-address
+10.0.0.1
+Router(config-cnbng-nal)#commit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+2
+cnBNG User Plane Configuration Commands
+auto-loopback
+
+
+--- Page 9 ---
+
+cnbng-nal
+To enter into the cnbng-nal configuration mode and to specify the NOS adaptation layer (NAL) configurations
+for the user plane of cloud native BNG (cnBNG), use the cnbng-nal command in Global Configuration mode.
+cnbng-nal
+location
+location
+Syntax Description
+Specifies the location of the cnBNG NAL node (route processor or line card).
+location location
+Command Default
+None
+Command Modes
+Global Configuration
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.3.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to enter into the cnbng-nal configuration mode:
+Router(config)#cnbng-nal location 0/1/CPU0
+Router(config-cnbng-nal)#
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+3
+cnBNG User Plane Configuration Commands
+cnbng-nal
+
+
+--- Page 10 ---
+
+cp-association
+To specify the retry count to start the cnBNG control plane-user plane (CP-UP) association, use the
+cp-association command in cnbng-nal configuration mode. To remove this configuration, use the no form
+of this command.
+cp-association
+retry-count
+count
+Syntax Description
+Specifies the retry count to start the cnBNG CP-UP association.
+The range is 5 to 20.
+retry-count count
+Command Default
+None
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.3.1
+Usage Guidelines
+It is mandatory to configure this cp-association command along with the other relevant CP server/UP server
+configurations to start the cnBNG CP-UP association.
+You can use the show cnbng-nal cp connection status location command to verify if the retry count is
+configured or not. A sample output is given here:
+Router#show cnbng-nal cp connection status location 0/0/CPU0
+Wed Nov 18 14:32:30.101 IST
+Location: 0/0/CPU0
+User-Plane configurations:
+-------------------------
+IP
+: 11.11.11.1
+GTP Port
+: 15002
+PFCP Port
+: 15003
+VRF
+: default
+Control-Plane configurations:
+----------------------------
+PRIMARY IP
+: 11.11.11.2
+GTP Port
+: 2152
+PFCP Port
+: 8805
+Retry count is not configured
+Connection Status: Down
+Connection Status time stamp: Wed Nov 18 14:32:15 2020
+Connection Prev Status : Up
+Connection Prev Status time stamp: Wed Nov 18 14:12:20 2020
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+4
+cnBNG User Plane Configuration Commands
+cp-association
+
+
+--- Page 11 ---
+
+Association status: Inactive
+Association status time stamp: Wed Nov 18 14:31:08 2020
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to specify the retry count to start the cnBNG (CP-UP) association:
+Router(config)#cnbng-nal location 0/1/CPU0
+Router(config-cnbng-nal)#cp-association retry-count 5
+Router(config-cnbng-nal)#commit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+5
+cnBNG User Plane Configuration Commands
+cp-association
+
+
+--- Page 12 ---
+
+cp-server
+To configure the server details of the control plane for cloud native BNG (cnBNG), use the cp-server command
+in cnbng-nal configuration mode. To remove this configuration, use the no form of this command.
+cp-server
+primary
+ipv4
+ipv4-address
+Syntax Description
+Configures the details of the primary server of the control plane.
+primary
+Specifies the IPv4 address of the primary server of the control plane.
+ipv4 ipv4-address
+Command Default
+None
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.3.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to configure the primary server details of the control plane of cnBNG:
+Router(config)#cnbng-nal location 0/1/CPU0
+Router(config-cnbng-nal)#cp-server primary ipv4 198.51.100.1
+Router(config-cnbng-nal)#commit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+6
+cnBNG User Plane Configuration Commands
+cp-server
+
+
+--- Page 13 ---
+
+disable-secondary-address-notification
+To disable internal notification messages between the software components during the secondary address
+update under the loopback interface on cnBNG user plane (UP), use the
+disable-secondary-address-notification command in cnbng-nal configuration mode. To remove this
+configuration, use the no form of this command.
+disable-secondary-address-notification
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+None
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.4.2
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to disable internal notification messages between the software components
+during the secondary address update for route provisioning on the cnBNG UP:
+Router#configure
+Router(config)#cnbng-nal location 0/RSP0/CPU0
+Router(config-cnbng-nal-local)#disable-secondary-address-notification
+Router(config-cnbng-nal-local)#commit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+7
+cnBNG User Plane Configuration Commands
+disable-secondary-address-notification
+
+
+--- Page 14 ---
+
+hostidentifier
+To specify a host identifier for the cloud native BNG (cnBNG) NOS adaptation layer (NAL) instance, use
+the hostidentifier command in cnbng-nal configuration mode. To remove this configuration, use the no form
+of this command.
+hostidentifier
+hostname
+Syntax Description
+Specifies the hostname of cnBNG NAL.
+hostname
+Command Default
+None
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.3.1
+Usage Guidelines
+The host identifier string must match the user plane (UP) name configured in the control plane (CP) for the
+CP-UP association to come up.
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to specify a host identifier for the NAL instance on cnBNG user plane:
+Router(config)#cnbng-nal location 0/1/CPU0
+Router(config-cnbng-nal)#hostidentifier test-host
+Router(config-cnbng-nal)#commit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+8
+cnBNG User Plane Configuration Commands
+hostidentifier
+
+
+--- Page 15 ---
+
+ipoe fsol-flow-control
+To configure flow control feature for IPoE protocol packets sent from cnBNG user plane (UP) to control plane
+(CP), use the ipoe fsol-flow-control command in cnbng-nal configuration mode. To remove the configuration,
+use the no form of this command.
+ipoe
+fsol-flow-control
+limit
+Syntax Description
+Specifies the maximum number of IPoE protocol packets to be sent from cnBNG UP to CP for each
+second.
+The limit ranges from 50 to 400; default being 100.
+limit
+Command Default
+Disabled, by default.
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced
+Release
+7.4.2
+Usage Guidelines
+The IPoE protocol packets covered under this flow control feature include IPoE DHCPv4 DISCOVER and
+DHCPv6 SOLICIT messages.
+Task ID
+Operations
+Task ID
+read,
+write
+config-services
+Examples
+This example shows how to specify the limit of IPoE protocol packets to be sent from cnBNG UP
+to CP for each second:
+Router#configure
+Router(config)#cnbng-nal location 0/0/CPU0
+Router(config-cnbng-nal-local)#ipoe fsol-flow-control 70
+Router(config-cnbng-nal-local)#commit
+Related Commands
+Description
+Command
+Configures flow control feature for PPPoE protocol packets sent
+from cnBNG user plane to control plane.
+pppoe fsol-flow-control, on page 10
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+9
+cnBNG User Plane Configuration Commands
+ipoe fsol-flow-control
+
+
+--- Page 16 ---
+
+pppoe fsol-flow-control
+To configure flow control feature for IPoE protocol packets sent from cnBNG user plane to control plane,
+use the pppoe fsol-flow-control command in cnbng-nal configuration mode. To remove the configuration,
+use the no form of this command.
+pppoe
+fsol-flow-control
+limit
+Syntax Description
+Specifies the number of PPPoE protocol packets to be sent from cnBNG UP to CP for each second.
+The limit ranges from 50 to 400; default being 100.
+limit
+Command Default
+Disabled, by default.
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced
+Release
+7.4.2
+Usage Guidelines
+The PPPoE protocol packets covered under this flow control feature include PPPoE-PTA PADI (PPPoE Active
+Discovery Initiation), PPPoE-LAC PADI, and PPPOE-PTA DHCPV6 SOLICIT messages.
+Task ID
+Operations
+Task ID
+read,
+write
+config-services
+Examples
+This example shows how to specify the limit of PPPoE protocol packets to be sent from cnBNG UP
+to CP for each second:
+Router#configure
+Router(config)#cnbng-nal location 0/0/CPU0
+Router(config-cnbng-nal-local)#pppoe fsol-flow-control 60
+Router(config-cnbng-nal-local)#commit
+Related Commands
+Description
+Command
+Configures flow control feature for IPoE protocol packets sent from
+cnBNG user plane to control plane.
+ipoe fsol-flow-control, on page 9
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+10
+cnBNG User Plane Configuration Commands
+pppoe fsol-flow-control
+
+
+--- Page 17 ---
+
+route-summary
+To configure the cnBNG NAL route summary tag, use the route-summary command in cnbng-nal configuration
+mode. To remove this configuration, use the no form of this command.
+route-summary
+tag
+{ tag-value | default }
+Syntax Description
+Sets a tag value for the route.
+tag
+Specifies the tag value.
+The range is 1 to 4294967295.
+tag-value
+Specifies the default tag (of value 1) for the NAL server subscriber route summary.
+default
+Command Default
+None
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.3.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to configure the cnBNG NAL route summary tag:
+Router(config)#cnbng-nal location 0/1/CPU0
+Router(config-cnbng-nal)#route-summary tag 4
+Router(config-cnbng-nal)#commit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+11
+cnBNG User Plane Configuration Commands
+route-summary
+
+
+--- Page 18 ---
+
+secondary-address-update
+To enable secondary address update under loopback during route provisioning on cnBNG user plane (UP),
+use the secondary-address-update command in cnbng-nal configuration mode. To remove this configuration,
+use the no form of this command.
+secondary-address-update
+enable
+Syntax Description
+Enables the secondary address update.
+enable
+Command Default
+None
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.3.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to enable secondary address update during route provisioning on the cnBNG
+user plane:
+Router(config)#cnbng-nal location 0/1/CPU0
+Router(config-cnbng-nal)#secondary-address-update enable
+Router(config-cnbng-nal)#commit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+12
+cnBNG User Plane Configuration Commands
+secondary-address-update
+
+
+--- Page 19 ---
+
+slaac
+To enable Stateless Address Auto-Configuration (SLAAC) for IPv6 IANA address assignment, use the slaac
+command in cnbng-nal configuration mode. To disable the feature, use the no form of this command.
+slaac
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+None
+Command Modes
+cnbng-nal configuration mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+24.4.1
+Usage Guidelines
+No specific guidelines impact the use of this command
+Examples
+This example shows how to enable SLAAC for PPPoE sessions:
+Router#configure
+Router(config)#interface Bundle-Ether1.1
+Router(config-subif)#pppoe enable
+Router(config-subif)# cnbng-nal ipv6 nd
+Router(config-cnbng-nal)# ra-initial 0 16
+Router(config-cnbng-nal-ra)# slaac
+Router(config-cnbng-nal-ra)#exit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+13
+cnBNG User Plane Configuration Commands
+slaac
+
+
+--- Page 20 ---
+
+up-cp-notification flow-control
+To configure flow control feature for notification events sent from cnBNG user plane (UP) to control plane
+(CP), use the up-cp-notification flow-control command in cnbng-nal configuration mode. To remove the
+configuration, use the no form of this command.
+up-cp-notification
+flow-control
+limit
+Syntax Description
+Specifies the maximum number of notification events to be sent from cnBNG UP to CP for each second.
+The limit ranges from 20 to 400; default being 100.
+limit
+Command Default
+Disabled, by default.
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced
+Release
+7.4.2
+Usage Guidelines
+This command is common for IPoE, PPPoE-PTA, and PPPoE-LAC sessions.
+The notification events covered under this flow control feature include locally generated messages on UP
+such as:
+• subscriber delete notifications (say, during mark-and-sweep procedure, session deletion by UP
+administrator, and so on)
+• PPP keep alive timer expiry notification
+Task ID
+Operations
+Task ID
+read,
+write
+config-services
+Examples
+This example shows how to specify the limit of notification events sent from cnBNG UP to CP for
+each second:
+Router#configure
+Router(config)#cnbng-nal location 0/0/CPU0
+Router(config-cnbng-nal-local)#up-cp-notification flow-control 70
+Router(config-cnbng-nal-local)#commit
+Related Commands
+Description
+Command
+Configures flow control feature for statistics events that are sent
+from cnBNG user plane to control plane.
+up-cp-stats flow-control , on page 15
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+14
+cnBNG User Plane Configuration Commands
+up-cp-notification flow-control
+
+
+--- Page 21 ---
+
+up-cp-stats flow-control
+To configure flow control feature for statistics events that are sent from cnBNG user plane (UP) to control
+plane (CP), use the up-cp-stats flow-control command in cnbng-nal configuration mode. To remove the
+configuration, use the no form of this command.
+up-cp-stats
+flow-control
+limit
+Syntax Description
+Specifies the maximum number of statistics events to be sent from cnBNG UP to CP for each second.
+The limit ranges from 20 to 500; default being 150.
+limit
+Command Default
+Disabled, by default.
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced
+Release
+7.4.2
+Usage Guidelines
+This command is common for IPoE, PPPoE-PTA, and PPPoE-LAC sessions.
+The statistics events covered under this flow control feature include locally generated messages like, subscriber
+session or service periodic statistics notification, that are sent from UP to CP.
+Task ID
+Operations
+Task ID
+read,
+write
+config-services
+Examples
+This example shows how to specify the limit of statistics events sent from cnBNG UP to CP for each
+second:
+Router#configure
+Router(config)#cnbng-nal location 0/0/CPU0
+Router(config-cnbng-nal-local)#up-cp-stats flow-control 70
+Router(config-cnbng-nal-local)#commit
+Related Commands
+Description
+Command
+Configures flow control feature for notification events sent from
+cnBNG user plane to control plane.
+up-cp-notification flow-control , on page 14
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+15
+cnBNG User Plane Configuration Commands
+up-cp-stats flow-control
+
+
+--- Page 22 ---
+
+up-server
+To configure the server details of the user plane for cloud native BNG (cnBNG), use the up-server command
+in cnbng-nal configuration mode. To remove this configuration, use the no form of this command.
+up-server
+ipv4
+ipv4-address
+[ gtp-port
+gtp-port-num ]
+[ pfcp-port
+pfcp-port-num ]
+[ vrf
+default ]
+Syntax Description
+Specifies the IPv4 address of the user plane server.
+ipv4 ipv4-address
+Specifies the source GPRS Tunneling Protocol (GTP) port number of the user plane
+server.
+The range is 15002 to 15051.
+gtp-port gtp-port-num
+Specifies the source Packet Forwarding Control Protocol (PFCP) port number of
+the user plane server.
+The range is 15002 to 15051.
+pfcp-port
+pfcp-port-num
+Configures the default VRF of the user plane server.
+vrf default
+Command Default
+None
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.3.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to configure the UP server details of cnBNG:
+Router(config)#cnbng-nal location 0/1/CPU0
+Router(config-cnbng-nal)#up-server ipv4 192.0.2.1 gtp-port 15002 pfcp-port 15003 vrf default
+Router(config-cnbng-nal)#commit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+16
+cnBNG User Plane Configuration Commands
+up-server
+
+
+--- Page 23 ---
+
+cnBNG User Plane Verification Commands
+This chapter describes the Cisco IOS XR software commands that are used to verify the cloud native Broadband
+Network Gateway (cnBNG) user plane configuration on Cisco ASR 9000 Series Routers. For details regarding
+the related configurations, see the Cloud Native BNG User Plane Configuration Guide for Cisco ASR 9000
+Series Routers.
+• show cnbng-nal access-interface, on page 18
+• show cnbng-nal aipc, on page 21
+• show cnbng-nal chunk statistics, on page 23
+• show cnbng-nal configuration, on page 26
+• show cnbng-nal counters, on page 28
+• show cnbng-nal cp connection status , on page 36
+• show cnbng-nal dynamic-routes, on page 38
+• show cnbng-nal main events, on page 42
+• show cnbng-nal periodic-stats, on page 45
+• show cnbng-nal process-info, on page 51
+• show cnbng-nal process-readiness, on page 53
+• Show cnbng-nal spa, on page 54
+• show cnbng-nal srg-group , on page 57
+• show cnbng-nal statistics, on page 62
+• show cnbng-nal subscriber , on page 63
+• show cnbng-nal subscriber disconnect-history, on page 76
+• show cnbng-nal vrf-table-info , on page 79
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+17
+
+
+--- Page 24 ---
+
+show cnbng-nal access-interface
+To view the IP subscriber access interface information for the NOS adaptation layer (NAL) on the user plane
+of cloud native BNG (cnBNG), use the show cnbng-nal access-interface command in EXEC mode.
+show
+cnbng-nal
+access-interface
+interface-type
+interface-path-id
+location
+location-id if-type
+{ ipoe-l2-connected | ipoe-routed | ipsubscriber | lns | pppoe }
+Syntax Description
+Displays information about the subscriber access interface for the specified
+interface type.
+Use the show interfaces command to see a list of all interfaces currently
+configured on the router.
+For more information, use the question mark (?) online help function.
+interface-type interface-path-id
+(optional) Displays information about subscriber access interface for the
+specified location. The location argument is entered in the rack/slot/module
+notation.
+location location-id
+Specifies the cnBNG NAL L2-connected IPoE interface-type.
+if-type ipoe-l2-connected
+Specifies the cnBNG NAL routed IPoE interface-type.
+if-type ipoe-routed
+Specifies the cnBNG NAL IP subscriber interface-type.
+if-type ip subscriber
+Specifies the cnBNG NAL LNS interface-type.
+if-type lns
+Specifies the cnBNG NAL PPPoE interface-type.
+if-type pppoe
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from config-services to network.
+Release
+24.1.1
+The command was modified to include the if-type interface type keyword.
+Release
+25.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+18
+cnBNG User Plane Verification Commands
+show cnbng-nal access-interface
+
+
+--- Page 25 ---
+
+This example shows how to view the IP subscriber access interface information for bundle interface
+(bundle-Ether 1.1) :
+Router# show cnbng-nal subscriber access-interface bundle-Ether 1.1
+=====================
+Location: 0/RSP0/CPU0
+=====================
+Type PPPoE IPoE
+==== ===== ====
+Session Counts by State:
+initializing 0 0
+connecting 0 0
+connected 0 0
+activated 0 8000
+idle 0 0
+disconnecting 0 0
+Total: 0 8000
+Session Counts by Address-Family:
+none 0 0
+ipv4 0 0
+ipv6 0 8000
+dual 0 0
+Total: 0 8000
+=====================
+Location: 0/RSP1/CPU0
+=====================
+Type PPPoE IPoE
+==== ===== ====
+Session Counts by State:
+initializing 0 0
+connecting 0 0
+connected 0 0
+activated 0 8000
+idle 0 0
+disconnecting 0 0
+Total: 0 8000
+Session Counts by Address-Family:
+none 0 0
+ipv4 0 0
+ipv6 0 8000
+dual 0 0
+Total: 0 8000
+This example shows how to view the routed subscriber access interface information.
+Router#show cnbng-nal access-interface if-type ipoe-routed location 0/0/CPU0
+====================
+Location: 0/0/CPU0
+====================
+Interface: Bundle-Ether1
+Ifhandle: 0x130
+Parent-interface Flags: 0x000020A4
+Parent-Interface Flags Dump:
+IPSUB-DHCPv6 initiator is configured.
+Parent-interface ether-encap attribute is received.
+Parent-interface interface state UP received
+Parent-interface IPoE Caps-add is done.
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+19
+cnBNG User Plane Verification Commands
+show cnbng-nal access-interface
+
+
+--- Page 26 ---
+
+Is interface routed: YES
+IPv6 Prefix Length: 64
+Src Ip dual lookup: Enabled
+Parent-interface Flags2: 0x00020880
+Ipv6 ND Config Flags: 0x00000000
+MAC-Address: 0236.d248.4406
+MAX Bandwidth: 0
+Effective-BW: 0
+Initiator DHCPv6 Enabled
+Created Jan 23 15:16:11 (age 23:04:51)
+Link local:
+fe80::36:d2ff:fe48:4406
+SRG group name: group1
+SRG group role: Active
+Packet Counters
+---------------
+---------------
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+20
+cnBNG User Plane Verification Commands
+show cnbng-nal access-interface
+
+
+--- Page 27 ---
+
+show cnbng-nal aipc
+To view the AIPC statistics for the NOS adaptation layer (NAL) component on the user plane of cloud native
+BNG (cnBNG), use the show cnbng-nal aipc command in EXEC mode.
+show
+cnbng-nal
+aipc
+{ client | server }
+location
+{ location-id | all }
+Syntax Description
+Displays the AIPC statistics of the client.
+client
+Displays the AIPC statistics of the server.
+server
+(optional) Displays information about AIPC statistics for the specified location. The
+location argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view AIPC statistics for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+Read,
+write
+network
+This example shows how to view the APIC client information:
+Router# show cnbng-nal aipc client location all
+Mon Jan 18 17:22:27.001 UTC
+Location: 0/RSP0/CPU0
+client_name:
+dhcpd
+conn_present:
+1
+tx_attempt_count:
+1100
+tx_count:
+1100
+notify_connect_count:
+15
+notify_queue_high_count:
+0
+notify_queue_low_count:
+0
+notify_queue_full_count:
+0
+notify_data_waiting_count: 0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+21
+cnBNG User Plane Verification Commands
+show cnbng-nal aipc
+
+
+--- Page 28 ---
+
+notify_error_count:
+0
+notify_close_count:
+14
+notify_sendstatus_count:
+1100
+notify_open_count:
+0
+pulse_data_waiting_count:
+0
+queue_full:
+0
+queue_full_drop:
+0
+queue_ewouldblock_count:
+0
+outstanding_buffers:
+0
+cumulative_overflow_msgs:
+0
+hwm_overflow_msgs:
+0
+get_mtu_failure:
+0
+get_buffer_failure:
+0
+get_buffer_datap_failure:
+0
+conn_failure:
+0
+send_failure:
+0
+receive_failure:
+0
+release_buffer_failure:
+0
+overflow_q_flush_count:
+14
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+22
+cnBNG User Plane Verification Commands
+show cnbng-nal aipc
+
+
+--- Page 29 ---
+
+show cnbng-nal chunk statistics
+To view the chunk memory statistics information for the user plane of cloud native BNG (cnBNG), use the
+show cnbng-nal chunk statistics command in EXEC mode.
+show
+cnbng-nal
+chunk
+statistics
+location
+{ location-id | all }
+Syntax Description
+Displays information about chunk memory statistics for the specified location.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view statistics for all locations.
+location location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view the chunk statistics information for all locations:
+Router# show cnbng-nal chunk statistics location all
+Mon Jan 18 17:25:11.953 UTC
+Location: 0/RSP0/CPU0
+Chunk Id
+Chunk name
+Total allocs done
+Total freed
+Blocks in
+use
+========
+==========
+=================
+===========
+=============
+0
+nal transaction FSM chunk
+100002
+100002
+0
+1
+nal message chunk
+50012
+50012
+0
+2
+nal im database chunk
+50001
+50001
+0
+3
+nal rib context chunk
+2
+2
+0
+4
+nal subscriber fsm chunk
+50001
+50001
+0
+5
+nal bulk disconnect chunk
+50001
+50001
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+23
+cnBNG User Plane Verification Commands
+show cnbng-nal chunk statistics
+
+
+--- Page 30 ---
+
+6
+nal replay msg chunk
+0
+0
+0
+7
+nal recon msg chunk
+0
+0
+0
+8
+nal replay data chunk
+0
+0
+0
+9
+nal recon sub entry
+0
+0
+0
+10
+nal replay data entry
+0
+0
+0
+11
+nal spa param chunk
+100002
+100002
+0
+12
+nal spa packet inject chunk
+0
+0
+0
+13
+nal spa packet punt chunk
+0
+0
+0
+14
+nal udp packet chunk
+4
+0
+4
+15
+nal timer infra chunk
+4
+4
+0
+16
+nal spa req resp chunk
+16384
+0
+16384
+17
+nal stats resp chunk
+0
+0
+0
+18
+nal AF down chunk
+0
+0
+0
+19
+NAL SPA response chunk
+50001
+50001
+0
+20
+NAL Subscriber stats chunk
+0
+0
+0
+21
+NAL Keep alive packet chunk
+0
+0
+0
+22
+NAL LCP timeout chunk
+0
+0
+0
+23
+Reconcile response chunk
+0
+0
+0
+24
+Route reconcile response chunk
+11
+11
+0
+25
+nal spa req resp file chunk
+100002
+100002
+0
+26
+nal disc history file chunk
+50001
+50001
+0
+27
+Reconcile replay history chunk
+0
+0
+0
+Location: 0/1/CPU0
+1
+nal stats resp chunk
+0
+0
+0
+2
+nal AF down chunk
+0
+0
+0
+3
+NAL SPA response chunk
+50001
+50001
+0
+4
+NAL Subscriber stats chunk
+0
+0
+0
+5
+NAL Keep alive packet chunk
+0
+0
+0
+6
+NAL LCP timeout chunk
+0
+0
+0
+7
+Reconcile response chunk
+0
+0
+0
+8
+Route reconcile response chunk
+11
+11
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+24
+cnBNG User Plane Verification Commands
+show cnbng-nal chunk statistics
+
+
+--- Page 31 ---
+
+This example shows how to view the chunk statistics information for the location 0/RSP0/CPU0.
+Router# show cnbng-nal chunk statistics location 0/RSP0/CPU0
+Location: 0/RSP0/CPU0
+Chunk Id
+Chunk name
+Total allocs done
+Total freed
+Blocks in
+use
+========
+==========
+=================
+===========
+=============
+0
+nal transaction FSM chunk
+100002
+100002
+0
+1
+nal message chunk
+50012
+50012
+0
+2
+nal im database chunk
+50001
+50001
+0
+3
+nal rib context chunk
+2
+2
+0
+4
+nal subscriber fsm chunk
+50001
+50001
+0
+5
+nal bulk disconnect chunk
+50001
+50001
+0
+6
+nal replay msg chunk
+0
+0
+0
+7
+nal recon msg chunk
+0
+0
+0
+8
+nal replay data chunk
+0
+0
+0
+9
+nal recon sub entry
+0
+0
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+25
+cnBNG User Plane Verification Commands
+show cnbng-nal chunk statistics
+
+
+--- Page 32 ---
+
+show cnbng-nal configuration
+To view the trace information for NOS adaptation layer (NAL) system database configuration component on
+the user plane of cloud native BNG (cnBNG), use the show cnbng-nal configuration command in EXEC
+mode.
+show
+cnbng-nal
+configuration
+[ auto-loopback
+vrf
+{ vrf-name | all } ]
+[ location
+location-id
+]
+Syntax Description
+Displays the NOS adaptation layer (NAL) autoloopback configuration on the user plane
+of cloud native BNG.
+auto-loopback
+Displays the NOS adaptation layer (NAL) autoloopback configuration for the specified
+VRF.
+Use vrf all to view the details for all VRFs.
+vrf vrf-name
+(optional) Displays information about NOS adaptation layer (NAL) configuration for the
+specified location. The location argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify location
+all to view statistics for all locations.
+location
+location
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view the configuration for all locations:
+Router# show cnbng-nal configuration location all
+Mon Jan 18 17:28:59.492 UTC
+Location: 0/RSP0/CPU0
+Host-Identifier : asr9k-1
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+26
+cnBNG User Plane Verification Commands
+show cnbng-nal configuration
+
+
+--- Page 33 ---
+
+Summary-route Tag-value : 100
+User-Plane configurations:
+-------------------------
+IP
+: 10.105.227.96
+GTP Port
+: 2152
+PFCP Port
+: 8805
+VRF
+: default
+Control-Plane configurations:
+----------------------------
+PRIMARY IP
+: 10.84.102.235
+GTP Port
+: 2152
+PFCP Port
+: 8805
+Connection Status: Down
+Association Status: Init
+Location: 0/1/CPU0
+This example shows how to view the autoloopback configuration for all VRFs:
+Router# show cnbng-nal configuration auto-loopback vrf all
+Mon Feb 15 11:08:56.419 UTC
+Location: 0/RSP0/CPU0
+NAL Auto-Loopback DB:
+--------------------
+VRF - default
+Interface-Name List:
+---------------------
+Loopback0
+Primary-IP: 12.0.0.1
+Loopback1
+Primary-IP: 12.0.0.1
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+27
+cnBNG User Plane Verification Commands
+show cnbng-nal configuration
+
+
+--- Page 34 ---
+
+show cnbng-nal counters
+To view the counter information for the user plane of cloud native BNG (cnBNG), use the show cnbng-nal
+counters command in EXEC mode.
+show
+cnbng-nal
+counters
+type
+{ SPA | accounting | all | cp-recon | error | histogram | spa-lib
+| subscriber | svm | watermark }
+[ location
+location ]
+Syntax Description
+Displays the counters for the specified counter types. The following are the counter types:
+• SPA: Displays Subscriber Provisioning Agent (SPA) counters.
+• accounting: Displays accounting counters
+• all: Displays all counters
+• Cp-recon: Displays CP Recon counters
+• error: Displays Error counters
+• histogram: Displays histogram counters
+• packets : Displays packet counters
+• spa-lib: Displays SPA LIB counters
+• subscriber: Displays subscriber counters
+• svm: Displays SVM counters
+• watermark: Displays watermark counters
+type
+(optional) Displays information about counters for the specified location. The location
+argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify location
+all to view counters for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+The command was modified to include counters for routed subsciber sessions in the command
+output.
+Release
+25.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+28
+cnBNG User Plane Verification Commands
+show cnbng-nal counters
+
+
+--- Page 35 ---
+
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view counters for SPA:
+Router# show cnbng-nal counters type SPA
+Mon Jan 18 17:30:29.178 UTC
+Location: 0/RSP0/CPU0
+SPA Counters
+------------
+Counter name
+Value
+=============
+=====
+IPOE Sub Create OK
+50001
+GEN SPA Create Req
+50001
+GEN Sub Create Res
+50001
+GEN Blkdic adm more
+1
+GEN Blkdis rsp FSM
+50001
+GEN GTPu pkt sent
+4
+GEN Evt Notif Fail
+50001
+GEN Mutex create
+12
+GEN Timer start
+4
+GEN Route prov
+11
+GEN Timer expiry
+4
+GEN PFCP start
+7
+GEN GTPu start
+4
+GEN Trans create
+7
+GEN Trans delete
+4
+GEN Rt prov done
+11
+GEN Rtprov res ok
+6
+This example shows how to filter for SPA library:
+Router# show cnbng-nal counters type all | beg SPA LIB
+Sun Aug 2 20:44:07.902 UTC
+SPA LIB Counters
+----------------
+Counter name Value
+============= =====
+pfcp_rx_counter 6899
+pfcp_tx_counter 6900
+gtpu_tx_counter 9048
+gtpu_rx_counter 7510
+pfcp_keepalive_tx_counter 891
+pfcp_keepalive_rx_counter 890
+SPA API counters
+----------------------
+This example shows how to view information of all counters:
+Router# show cnbng-nal counters type all
+Mon Jan 18 17:31:29.688 UTC
+Location: 0/RSP0/CPU0
+Subscriber Counters
+-------------------
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+29
+cnBNG User Plane Verification Commands
+show cnbng-nal counters
+
+
+--- Page 36 ---
+
+Counter name
+Value
+============
+=====
+IPOE INTF Created
+50001
+IPOE INTF Delete
+50001
+IPOE IPv4 caps down
+50001
+IPOE IPv4 caps up
+50001
+IPOE IPv6 caps down
+50001
+IPOE IPv6 caps up
+50001
+IPOE IPv4 Rou add
+50001
+IPOE IPv4 Rou del
+50001
+IPOE IPv4 fram add
+50001
+IPOE IPv4 fram del
+50001
+IPOE IPv6 Rou add
+50001
+IPOE IPv6 Rou del
+50001
+IPOE IPv6 fram add
+50001
+IPOE IPv6 fram del
+50001
+IPOE IPv6 PD add
+50001
+IPOE IPv6 PD del
+50001
+GEN Blkdis q empty
+1
+GEN DB cache hit
+1864147
+GEN DB cache miss
+1232501
+PPPoE SPIO attach
+1
+Error Counters
+--------------
+Counter name
+Value
+============
+=====
+GEN Rtprov res fail
+5
+Accounting Counters
+-------------------
+Counter name
+Value
+============
+=====
+SVM Counters
+------------
+Counter name
+Value
+============
+=====
+Sess created
+50001
+Sess deleted
+50001
+UP install req
+50001
+UP installed
+100001
+UP assoc req
+100001
+UP associated
+100001
+PD req
+100001
+PD cfg
+50001
+PD
+100001
+Activate req
+50001
+Activated
+50001
+Delete CB
+50001
+Cleanup
+50001
+Recons
+50000
+Recon start
+2
+Recon end
+2
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+30
+cnBNG User Plane Verification Commands
+show cnbng-nal counters
+
+
+--- Page 37 ---
+
+SPA Counters
+------------
+Counter name
+Value
+=============
+=====
+IPOE Sub Create OK
+50001
+GEN SPA Create Req
+50001
+GEN Sub Create Res
+50001
+GEN Blkdic adm more
+1
+GEN Blkdis rsp FSM
+50001
+GEN GTPu pkt sent
+4
+GEN Evt Notif Fail
+50001
+GEN Mutex create
+12
+GEN Timer start
+4
+GEN Route prov
+11
+GEN Timer expiry
+4
+GEN PFCP start
+7
+GEN GTPu start
+4
+GEN Trans create
+7
+GEN Trans delete
+4
+GEN Rt prov done
+11
+GEN Rtprov res ok
+6
+CP Recon Counters
+------------------
+Counter name
+Value
+=============
+=====
+Packet Counters
+------------------
+Counter name
+Value
+=============
+=====
+SPA LIB Counters
+----------------
+Counter name
+Value
+=============
+=====
+association_status
+0
+transport_status
+0
+Histogram/API Performance Stats
+-------------------------------
+API name
+1ms
+10ms
+100ms
+1s
+5s
+10s
+20s
+50s
+100s
+========
+===
+====
+=====
+==
+==
+===
+===
+===
+====
+IPOE Sub Create
+0
+0
+0
+48777
+1224
+0
+0
+0
+0
+IPOE Sub Update
+0
+0
+0
+0
+0
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+31
+cnBNG User Plane Verification Commands
+show cnbng-nal counters
+
+
+--- Page 38 ---
+
+0
+0
+0
+IPOE Sub Delete
+0
+0
+0
+160
+49841
+0
+0
+0
+0
+IPOE Int Crt
+0
+1
+31531
+18469
+0
+0
+0
+0
+0
+IPOE Int Upd
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Int Del
+0
+0
+0
+169
+49832
+0
+0
+0
+0
+IPOE SVM Sess Create
+0
+0
+2808
+47172
+21
+0
+0
+0
+0
+IPOE SVM Sess Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE SVM Sess Delete
+3
+2915
+34410
+12673
+0
+0
+0
+0
+0
+IPOE V4 RT Inst
+115
+38956
+8805
+2125
+0
+0
+0
+0
+0
+IPOE V4 RT Del
+532
+44916
+4498
+55
+0
+0
+0
+0
+0
+IPOE V4 FR Inst
+107
+38952
+8815
+2127
+0
+0
+0
+0
+0
+IPOE V4 FR Del
+542
+44901
+4503
+55
+0
+0
+0
+0
+0
+IPOE V6 RT Inst
+126
+38440
+9809
+1626
+0
+0
+0
+0
+0
+IPOE V6 RT Del
+843
+44838
+4294
+26
+0
+0
+0
+0
+0
+IPOE V6 PD RT Inst
+128
+38424
+9820
+1629
+0
+0
+0
+0
+0
+IPOE V6 PD RT Del
+838
+44814
+4323
+26
+0
+0
+0
+0
+0
+IPOE V6 FR Inst
+131
+38371
+9816
+1683
+0
+0
+0
+0
+0
+IPOE V6 FR Del
+835
+44836
+4304
+26
+0
+0
+0
+0
+0
+PPPOE Sub Create
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Sub Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Sub Delete
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Int Crt
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Int Upd
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Int Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE SVM Sess Create
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE SVM Sess Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE SVM Sess Delete
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 FR Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 FR Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 RT Del
+0
+0
+0
+0
+0
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+32
+cnBNG User Plane Verification Commands
+show cnbng-nal counters
+
+
+--- Page 39 ---
+
+0
+0
+0
+PPPOE V6 PD RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 PD RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 FR Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 FR Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+GEN Per trans
+0
+0
+0
+48853
+51149
+0
+0
+0
+0
+GEN CDM Lookup
+0
+0
+0
+0
+0
+0
+0
+0
+0
+GEN CDM Insert
+47239
+2762
+0
+0
+0
+0
+0
+0
+0
+GEN CDM Update
+146687
+3316
+0
+0
+0
+0
+0
+0
+0
+GEN Eval Lookup
+49838
+163
+0
+0
+0
+0
+0
+0
+0
+Watermark Performance Stats
+---------------------------
+Average Time
+Minimum Time
+Maximum Time
+------------
+------------
+------------
+API name
+Req count
+Sec
+MSec
+NSec
+Sec
+MSec
+NSec
+Sec
+MSec
+NSec
+========
+=========
+===
+====
+====
+===
+====
+====
+===
+====
+====
+IPOE Sub Create
+50001
+0
+574
+515792
+0
+133
+0
+2
+883
+0
+IPOE Sub Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Sub Delete
+50001
+2
+52
+368521
+0
+953
+0
+4
+70
+0
+IPOE Int Crt
+50001
+0
+89
+804869
+0
+9
+0
+0
+943
+0
+IPOE Int Upd
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Int Del
+50001
+1
+981
+457744
+0
+917
+0
+4
+11
+0
+IPOE SVM Sess Create
+50001
+0
+358
+201129
+0
+31
+0
+1
+187
+0
+IPOE SVM Sess Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE SVM Sess Delete
+50001
+0
+70
+839397
+0
+1
+0
+0
+294
+0
+IPOE V4 RT Inst
+50001
+0
+11
+100024
+0
+1
+0
+0
+368
+0
+IPOE V4 RT Del
+50001
+0
+5
+773691
+0
+1
+0
+0
+133
+0
+IPOE V4 FR Inst
+50001
+0
+11
+118684
+0
+1
+0
+0
+368
+0
+IPOE V4 FR Del
+50001
+0
+5
+775731
+0
+1
+0
+0
+133
+0
+IPOE V6 RT Inst
+50001
+0
+10
+419698
+0
+101
+0
+0
+368
+0
+IPOE V6 RT Del
+50001
+0
+4
+937393
+0
+1
+0
+0
+121
+0
+IPOE V6 PD RT Inst
+50001
+0
+10
+435878
+0
+101
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+33
+cnBNG User Plane Verification Commands
+show cnbng-nal counters
+
+
+--- Page 40 ---
+
+0
+368
+0
+IPOE V6 PD RT Del
+50001
+0
+4
+948452
+0
+1
+0
+0
+121
+0
+IPOE V6 FR Inst
+50001
+0
+10
+577531
+0
+100
+0
+0
+367
+0
+IPOE V6 FR Del
+50001
+0
+4
+939493
+0
+1
+0
+0
+121
+0
+PPPOE Sub Create
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Sub Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Sub Delete
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Int Crt
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Int Upd
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Int Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE SVM Sess Create
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE SVM Sess Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE SVM Sess Delete
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 FR Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 FR Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 PD RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 PD RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 FR Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 FR Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+GEN Per trans
+100002
+1
+335
+305446
+0
+133
+0
+4
+113
+0
+GEN CDM Lookup
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+GEN CDM Insert
+50001
+0
+0
+55297
+0
+0
+0
+0
+4
+0
+GEN CDM Update
+150003
+0
+0
+22164
+0
+0
+0
+0
+4
+0
+GEN Eval Lookup
+50001
+0
+0
+3259
+0
+0
+0
+0
+1
+0
+This example shows how to view information of all counters for routed subscriber sessions:
+Router#show cnbng-nal counters type subscriber
+Location: 0/RSP0/CPU0
+Subscriber Counters
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+34
+cnBNG User Plane Verification Commands
+show cnbng-nal counters
+
+
+--- Page 41 ---
+
+-------------------
+Counter name
+Value
+============
+=====
+Routed INTF Created
+2100
+Routed INTF Delete
+1179
+Routed IPv6 caps down
+1179
+Routed IPv6 caps up
+2100
+Routed IPv6 Rou add
+2100
+Routed IPv6 Rou del
+3226
+Routed IPv6 PD add
+2100
+Routed IPv6 PD del
+1179
+Routed next hop exists
+6300
+GEN Blkdis q empty
+3
+GEN DB cache hit
+273218
+GEN Vrf add event
+2
+Process not ready notified
+1
+Process ready notified
+1
+SIR down notified
+2
+SIR up notified
+3
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+35
+cnBNG User Plane Verification Commands
+show cnbng-nal counters
+
+
+--- Page 42 ---
+
+show cnbng-nal cp connection status
+To view the connection status information of the NAL transport user and control plane server, use the show
+cnbng-nal cp connection status command in EXEC mode.
+show
+cnbng-nal
+cp
+connection
+status
+[ location
+location ]
+Syntax Description
+(optional) Displays information about the connection status for the specified location.
+The location argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view statistics for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+You can use this command to verify if the retry count is configured or not.
+Task ID
+Operation
+Task
+ID
+Read,
+write
+network
+This example shows how to view the connection status:
+Router# show cnbng-nal cp connection status Fri Feb 19 11:27:31.178 UTC
+Location: 0/RSP0/CPU0
+User-Plane configurations:
+-------------------------
+IP
+: 10.105.227.96
+GTP Port
+: 2152
+PFCP Port
+: 8805
+VRF
+: default
+Control-Plane configurations:
+----------------------------
+PRIMARY IP
+: 10.84.102.235
+GTP Port
+: 2152
+PFCP Port
+: 8805
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+36
+cnBNG User Plane Verification Commands
+show cnbng-nal cp connection status
+
+
+--- Page 43 ---
+
+Association retry count: 10
+Connection Status: Up
+Connection Status time stamp: Thu Feb 11 12:46:19 2021
+Connection Prev Status : Down
+Connection Prev Status time stamp: Thu Feb 11 12:44:55 2021
+Association status: Active
+Association status time stamp: Thu Feb 11 12:46:18 2021
+This example shows how to view the connection status for a particular location, in this case, location
+0/0/CPU0:
+Router# show cnbng-nal cp connection status location 0/0/CPU0
+Wed Nov 18 14:32:30.101 IST
+Location: 0/0/CPU0
+User-Plane configurations:
+-------------------------
+IP
+: 11.11.11.1
+GTP Port
+: 15002
+PFCP Port
+: 15003
+VRF
+: default
+Control-Plane configurations:
+----------------------------
+PRIMARY IP
+: 11.11.11.2
+GTP Port
+: 2152
+PFCP Port
+: 8805
+Retry count is not configured
+Connection Status: Up
+Connection Status time stamp: Thu Feb 11 12:46:19 2021
+Connection Prev Status : Down
+Connection Prev Status time stamp: Thu Feb 11 12:44:55 2021
+Association status: Active
+Association status time stamp: Thu Feb 11 12:46:18 2021
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+37
+cnBNG User Plane Verification Commands
+show cnbng-nal cp connection status
+
+
+--- Page 44 ---
+
+show cnbng-nal dynamic-routes
+To view details of dynamic routes for the user plane of cloud native BNG (cnBNG), use the show cnbng-nal
+dynamic-routes command in EXEC mode.
+show
+cnbng-nal
+dynamic-routes
+{ afi
+{ ipv4 | ipv6 } | history | summary }
+[ location
+location ]
+Syntax Description
+Displays dynamic routes for the specified address family.
+afi
+Displays the history of dynamic route provision request or response.
+history
+Displays the summary of dynamic routes installed.
+summary
+(optional) Displays details of dynamic routes for the specified location. The location
+argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view statistics for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+The command was modified to include the next-hop IP address in the command output.
+Release
+25.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view the history details of the dynamic routes:
+Router# show cnbng-nal dynamic-routes history
+Mon Jan 18 18:47:19.231 UTC
+Location: 0/RSP0/CPU0
+-----------------------
+---------------- Index: 1 ----------------
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+38
+cnBNG User Plane Verification Commands
+show cnbng-nal dynamic-routes
+
+
+--- Page 45 ---
+
+Timestamp
+: Dec 17 16:26:52.020584
+Type
+: Response
+Transaction id
+: 220
+Result
+: 1
+Router name
+: asr9k-1
+Error message
+: Route provision request timed out
+---------------- End of index: 1 ----------------
+---------------- Index: 2 ----------------
+Timestamp
+: Dec 17 16:24:52.019863
+Type
+: Request
+Transaction id
+: 220
+Duration
+: 0
+Number of V4 entries : 1
+Number of V6 entries : 1
+Sync status
+: SPA_ROUTE_SYNC_NONE
+V4 Routes
++---------------------------------------------------------------------------------------------------+
+|
+Oper
+VRF
+Route/mask
+Gateway IP
+Route tag |
++---------------------------------------------------------------------------------------------------+
+|
+Create
+default
+101.102.0.0/16
+101.102.0.1
+0
+|
++---------------------------------------------------------------------------------------------------+
+V6 Routes
++----------------------------------------------------------------------------------------------------+
+|
+Oper
+VRF
+Route/mask
+Route tag |
++----------------------------------------------------------------------------------------------------+
+|
+Create
+default
+201::/64
+0
+|
++----------------------------------------------------------------------------------------------------+
+---------------- End of index: 2 ----------------
+---------------- Index: 3 ----------------
+Timestamp
+: Dec 17 15:35:07.123205
+Type
+: Response
+Transaction id
+: 210
+Result
+: 1
+Router name
+: asr9k-1
+Error message
+: Route provision request timed out
+---------------- End of index: 3 ----------------
+---------------- Index: 4 ----------------
+Timestamp
+: Dec 17 15:33:07.122542
+Type
+: Request
+Transaction id
+: 210
+Duration
+: 0
+Number of V4 entries : 1
+Number of V6 entries : 1
+Sync status
+: SPA_ROUTE_SYNC_NONE
+V4 Routes
++---------------------------------------------------------------------------------------------------+
+|
+Oper
+VRF
+Route/mask
+Gateway IP
+Route tag |
++---------------------------------------------------------------------------------------------------+
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+39
+cnBNG User Plane Verification Commands
+show cnbng-nal dynamic-routes
+
+
+--- Page 46 ---
+
+|
+Create
+default
+101.101.0.0/16
+101.101.0.1
+20
+|
++---------------------------------------------------------------------------------------------------+
+V6 Routes
++----------------------------------------------------------------------------------------------------+
+|
+Oper
+VRF
+Route/mask
+Route tag |
++----------------------------------------------------------------------------------------------------+
+|
+Create
+default
+101::/64
+20
+|
++----------------------------------------------------------------------------------------------------+
+---------------- End of index: 4 ----------------
+This example shows how to view summary of the dynamic routes:
+Router# show cnbng-nal dynamic-routes summary
+Mon Jan 18 18:50:48.734 UTC
+Location: 0/RSP0/CPU0
+-----------------------
+Counter Name
+Value
+--------------------------------
+V4 OC Entries
+1
+V6 OC Entries
+0
+V4 Primary Entries
+1
+V4 Secondary Entries
+0
+V4 RIB Entries
+0
+V6 RIB Entries
+0
+This example shows how to view the IPv6 address family dynamic routes for the location 0/RSP0/CPU0.
+Router# show cnbng-nal dynamic-routes afi ipv6 location 0/RSP0/CPU0
+Thu Oct
+1 06:13:39.715 UTC
+Index
+: 1
+Interface
+: Loopback1 [0x00000120]
+VRF
+: default
+AFI
+: IPv6
+Prefix
+: 1:2::2000/115
+Secondary address
+: NA
+Route tag
+: 0
+State
+: RIB_REQ_COMPLETE
+This example shows how to view the IPv4 address family dynamic routes for the location 0/RSP0/CPU0.
+Router# show cnbng-nal dynamic-routes afi ipv4 location 0/RSP0/CPU0
+Thu Oct
+1 06:10:18.621 UTC
+Index
+: 1
+Interface
+: Loopback1 [0x000005E0]
+VRF
+: default
+AFI
+: IPv4
+Prefix
+: 11.0.0.0/15
+Secondary address
+: 11.0.0.1
+Route tag
+: 0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+40
+cnBNG User Plane Verification Commands
+show cnbng-nal dynamic-routes
+
+
+--- Page 47 ---
+
+State
+: RIB_REQ_COMPLETE
+This example shows how to display the dynamic routes for all address families, including the next-hop
+IP, using the command show cnbng-nal dynamic-routes afi all. For routed subscriber sessions,
+next-hop IP is required to forward traffic until the subscriber routes are installed in the main table
+during an SRG switchover.
+Router#show cnbng-nal dynamic-routes afi all
+Location: 0/0/CPU0
+-----------------------
+Index
+: 1
+Interface
+: Loopback0
+VRF
+: default
+AFI
+: IPv6
+Prefix
+: cafe::/16
+Secondary address
+: cafe::1
+Next Hop
+: 1::2
+Route tag
+: 20
+State
+: RIB_REQ_COMPLETE
+SRG group name
+: group1
+Route metric
+: 20
+[NAL-DYNAMIC-ROUTE-EVENTS]
+| Event Name
+| Time Stamp
+| Route OC request sent
+| Jan 23 15:16:20.928791
+| Added secon V6 addrs on lb
+| Jan 23 15:16:20.928792
+| Route update succeed
+| Jan 23 15:16:20.991290
+| V6 route add success
+| Jan 23 15:16:20.942735
+| Skip V6 rt install (standby)
+| Jan 23 15:16:20.990673
+============================================
+Index
+: 2
+Interface
+: Loopback3
+VRF
+: default
+AFI
+: IPv6
+Prefix
+: cbfe::/16
+Secondary address
+: cbfe::1
+Next Hop
+: 1::2
+Cover route
+: ::/0
+Route tag
+: 0
+State
+: RIB_REQ_COMPLETE
+SRG group name
+: group1
+Route metric
+: 20
+[NAL-DYNAMIC-ROUTE-EVENTS]
+| Event Name
+| Time Stamp
+| Route OC request sent
+| Jan 23 15:16:20.928894
+| Added secon V6 addrs on lb
+| Jan 23 15:16:20.928894
+| Route update succeed
+| Jan 23 15:16:20.991309
+| V6 route add success
+| Jan 23 15:16:20.991586
+| Skip V6 rt install (standby)
+| Jan 23 15:16:20.991303
+============================================
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+41
+cnBNG User Plane Verification Commands
+show cnbng-nal dynamic-routes
+
+
+--- Page 48 ---
+
+show cnbng-nal main events
+To view details of NOS adaptation layer (NAL) events for the user plane of cloud native BNG (cnBNG), use
+the show cnbng-nal main events command in EXEC mode.
+show
+cnbng-nal
+main
+events
+[ location
+location-id ]
+Syntax Description
+(optional) Displays information about NAL events for the specified location. The location
+argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view main events for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view main events:
+Router# show cnbng-nal main events
+Mon Jan 18 18:54:08.121 UTC
+Location: 0/RSP0/CPU0
+==========
+NAL events
+==========
+| Event Name
+| Time Stamp
+| S, M
+| Timer init done
+| Dec 17 12:26:46.272
+| 0, 0
+| RSI Connection Up
+| Dec 17 12:26:46.272
+| 0, 0
+| OT Connection Up
+| Dec 17 12:26:46.400
+| 0, 0
+| Subscriber DB Done
+| Dec 17 12:26:48.192
+| 0, 0
+| Subscriber FSM Init Done
+| Dec 17 12:26:48.192
+| 0, 0
+| Logging init done
+| Dec 17 12:26:48.192
+| 0, 0
+| UPID Tbl Init Done
+| Dec 17 12:26:48.320
+| 0, 0
+| UPID User Info Done
+| Dec 17 12:26:48.320
+| 0, 0
+| Subscriber OC DB init done
+| Dec 17 12:26:48.320
+| 0, 0
+| Trace init done
+| Dec 17 12:26:48.448
+| 0, 0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+42
+cnBNG User Plane Verification Commands
+show cnbng-nal main events
+
+
+--- Page 49 ---
+
+| Sysmgr CDM Cleanup Regist Done
+| Dec 17 12:26:48.448
+| 0, 0
+| Statsd resync start
+| Dec 17 12:26:50.240
+| 0, 0
+| Statsd resync end
+| Dec 17 12:26:50.240
+| 0, 0
+| Proc Ready
+| Dec 17 12:26:50.368
+| 0, 0
+| AIPC Init
+| Dec 17 12:26:50.368
+| 0, 0
+| SIR suspend trans
+| Dec 17 15:05:45.088
+| 0, 0
+| SIR Not Ready
+| Dec 17 15:05:45.088
+| 0, 1
+| SIR Ready
+| Dec 17 15:05:54.688
+| 0, 1
+| NAL SPA Registration Done
+| Dec 22 17:23:18.144
+| 0, 1
+| SPA Chkpoint Init Done
+| Dec 22 17:23:18.144
+| 0, 1
+=========
+IM events
+=========
+| Event Name
+| Time Stamp
+| S, M
+| IM conn up
+| Dec 17 12:26:48.192
+| 0, 0
+| IMC DB recon done
+| Dec 17 12:26:48.320
+| 0, 0
+| IPoE parent caps done
+| Dec 17 12:26:48.448
+| 0, 0
+| IPoE sub caps done
+| Dec 17 12:26:48.448
+| 0, 0
+| PPPoE parent caps done
+| Dec 17 12:26:48.448
+| 0, 0
+| PPPoE sub caps done
+| Dec 17 12:26:48.448
+| 0, 0
+| PPP NCP ipcp caps done
+| Dec 17 12:26:48.448
+| 0, 0
+| PPP NCP ipv6cp caps done
+| Dec 17 12:26:48.448
+| 0, 0
+| IPoE attrs done
+| Dec 17 12:26:50.368
+| 0, 0
+| PPPoE attrs done
+| Dec 17 12:26:50.368
+| 0, 0
+| Loopback attrs done
+| Dec 17 12:26:50.368
+| 0, 0
+==========
+SVM events
+==========
+| Event Name
+| Time Stamp
+| S, M
+| Subdb conn down
+| Dec 17 15:05:45.728
+| 0, 1
+| Subdb conn up
+| Dec 17 15:05:49.696
+| 0, 1
+| Subdb recon start
+| Dec 17 15:05:49.696
+| 0, 1
+| Subdb recon end
+| Dec 17 15:05:54.560
+| 0, 1
+| SVM recon done
+| Dec 17 15:05:54.560
+| 0, 1
+==========
+RIB events
+==========
+| Event Name
+| Time Stamp
+| S, M
+| IPV4 RIB Conn Up
+| Dec 17 12:26:48.448
+| 0, 0
+| IPV6 RIB Conn Up
+| Dec 17 12:26:48.448
+| 0, 0
+| RIB recon done
+| Dec 17 12:26:50.368
+| 0, 0
+=========
+CP events
+=========
+| Event Name
+| Time Stamp
+| S, M
+==========
+CFG events
+==========
+| Event Name
+| Time Stamp
+| S, M
+| NAL parent-intf IPoE apply done
+| Dec 17 12:26:46.400
+| 0, 1
+| NAL parent-intf PPPoE apply done
+| Dec 17 12:26:46.400
+| 0, 1
+| SPA cfg un-apply failed
+| Dec 22 17:23:04.576
+| 0, 1
+| NAL Host-ID apply Done
+| Dec 22 17:23:18.144
+| 0, 1
+| up-server applied
+| Dec 22 17:23:18.144
+| 0, 1
+| SPA cfg apply failed
+| Dec 22 17:23:18.144
+| 0, 1
+| cp-server applied
+| Dec 22 17:23:18.144
+| 0, 1
+| NAL Auto-loopback apply done
+| Dec 22 17:23:18.144
+| 0, 1
+| NAL CP src server apply done
+| Dec 22 17:23:18.144
+| 0, 1
+| SPA cfg notified
+| Dec 22 17:23:18.144
+| 0, 1
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+43
+cnBNG User Plane Verification Commands
+show cnbng-nal main events
+
+
+--- Page 50 ---
+
+| Local-config apply done
+| Dec 22 17:23:18.144
+| 0, 1
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+44
+cnBNG User Plane Verification Commands
+show cnbng-nal main events
+
+
+--- Page 51 ---
+
+show cnbng-nal periodic-stats
+To view the periodic statistics of cloud native BNG process, use the show cnbng-nal periodic-stats command
+in EXEC mode.
+show
+cnbng-nal
+periodic-stats
+type
+{ SPA | accounting | all | cp-recon | error | histogram |
+spa-lib | subscriber | svm | watermark }
+[ location
+location ]
+Syntax Description
+Displays the periodic statistics for the specified type. The following are the available types:
+• SPA: Displays the periodic statistics for SPA.
+• accounting: Displays the periodic statistics for accounting process.
+• all : Displays the periodic statistics for all process.
+• cp-recon: Displays the periodic statistics for CP recon process.
+• error: Displays the periodic statistics for error.
+• histogram: Displays the periodic statistics for histogram.
+• packets: Displays the periodic statistics for packets.
+• spa-lib: Displays the periodic statistics for SPA lib process.
+• subscriber : Displays the periodic statistics for subscriber sessions.
+• svm : Displays the periodic statistics for service manager process.
+• watermark: Displays the periodic statistics for watermark.
+type
+(optional) Displays information about periodic statistics for the specified location. The location
+argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify location
+all to view information for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+45
+cnBNG User Plane Verification Commands
+show cnbng-nal periodic-stats
+
+
+--- Page 52 ---
+
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view the available periodic statistics type:
+Router# show cnbng-nal
+periodic-stats type ?
+SPA
+SPA periodic-stats(cisco-support)
+accounting
+Accounting periodic-stats(cisco-support)
+all
+All periodic-stats(cisco-support)
+cp-recon
+CP Recon periodic-stats(cisco-support)
+error
+Error periodic-stats(cisco-support)
+histogram
+Histogram periodic-stats(cisco-support)
+spa-lib
+SPA LIB periodic-stats(cisco-support)
+subscriber
+Subscriber periodic-stats(cisco-support)
+svm
+SVM periodic-stats(cisco-support)
+This example shows how to view the periodic statistics for histogram.
+Router# show cnbng-nal
+periodic-stats type histogram
+Thu Aug 27 09:20:44.171 UTC
+Location: 0/RSP0/CPU0
+10Secs Periodic Stats
+---------------------
+Histogram/API Performance Stats
+==============================
+TimeStamp : Aug 27 09:20:40
+API name
+1ms
+10ms
+100ms
+1s
+5s
+10s
+20s
+50s
+100s
+========
+===
+====
+=====
+==
+==
+===
+===
+===
+====
+IPOE Sub Create
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Sub Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Sub Delete
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Int Crt
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Int Upd
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Int Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE SVM Sess Create
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE SVM Sess Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE SVM Sess Delete
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE V4 RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE V4 RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE V4 FR Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE V4 FR Del
+0
+0
+0
+0
+0
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+46
+cnBNG User Plane Verification Commands
+show cnbng-nal periodic-stats
+
+
+--- Page 53 ---
+
+0
+0
+0
+IPOE V6 RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE V6 RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE V6 PD RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE V6 PD RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE V6 FR Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE V6 FR Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Sub Create
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Sub Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Sub Delete
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Int Crt
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Int Upd
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE Int Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE SVM Sess Create
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE SVM Sess Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE SVM Sess Delete
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 FR Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V4 FR Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 PD RT Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 PD RT Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 FR Inst
+0
+0
+0
+0
+0
+0
+0
+0
+0
+PPPOE V6 FR Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+GEN Per trans
+0
+0
+0
+0
+0
+0
+0
+0
+0
+GEN CDM Lookup
+0
+0
+0
+0
+0
+0
+0
+0
+0
+GEN CDM Insert
+0
+0
+0
+0
+0
+0
+0
+0
+0
+GEN CDM Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+GEN Eval Lookup
+0
+0
+0
+0
+0
+0
+0
+0
+0
+TimeStamp : Aug 27 09:20:30
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+47
+cnBNG User Plane Verification Commands
+show cnbng-nal periodic-stats
+
+
+--- Page 54 ---
+
+API name
+1ms
+10ms
+100ms
+1s
+5s
+10s
+20s
+50s
+100s
+========
+===
+====
+=====
+==
+==
+===
+===
+===
+====
+IPOE Sub Create
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Sub Update
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Sub Delete
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Int Crt
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Int Upd
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE Int Del
+0
+0
+0
+0
+0
+0
+0
+0
+0
+IPOE SVM Sess Create
+0
+0
+0
+0
+0
+0
+0
+0
+0
+This example shows how to view the subscriber periodic statistics:
+Router# show cnbng-nal periodic-stats type subscriber
+Thu Aug 27 09:21:19.832 UTC
+Location: 0/RSP0/CPU0
+10Secs Periodic Stats
+---------------------
+Aug 27
+Aug 27
+Aug 27
+Aug 27
+Aug
+27
+Aug 27
+09:21:10
+09:21:00
+09:20:50
+09:20:40
+09:20:30
+09:20:20
+Subscriber periodic stats
+=========================
+30Secs Periodic Stats
+---------------------
+Aug 27
+Aug 27
+Aug 27
+Aug 27
+Aug
+27
+Aug 27
+09:20:50
+09:20:20
+09:19:50
+09:19:20
+09:18:50
+09:18:20
+Subscriber periodic stats
+=========================
+1Min Periodic Stats
+-------------------
+Aug 27
+Aug 27
+Aug 27
+Aug 27
+Aug
+27
+Aug 27
+09:20:50
+09:19:50
+09:18:50
+09:17:50
+09:16:50
+09:15:50
+Subscriber periodic stats
+=========================
+1Hour Periodic Stats
+--------------------
+Aug 27
+Aug 27
+Aug 27
+Aug 27
+Aug
+27
+Aug 27
+09:02:50
+08:02:50
+07:02:50
+06:02:50
+05:02:50
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+48
+cnBNG User Plane Verification Commands
+show cnbng-nal periodic-stats
+
+
+--- Page 55 ---
+
+04:02:50
+Subscriber periodic stats
+=========================
+4Hours Periodic Stats
+---------------------
+Aug 27
+Aug 27
+Aug 26
+Aug 26
+07:02:50
+03:02:50
+23:02:50
+19:02:50
+Subscriber periodic stats
+=========================
+This example shows how to view the periodic statistics for type SPA.
+Router# show cnbng-nal
+periodic-stats type spa
+Thu Aug 27 09:21:46.697 UTC
+Location: 0/RSP0/CPU0
+10Secs Periodic Stats
+---------------------
+Aug 27
+Aug 27
+Aug 27
+Aug 27
+Aug
+27
+Aug 27
+09:21:40
+09:21:30
+09:21:20
+09:21:10
+09:21:00
+09:20:50
+SPA periodic stats
+==================
+GEN Trans state DWN
+0
+0
+0
+0
+0
+0
+GEN Trans state UP
+0
+0
+0
+0
+0
+0
+GEN PFCP pkt sent
+0
+0
+1
+0
+0
+1
+GEN PFCP pkt punt
+0
+0
+1
+0
+0
+1
+GEN Alloc count
+0
+0
+1
+0
+0
+1
+GEN Free count
+0
+0
+1
+0
+0
+1
+GEN Mutex create
+0
+0
+0
+0
+0
+0
+GEN Mutex lock
+0
+0
+7
+0
+0
+7
+GEN Mutex unlock
+0
+0
+7
+0
+0
+7
+GEN Timer start
+0
+0
+1
+0
+0
+1
+GEN Timer stop
+0
+0
+0
+0
+0
+0
+GEN Route prov
+0
+0
+0
+0
+0
+0
+GEN Timer expiry
+0
+0
+1
+0
+0
+1
+GEN PFCP start
+0
+0
+0
+0
+0
+0
+GEN GTPu start
+0
+0
+0
+0
+0
+0
+GEN GTPu stop
+0
+0
+0
+0
+0
+0
+GEN PFCP stop
+0
+0
+0
+0
+0
+0
+GEN Trans create
+0
+0
+0
+0
+0
+0
+GEN Trans delete
+0
+0
+0
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+49
+cnBNG User Plane Verification Commands
+show cnbng-nal periodic-stats
+
+
+--- Page 56 ---
+
+0
+0
+GEN Rt prov done
+0
+0
+0
+0
+0
+0
+GEN Assoc status done
+0
+0
+0
+0
+0
+0
+GEN Assoc status not done
+0
+0
+0
+0
+0
+0
+GEN Rtprov res ok
+0
+0
+0
+0
+0
+0
+30Secs Periodic Stats
+---------------------
+Aug 27
+Aug 27
+Aug 27
+Aug 27
+Aug
+27
+Aug 27
+09:21:20
+09:20:50
+09:20:20
+09:19:50
+09:19:20
+09:18:50
+SPA periodic stats
+==================
+GEN Trans state DWN
+0
+0
+0
+0
+0
+0
+GEN Trans state UP
+0
+0
+0
+0
+0
+0
+GEN PFCP pkt sent
+1
+1
+1
+1
+1
+1
+GEN PFCP pkt punt
+1
+1
+1
+1
+1
+1
+GEN Alloc count
+1
+1
+1
+1
+1
+1
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+50
+cnBNG User Plane Verification Commands
+show cnbng-nal periodic-stats
+
+
+--- Page 57 ---
+
+show cnbng-nal process-info
+To view the process information of NOS Adaptation Layer (NAL) on the user plane of cloud native BNG
+(cnBNG), use the show cnbng-nal process-info command in EXEC mode.
+show
+cnbng-nal
+process-info
+[ location
+location-id ]
+Syntax Description
+(optional) Displays process information for the specified location. The location argument
+is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view the process information for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to the view the process information for a particular location.
+Router# show cnbng-nal process-info location 0/RSP0/CPU0
+Location: 0/RSP0/CPU0
+HA Pre_Init Role
+: PRIMARY
+HA Role
+: PRIMARY
+Restart-flag
+: FALSE
+card_type
+: 0
+Node-Id
+: 0
+Disc-Hist File-logging
+: FALSE
+Test-server config-enabled: FALSE
+Proc-flags
+: 8000FFBF
+OT Connection Status: UP
+IM Connection Status: UP
+IPv4 RIB Connection Status: UP
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+51
+cnBNG User Plane Verification Commands
+show cnbng-nal process-info
+
+
+--- Page 58 ---
+
+IPv6 RIB Connection Status: UP
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+52
+cnBNG User Plane Verification Commands
+show cnbng-nal process-info
+
+
+--- Page 59 ---
+
+show cnbng-nal process-readiness
+To view the process-readiness state for NAL component for the user plane of cloud native BNG (cnBNG),
+use the show cnbng-nal process-readiness command in EXEC mode.
+show
+cnbng-nal
+process-readiness
+[ location
+location-id ]
+Syntax Description
+(optional) Displays information about process-readiness state for the specified location.
+The location argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view process-readiness state for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view the process-readiness:
+Router# show cnbng-nal process-readiness
+Location: 0/RSP1/CPU0
+NAL resync pending flags:
+Service Resync Pending
+Interface Resync Pending
+IPv4 Route Resync Pending
+IPv6 Route Resync Pending
+SIR status: not ready
+Location: 0/RSP0/CPU0
+NAL resync pending flags:
+NONE
+SIR status: ready
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+53
+cnBNG User Plane Verification Commands
+show cnbng-nal process-readiness
+
+
+--- Page 60 ---
+
+Show cnbng-nal spa
+To view the cloud native BNG Subscriber Provisioning Agent (SPA) options for the user plane of cloud native
+BNG (cnBNG), use the show cnbng-nal spa command in EXEC mode.
+show
+cnbng-nal
+spa
+{ packets
+direction
+{ inject | punt }
+[ filter
+{ cpid
+cp-id |
+mac-address
+mac-address | upid
+up-id } ]
+[ type
+gtpu ] | pfcp-api
+structure
+dump
+{ all |
+cpid
+cp-id | stats | upid
+up-id } | udp }
+[ location
+location-id ]
+Syntax Description
+Displays the packet history details of packets sent towards CPE and control plane (CP).
+packets
+Displays the packet history details of packets sent towards CPE.
+direction inject
+Displays the packet history details of packets sent towards control plane (CP).
+direction punt
+Filters for packet types based on the specified filter.
+You can filter based on the following:
+• cpid: Filters based on control plane ID specified in the range from 0 to 4294967295.
+upid: Filters based on user plane ID specified in the range from 0 to 4294967295
+• mac-address : Filters based on MAC address specified Specify the MAC address
+in this format: xxxx.xxxx.xxxx
+filter
+Displays information about NAL events for the specified location. The location argument
+is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view details for all locations.
+location
+location-id
+Displays information about the packet type specified. For example, GTPu packets.
+type gtpu
+Displays history details of SPA request to NAL and response.
+pfcp-api
+Displays the structure details between NAL and SPA.
+structure
+Displays the dumped SPA request history details.
+dump
+Displays information of UDP packets.
+udp
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+54
+cnBNG User Plane Verification Commands
+Show cnbng-nal spa
+
+
+--- Page 61 ---
+
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view the SPA details for UDP packets:
+Router# show cnbng-nal spa udp
+Mon Feb 15 10:52:48.277 UTC
+Packet
+: [1],
+Source IP
+: 10.84.102.235,
+Destination IP
+: 10.105.227.96,
+Source port:
+: 8805,
+Dest port
+: 8805,
+Direction
+: Inject (SPA -> NAL),
+Packet type
+: PFCP,
+Timestamp
+: Mon Feb 15 10:52:21 2021,
+Packet
+: [2],
+Source IP
+: 10.105.227.96,
+Destination IP
+: 10.84.102.235,
+Source port:
+: 8805,
+Dest port
+: 8805,
+Direction
+: Punt (NAL -> SPA),
+Packet type
+: PFCP,
+Timestamp
+: Mon Feb 15 10:52:21 2021,
+Packet
+: [3],
+Source IP
+: 10.84.102.235,
+Destination IP
+: 10.105.227.96,
+Source port:
+: 8805,
+Dest port
+: 8805,
+Direction
+: Inject (SPA -> NAL),
+Packet type
+: PFCP,
+Timestamp
+: Mon Feb 15 10:51:51 2021,
+Packet
+: [4],
+Source IP
+: 10.105.227.96,
+Destination IP
+: 10.84.102.235,
+Source port:
+: 8805,
+Dest port
+: 8805,
+Direction
+: Punt (NAL -> SPA),
+Packet type
+: PFCP,
+Timestamp
+: Mon Feb 15 10:51:51 2021,
+Packet
+: [5],
+Source IP
+: 10.84.102.235,
+Destination IP
+: 10.105.227.96,
+Source port:
+: 8805,
+Dest port
+: 8805,
+Direction
+: Inject (SPA -> NAL),
+Packet type
+: PFCP,
+Timestamp
+: Mon Feb 15 10:51:21 2021,
+Packet
+: [6],
+Source IP
+: 10.105.227.96,
+Destination IP
+: 10.84.102.235,
+Source port:
+: 8805,
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+55
+cnBNG User Plane Verification Commands
+Show cnbng-nal spa
+
+
+--- Page 62 ---
+
+Dest port
+: 8805,
+Direction
+: Punt (NAL -> SPA),
+Packet type
+: PFCP,
+Timestamp
+: Mon Feb 15 10:51:21 2021,
+Packet
+: [7],
+Source IP
+: 10.84.102.235,
+Destination IP
+: 10.105.227.96,
+Source port:
+: 8805,
+Dest port
+: 8805,
+Direction
+: Inject (SPA -> NAL),
+Packet type
+: PFCP,
+Timestamp
+: Mon Feb 15 10:50:51 2021,
+Packet
+: [8],
+Source IP
+: 10.105.227.96,
+Destination IP
+: 10.84.102.235,
+Source port:
+: 8805,
+Dest port
+: 8805,
+Direction
+: Punt (NAL -> SPA),
+Packet type
+: PFCP,
+Timestamp
+: Mon Feb 15 10:50:51 2021,
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+56
+cnBNG User Plane Verification Commands
+Show cnbng-nal spa
+
+
+--- Page 63 ---
+
+show cnbng-nal srg-group
+To view the NOS adaptation layer (NAL) subscriber information for the user plane of cloud native BNG
+(cnBNG), use the show cnbng-nal srg-group command in EXEC mode.
+show
+cnbng-nal
+srg-group srg-groupname { detail | srg-mode warm [ location location-id ] |
+srg-role { active | standby } }
+Syntax Description
+Displays detailed output of the subscriber redundancy group.
+detail
+Displays information about subscriber redundancy groups (SRGs) that
+are operating in warm mode.
+srg-mode warm
+Displays information about SRGs that are operating in warm mode at
+a specific location.
+srg-mode warm location
+location-id
+Displays information about SRGs that are in active state.
+srg-role active
+Displays information about SRGs that are in standby state.
+srg-role standby
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The command was modified to include the Group for routed subscribers field in the
+output of the detail keyword.
+Release
+25.1.1
+The command was modified to include the srg-mode, and srg-role keywords and now displays
+the SRG mode (HOT or WARM) in the detail output.
+Release
+25.4.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+The following show output shows the list of SRG groups that you created and its role:
+Router#show cnbng-nal srg-group
+====================
+Location: 0/0/CPU0
+====================
+Group-name
+SRG role
+Access OT
+Core OT
+Subs Count V4 routes V6 routes
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+57
+cnBNG User Plane Verification Commands
+show cnbng-nal srg-group
+
+
+--- Page 64 ---
+
+----------
+--------
+---------
+-------- ---------- --------- ---------
+group1
+Active
+Up
+Up
+1
+2
+2
+group2
+Active
+Up
+Up
+1
+2
+2
+group3
+Active
+Up
+Up
+1
+2
+2
+Total Entries : 3
+Summary
+-------
+Category
+Total
+Active
+Standby
+None
+------------------------------------------------------------------
+Groups
+3
+3
+0
+0
+Subscribers
+4
+4
+0
+0
+V4 subnet routes
+16
+16
+0
+0
+V6 subnet routes
+16
+16
+0
+0
+The following show output displays the detailed information about SRG that includes group name,
+role, ID, subscriber count, SRG mode, and so on.
+Router#show cnbng-nal srg-group detail
+====================
+Location: 0/RSP0/CPU0
+====================
+SRG group name
+: 1
+SRG group admin state
+: UP_Configured
+SRG group state
+: Up
+SRG role
+: None
+SRG ID
+: 0x00000009
+SRG VRF name
+: **srg_9
+SRG mode
+: HOT
+Last SRG role update time
+: NA
+Virtual mac
+: 0001.0001.1015
+V4 Table Id
+: 0xe000001a
+V6 Table Id
+: 0xe080001a
+V4 Proto Id
+: 0x00000001
+V6 Proto Id
+: 0x00000004
+Subscriber count
+: 0
+Warm Subscriber count
+: 0
+IPV4 route count
+: 0
+IPV6 route count
+: 0
+Damping timer interval
+: 300 Sec
+Subnet route tag
+: 101
+Route export on Standby enable
+: False
+Fast switchover enable
+: True
+Ready for role change
+: Yes [Success]
+FSM State
+: UNKNOWN
+Update Request State
+: IDLE
+Stats state
+: IDLE
+Sub disconnect resp pend
+: NA
+Sub count for keep alive start
+: 0
+Group for routed subscribers
+: FALSE
+Access tracking object
+----------------------
+Object name
+: track1
+Tracking state
+: Up
+Last tracking state update time : Oct 18 14:38:39.822489
+Core tracking object
+--------------------
+Object name
+: core1
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+58
+cnBNG User Plane Verification Commands
+show cnbng-nal srg-group
+
+
+--- Page 65 ---
+
+Tracking state
+: Up
+Last tracking state update time : Oct 18 14:38:39.821638
+Access Interfaces
+-----------------
+Bundle-Ether1.1
+IM counters
+------------
+Total entries
+: 1
+Pending
+: 0
+On-hold
+: 0
+Total errors
+: 0
+RIB counters
+------------
+Total entries
+: 0
+Pending
+: 0
+Total errors
+: 0
+STATS counters
+------------
+Total entries
+: 0
+Pending
+: 0
+Total errors
+: 0
+Stats state
+: IDLE
+Flags
+-----
+Value: [0x00000000]
+None
+Checkpoint Flags
+----------------
+Value: [0x00000000]
+None
+CP Recon data
+-------------
+Duration
+: 0 secs
+Replay reqs in progress
+: 0
+Replay subs in progress
+: 0
+CP Recon Flags
+: 0x0
+Subscriber transaction Info
+---------------------------
+Subscribers in transaction
+: 0
+Subscribers in AF down queue
+: 0
+Subscribers in disc queue
+: 0
+Group role switchover stats Info
+---------------------------
+Last stats interaction time(A->S):
+: 0.0 secs
+Last stats interaction time(S->A):
+: 0.0 secs
+Max stats interaction time(A->S):
+: 0.0 secs (NA)
+Max stats interaction time(S->A):
+: 0.0 secs (NA)
+Event history
+-------------
+| Event Name
+| Time Stamp
+| S, M
+| Group create
+| Oct 18 14:38:39.820086
+| 0, 0
+| V4 backup vrf create
+| Oct 18 14:38:39.820245
+| 0, 0
+| V6 backup vrf create
+| Oct 18 14:38:39.820271
+| 0, 0
+| Role active
+| Oct 18 14:38:56.290385
+| 0, 0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+59
+cnBNG User Plane Verification Commands
+show cnbng-nal srg-group
+
+
+--- Page 66 ---
+
+| Role active start
+| Oct 18 14:38:56.290388
+| 0, 0
+| Role active end
+| Oct 18 14:38:56.290446
+| 0, 0
+| CP action add
+| Oct 18 14:38:56.290447
+| 0, 0
+| Notify: State Up
+| Oct 18 14:38:56.341312
+| 0, 0
+| State change ack'ed
+| Oct 18 14:38:56.341434
+| 0, 0
+=======================================================================
+The following show output displays the detailed information about SRG that includes group for
+routed subscribers.
+Router#show cnbng-nal srg-group Group1 detail
+====================
+Location: 0/RSP0/CPU0
+====================
+SRG group name
+: Group1
+SRG group admin state
+: UP_CP_Configured
+SRG group state
+: Up
+SRG role
+: Active
+SRG ID
+: 0x00000001
+SRG VRF name
+: **srg_1
+Last SRG role update time
+: Sep 18 07:57:49.153722
+Virtual mac
+: 0000.0000.0000
+V4 Table Id
+: 0xe0000013
+V6 Table Id
+: 0xe0800013
+V4 Proto Id
+: 0x00000002
+V6 Proto Id
+: 0x00000000
+Subscriber count
+: 921
+IPV4 route count
+: 0
+IPV6 route count
+: 2
+Damping timer interval
+: 120 Sec
+Subnet route tag
+: 0
+Route export on Standby enable
+: False
+Fast switchover enable
+: True
+Ready for role change
+: Yes [Success]
+FSM State
+: COMPLETE
+Update Request State
+: IDLE
+Stats state
+: IDLE
+Sub disconnect resp pend
+: NA
+Group for routed subscribers
+: TRUE
+The following show output displays subscriber redundancy groups that are in warm mode. It also
+summarizes the number of groups, subscribers, and routes.
+Router# show cnbng-nal srg-group srg-mode warm
+Thu Nov 27 11:28:09.151 IST
+====================
+Location: 0/0/CPU0
+====================
+Group-name
+SRG role
+Access OT
+Core OT
+Subs Count V4 routes V6 routes
+----------
+--------
+---------
+-------- ---------- --------- ---------
+group1
+Active
+Up
+Up
+1
+2
+2
+group2
+Standby
+Up
+Up
+0
+2
+2
+group3
+Active
+Up
+Up
+0
+2
+2
+Total Entries : 3
+Summary
+-------
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+60
+cnBNG User Plane Verification Commands
+show cnbng-nal srg-group
+
+
+--- Page 67 ---
+
+Category
+Total
+Active
+Standby
+None
+------------------------------------------------------------------
+Groups
+3
+2
+1
+0
+Subscribers
+1
+1
+0
+0
+V4 subnet routes
+6
+4
+2
+0
+V6 subnet routes
+6
+4
+2
+0
+The following show output displays information about SRGs that are operating in warm mode at a
+specific location. It also summarizes the number of groups, subscribers, and routes.
+Router# show cnbng-nal srg-group srg-mode warm location 0/0/CPU0
+Thu Nov 27 11:28:19.607 IST
+====================
+Location: 0/0/CPU0
+====================
+Group-name
+SRG role
+Access OT
+Core OT
+Subs Count V4 routes V6 routes
+----------
+--------
+---------
+-------- ---------- --------- ---------
+group1
+Active
+Up
+Up
+1
+2
+2
+group2
+Standby
+Up
+Up
+0
+2
+2
+group3
+Active
+Up
+Up
+0
+2
+2
+Total Entries : 3
+Summary
+-------
+Category
+Total
+Active
+Standby
+None
+------------------------------------------------------------------
+Groups
+3
+2
+1
+0
+Subscribers
+1
+1
+0
+0
+V4 subnet routes
+6
+4
+2
+0
+V6 subnet routes
+6
+4
+2
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+61
+cnBNG User Plane Verification Commands
+show cnbng-nal srg-group
+
+
+--- Page 68 ---
+
+show cnbng-nal statistics
+To view the NOS adaptation layer (NAL) trace statistics information for the user plane of cloud native BNG
+(cnBNG), use the show cnbng-nal statistics command in EXEC mode.
+show
+cnbng-nal
+statistics
+trace
+[ location
+location-id ]
+Syntax Description
+Displays the NAL trace information.
+trace
+(optional) Displays information about NAL trace for the specified location. The location
+argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view NAL trace for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view the trace statistics information:
+Router# show cnbng-nal statistics trace
+Mon Jan 18 19:10:23.384 UTC
+Location: 0/RSP0/CPU0
+[ NAL Trace Statistics ]
+Count
+Tracepoint
+=====
+==========
+1
+[NALTP_183]
+1
+[NALTP_182]
+1
+[NALTP_1586]
+#
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+62
+cnBNG User Plane Verification Commands
+show cnbng-nal statistics
+
+
+--- Page 69 ---
+
+show cnbng-nal subscriber
+To view the NOS adaptation layer (NAL) subscriber information for the user plane of cloud native BNG
+(cnBNG), use the show cnbng-nal subscriber command in EXEC mode.
+show
+cnbng-nal
+subscriber
+{ access-interface
+type
+num | afi
+{ dual | ipv4 | ipv6 } | all |
+type
+{ ipoe | pppoe | routed } }
+{ detail | summary }
+[ location
+ID ]
+{ sub-interface
+type
+num | upid
+ID | vrf
+name | mac
+address }
+detail
+[ location
+ID ]
+{ fadb | service-profile
+profile
+location
+ID } { warm
+{ all | { detail | location | summary } } cpid { location } }
+Syntax Description
+Displays information about subscriber access interface for the specified interface type.
+Use the show interfaces command to see a list of all interfaces currently configured on
+the router.
+For more information, use the question mark (?) online help function.
+access-interface
+Displays the NAL process subscriber records for the specified type.
+• dual
+• ipv4
+• ipv6
+afi
+Displays all subscriber sessions.
+all
+Displays the subscriber session or all available summary.
+fadb
+Displays the subscriber MAC address information.
+mac
+Displays service profile details for the specified profile. You can use all option to view all
+the service profile.
+service-profile
+Displays the subscriber interface details.
+sub-interface
+Displays the NAL process filter subscriber records for the following types:
+• pppoe
+• ipoe
+• routed
+type
+Displays the value of subscriber user plane ID.
+upid
+Displays the records of the specified VRF name or the default VRF. Use all options to
+view details of all the VRF eateries.
+vrf
+Displays detailed output of the subscriber records.
+detail
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+63
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 70 ---
+
+Displays information about subscriber for the specified location. The location argument is
+entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify location
+all to view subscriber information for all locations.
+location
+Displays summary information of the subscriber session.
+summary
+Displays information about subscribers that are in SRG warm mode.
+warm
+Displays the value of subscriber Control Plane ID.
+cpid
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+The command was modified
+• to include the routed keyword.
+• to display subscriber type and sub-type for routed subscribers in the output of the show
+cnbng-nal subscriber all detail command.
+• to classify IPoE subscribers as L2 connected and routed subscribers in the output of the
+show cnbng-nal subscriber all summary command.
+Release
+25.1.1
+The command was modified to include the warm keyword.
+Release
+25.4.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view the summary of all the subscribers:
+Router# show cnbng-nal subscriber all summary
+Sun Aug
+2 16:26:44.281 UTC
+=====================
+Location: 0/RSP0/CPU0
+=====================
+Type
+PPPoE
+IPoE
+====
+=====
+====
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+64
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 71 ---
+
+Session Counts by State:
+initializing
+0
+0
+connecting
+0
+0
+connected
+0
+0
+activated
+0
+130
+idle
+0
+0
+disconnecting
+0
+0
+Total:
+0
+130
+Session Counts by Address-Family:
+none
+0
+0
+ipv4
+0
+130
+ipv6
+0
+0
+dual
+0
+0
+Total:
+0
+130
+=====================
+Location: 0/RSP0/CPU0
+=====================
+Type
+PPPoE
+IPoE
+====
+=====
+====
+Session Counts by State:
+initializing
+0
+0
+connecting
+0
+0
+connected
+226
+0
+activated
+31774
+0
+idle
+0
+0
+disconnecting
+0
+0
+Total:
+32000
+0
+Session Counts by Address-Family:
+none
+226
+0
+ipv4
+7774
+0
+ipv6
+0
+0
+dual
+24000
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+65
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 72 ---
+
+Total:
+32000
+0
+This example shows how to view the detailed information of all the subscribers:
+Router# show cnbng-nal subscriber all detail
+Mon Aug
+3 00:00:14.624 UTC
+Location: 0/2/CPU0
+===================
+Location: 0/RSP1/CPU0
+===================
+Interface:
+Bundle-Ether1.1.ip2148413040
+UPID:
+0x800e2e70
+CPID:
+0x0100918f
+PPPOE Session Id:
+0x0000
+Type:
+IPoE
+IPv4 Address:
+0.0.0.0
+IPv4 Framed Route:
+Prefix:
+0.0.0.0/0
+Next Hop:
+0.0.0.0
+Tag:
+0
+IPv6 IANA Address:
+1:5::345c
+IPv6 IAPD Prefix:
+2004:cd0:0:188d::/64
+CPE link local Address:
+::
+IPv6 Framed Route:
+Prefix:
+::/0
+Next Hop:
+::
+Tag:
+0
+IPv6 State:
+UP, Sat Jul 25 02:09:55 2020
+Mac Address:
+5065.aaab.d864
+Inner VLAN ID:
+Not Set
+Outer VLAN ID:
+100
+Outer VLAN Cos:
+0
+Outer VLAN DEI:
+1
+Created:
+Sat Jul 25 02:09:54 2020
+State:
+Activated
+Ifhandle:
+0x000b75a0
+VRF:
+default
+Access-interface:
+Bundle-Ether1.1
+Attribute List: 0x5556aed3f878
+1:
+ipv6-enable
+len=
+4
+value= 1(1)
+2:
+ipv4-unnumbered len=
+9
+value= Loopback1
+3:
+strict-rpf
+len=
+4
+value= 1(1)
+4:
+ipv6-strict-rpf len=
+4
+value= 1(1)
+5:
+ipv4-icmp-unreachable len=
+4
+value= 1(1)
+6:
+ipv6-unreachable len=
+4
+value= 1(1)
+7:
+ipv4-mtu
+len=
+4
+value= 1500(5dc)
+8:
+ipv6-mtu
+len=
+4
+value= 1500(5dc)
+Session Accounting:
+enabled
+Interim Interval:
+1800 secs
+Last interim timestamp:
+Sun Aug
+2 23:39:46 2020
+Interim fail count: None
+Last interim failed reason: NA
+Last stats:
+BytesIn: 0
+BytesOut: 384570
+BytesInGiga: 0
+BytesOutGiga: 0
+Feature IDs activated :
+0x800e2e71
+This example shows how to view the information of all the subscribers:
+Router# show cnbng-nal subscriber all
+Fri Sep 11 06:07:52.343 UTC
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+66
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 73 ---
+
+Codes: CN - Connecting, CD - Connected, AC - Activated,
+ID - Idle, DN - Disconnecting, IN - Initializing
+CPID(hex)
+Interface
+State
+Mac Address
+Subscriber IP Addr / Prefix
+(Vrf) Ifhandle
+---------------------------------------------------------------------------------------------------
+1005ca0
+BE2.500.ip2149474448
+AC
+0010.942e.3b00
+13.0.92.160 (default) 0x225e60
+1:4::5c9f (IANA)
+2003:db0:0:5c9e::/64 (IAPD)
+10053b2
+BE2.500.ip2149466000
+AC
+0010.942e.3689
+13.0.83.175 (default) 0xfdfe0
+1:4::53b1 (IANA)
+2003:db0:0:53b0::/64 (IAPD)
+1004c81
+BE2.600.ip2149013936
+AC
+0010.942e.5230
+13.0.76.129 (default) 0x4079a0
+1:4::4c80 (IANA)
+2003:db0:0:4c7f::/64 (IAPD)
+1004aaa
+BE2.500.ip2149353232
+AC
+0010.942e.3205
+13.0.74.169 (default) 0x5192e0
+1:4::4aa9 (IANA)
+2003:db0:0:4aa8::/64 (IAPD)
+1004927
+BE2.600.ip2149518576
+AC
+0010.942e.50b1
+13.0.73.116 (default) 0x219ba0
+1:4::4926 (IANA)
+2003:db0:0:4925::/64 (IAPD)
+10047e4
+BE2.800.ip2149422928
+AC
+0010.9431.a7c7
+13.0.71.228 (default) 0x41ff60
+1:4::47e4 (IANA)
+2003:db0:0:47e2::/64 (IAPD)
+1004777
+BE2.600.ip2149520224
+AC
+0010.942e.5021
+13.0.71.115 (default) 0x41420
+1:4::4776 (IANA)
+2003:db0:0:4775::/64 (IAPD)
+1003a6d
+BE2.800.ip2149369728
+AC
+0010.9431.a3a1
+13.0.58.105 (default) 0x141360
+1:4::3a6d (IANA)
+2003:db0:0:3a6a::/64 (IAPD)
+10038b7
+BE2.600.ip2149362240
+AC
+0010.942e.4bb2
+13.0.56.178 (default) 0x259aa0
+1:4::38b6 (IANA)
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+67
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 74 ---
+
+2003:db0:0:38b5::/64 (IAPD)
+10028ba
+BE2.500.ip2149210768
+AC
+0010.942e.2873
+13.0.40.185 (default) 0x129620
+1:4::28b9 (IANA)
+2003:db0:0:28b8::/64 (IAPD)
+100247b
+BE2.600.ip2149396320
+AC
+0010.942e.46a3
+13.0.36.113 (default) 0x4b8e0
+1:4::2471 (IANA)
+2003:db0:0:2470::/64 (IAPD)
+100207a
+BE2.500.ip2149356496
+AC
+0010.942e.2663
+13.0.32.117 (default) 0x1a9460
+1:4::2079 (IANA)
+2003:db0:0:2078::/64 (IAPD)
+1001d3f
+BE2.600.ip2149251360
+AC
+0010.942e.44d4
+13.0.29.61 (default) 0xcc760
+This example shows how to view the definition of the services and features used for subscribers:
+Router# show cnbng-nal subscriber fadb
+Mon Aug
+3 00:03:12.858 UTC
+Location: 0/RSP1/CPU0
+==================
+UPID:
+0x800ec810
+Service-ID: 0x04000003
+Service-Name: JHV_VOICE
+Feature-ID: 0x800ec812
+Attribute List: 0x559cba6d0008
+1:
+feature-acct-bitmask len=
+4
+value= 805306413(3000002d)
+Accounting:
+enabled
+Interim fail count: None
+Last interim failed reason: None
+Last stats:
+BytesIn: 0
+BytesOut: 0
+BytesInGiga: 0
+BytesOutGiga: 0
+UPID:
+0x800e9470
+Service-ID: 0x04000003
+Service-Name: JHV_VOICE
+Feature-ID: 0x800e9472
+Attribute List: 0x559cba6d0008
+1:
+feature-acct-bitmask len=
+4
+value= 805306413(3000002d)
+Accounting:
+enabled
+Interim fail count: None
+Last interim failed reason: None
+Last stats:
+BytesIn: 0
+BytesOut: 0
+BytesInGiga: 0
+BytesOutGiga: 0
+UPID:
+0x800e7ee0
+Service-ID: 0x04000003
+Service-Name: JHV_VOICE
+Feature-ID: 0x800e7ee2
+Attribute List: 0x559cba6d0008
+1:
+feature-acct-bitmask len=
+4
+value= 805306413(3000002d)
+Accounting:
+enabled
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+68
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 75 ---
+
+Interim fail count: None
+Last interim failed reason: None
+Last stats:
+BytesIn: 0
+BytesOut: 0
+BytesInGiga: 0
+BytesOutGiga: 0
+UPID:
+0x800e16e0
+Service-ID: 0x04000004
+Service-Name: LIVE_TV
+Feature-ID: 0x800e16e1
+Attribute List: 0x559cba6d0008
+1:
+feature-acct-bitmask len=
+4
+value= 0(0)
+Accounting:
+disabled
+Interim fail count: None
+Last interim failed reason: None
+Last stats:
+BytesIn: 0
+BytesOut: 0
+BytesInGiga: 0
+BytesOutGiga: 0
+UPID:
+0x800dda90
+Service-ID: 0x04000003
+Service-Name: JHV_VOICE
+Feature-ID: 0x800dda91
+Attribute List: 0x559cba6d0008
+1:
+feature-acct-bitmask len=
+4
+value= 805306413(3000002d)
+Accounting:
+enabled
+Interim fail count: None
+Last interim failed reason: None
+Last stats:
+BytesIn: 0
+BytesOut: 0
+BytesInGiga: 0
+BytesOutGiga: 0
+UPID:
+0x800dd4e0
+Service-ID: 0x04000004
+Service-Name: LIVE_TV
+Feature-ID: 0x800dd4e1
+Attribute List: 0x559cba6d0008
+1:
+feature-acct-bitmask len=
+4
+value= 0(0)
+Accounting:
+disabled
+Interim fail count: None
+Last interim failed reason: None
+Last stats:
+BytesIn: 0
+BytesOut: 0
+BytesInGiga: 0
+BytesOutGiga: 0
+This example shows how to view the access-interface details on budge ether:
+Router# show cnbng-nal subscriber access-interface bundle-Ether 1.1
+Mon Aug
+3 00:04:42.558 UTC
+=====================
+Location: 0/RSP0/CPU0
+=====================
+Type
+PPPoE
+IPoE
+====
+=====
+====
+Session Counts by State:
+initializing
+0
+0
+connecting
+0
+0
+connected
+0
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+69
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 76 ---
+
+activated
+0
+8000
+idle
+0
+0
+disconnecting
+0
+0
+Total:
+0
+8000
+Session Counts by Address-Family:
+none
+0
+0
+ipv4
+0
+0
+ipv6
+0
+8000
+dual
+0
+0
+Total:
+0
+8000
+=====================
+Location: 0/RSP1/CPU0
+=====================
+Type
+PPPoE
+IPoE
+====
+=====
+====
+Session Counts by State:
+initializing
+0
+0
+connecting
+0
+0
+connected
+0
+0
+activated
+0
+8000
+idle
+0
+0
+disconnecting
+0
+0
+Total:
+0
+8000
+Session Counts by Address-Family:
+none
+0
+0
+ipv4
+0
+0
+ipv6
+0
+8000
+dual
+0
+0
+Total:
+0
+8000
+This example shows how to view the summary of IPOE details of the subscriber:
+Router# show cnbng-nal subscriber type ipoe summary
+Mon Aug
+3 00:06:15.032 UTC
+=====================
+Location: 0/RSP0/CPU0
+=====================
+Type
+PPPoE
+IPoE
+====
+=====
+====
+Session Counts by State:
+initializing
+0
+0
+connecting
+0
+0
+connected
+0
+0
+activated
+0
+8000
+idle
+0
+0
+disconnecting
+0
+0
+Total:
+0
+8000
+Session Counts by Address-Family:
+none
+0
+0
+ipv4
+0
+0
+ipv6
+0
+8000
+dual
+0
+0
+Total:
+0
+8000
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+70
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 77 ---
+
+=====================
+Location: 0/RSP1/CPU0
+=====================
+Type
+PPPoE
+IPoE
+====
+=====
+====
+Session Counts by State:
+initializing
+0
+0
+connecting
+0
+0
+connected
+0
+0
+activated
+0
+8000
+idle
+0
+0
+disconnecting
+0
+0
+Total:
+0
+8000
+Session Counts by Address-Family:
+none
+0
+0
+ipv4
+0
+0
+ipv6
+0
+8000
+dual
+0
+0
+Total:
+0
+8000
+=====================
+Location: 0/RSP0/CPU0
+=====================
+Type
+PPPoE
+IPoE
+====
+=====
+====
+Session Counts by State:
+initializing
+0
+0
+connecting
+0
+0
+connected
+0
+0
+activated
+31031
+0
+idle
+0
+0
+disconnecting
+0
+0
+Total:
+31031
+0
+Session Counts by Address-Family:
+none
+0
+0
+ipv4
+31031
+0
+ipv6
+0
+0
+dual
+0
+0
+Total:
+31031
+0
+The example shows how to display NAL process all routed subscriber records using the routed
+keyword.
+Router#show cnbng-nal subscriber type routed ?
+detail
+Detailed subscriber information
+location
+Specify a location
+summary
+Summary of subscriber sessions
+This example shows how to display subscriber type and sub-type for routed subscribers.
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+71
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 78 ---
+
+Router#show cnbng-nal subscriber all detail
+=====================
+Location: 0/0/CPU0
+=====================
+Interface:
+Bundle-Ether1.ip2147483664
+UPID:
+0x80000010
+CPID:
+0x00000002
+Type:
+IPoE
+Sub-type:
+Routed
+Routed IPv4 Prefix:
+0.0.0.0
+Routed IPv6 Prefix:
+1::2
+IPv4 Address:
+0.0.0.0
+IPv4 Framed Route:
+NA
+IPv6 IANA Address:
+cafe::bad1
+IPv6 IAPD Prefix:
+cafe:bed1::/64
+This example shows how the IPoE subscribers as L2 connected and routed subscribers are classified.
+Router#show cnbng-nal subscriber all summary
+=====================
+Location: 0/0/CPU0
+=====================
+Type
+PPPoE
+IPoE
+LAC
+LNS
+====
+=====
+====
+===
+===
+L2-Conn
+Routed
+=======
+======
+Session Counts by State:
+initializing
+0
+0
+0
+0
+0
+connecting
+0
+0
+0
+0
+0
+connected
+0
+0
+0
+0
+0
+activated
+0
+0
+1
+0
+0
+idle
+0
+0
+0
+0
+0
+disconnecting
+0
+0
+0
+0
+0
+Total:
+0
+0
+1
+0
+0
+This example shows how to display information about all subscribers that are in the warm mode.
+Router# show cnbng-nal subscriber warm all
+Thu Nov 27 11:27:15.820 IST
+=====================
+Location: 0/0/CPU0
+=====================
+Codes: IA - Inactive, AG - Activating, AC - Active,
+CPID(hex)
+State
+Mac Address
+Subscriber IP Addr / Prefix (Vrf)
+-------------------------------------------------------------------
+2
+AC
+1234.1234.4555
+10.0.0.2 default
+10.0.1.0/24 (Framed IPv4)
+10.0.0.0/24 (Framed IPv4)
+befe::bad1 (IANA)
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+72
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 79 ---
+
+befe:bed1::/64 (IAPD)
+beca::/64 (Slaac PD)
+2001:db8:10:/24 (Framed IPv6)
+2001:db8:20:/24 (Framed IPv6)
+Session-count: 1
+This example shows how to display a summary of all subscriber sessions that are in the warm mode.
+Router# show cnbng-nal subscriber warm all summary
+Thu Nov 27 11:29:10.137 IST
+=====================
+Location: 0/0/CPU0
+=====================
+Type
+PPPoE
+IPoE
+LAC
+LNS
+====
+=====
+====
+===
+===
+L2-Conn
+Routed
+=======
+======
+Session Counts by State:
+Activating
+0
+0
+0
+0
+0
+Active
+1
+0
+0
+0
+0
+InActive
+0
+0
+0
+0
+0
+Total:
+1
+0
+0
+0
+0
+Session Counts by Address-Family:
+none
+0
+0
+0
+0
+0
+ipv4
+0
+0
+0
+0
+0
+ipv6
+0
+0
+0
+0
+0
+dual
+1
+0
+0
+0
+0
+lac
+0
+0
+0
+0
+0
+Total:
+1
+0
+0
+0
+0
+This example shows how to display detailed information about a specific subscriber session (identified
+by CPID 2) that is currently in the warm mode.
+Router# show cnbng-nal subscriber warm cpid 2 detail
+Thu Nov 27 11:29:51.917 IST
+=====================
+Location: 0/0/CPU0
+=====================
+UPID
+: 0x80000010
+CPID
+: 0x00000002
+Msg Txn id
+: 1
+Source port id
+: 1
+Session Txn id
+: 3
+Oper code
+: SPA_OPER_TYPE_CREATE
+IPOE AFI Cap
+: SPA_SUB_AFI_INVALID
+Feature mask
+: 0x51dfe00
+SRG report id
+: 0
+Feature flags
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+73
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 80 ---
+
+-------------
+[SPA_FEATURE_IPv4_ADDR | SPA_FEATURE_IANA_ADDR | SPA_FEATURE_IAPD_ADDR |
+SPA_FEATURE_LINK_LOCAL |
+SPA_FEATURE_V4_ROUTE | SPA_FEATURE_V6_ROUTE | SPA_FEATURE_SRG | SPA_FEATURE_OUTER_VLAN |
+SPA_FEATURE_SUBSCRIBER_VRF | SPA_FEATURE_PPPOE_TIMER | SPA_FEATURE_PPPOE_MAGIC_NUM |
+SPA_FEATURE_PPP_MTU |
+SPA_FEATURE_SLAAC]
+IPv4 address Info
+-----------------
+Oper code
+: SPA_OPER_TYPE_CREATE
+IPv4 address
+: 100.0.0.2
+IPv6 address Info
+-----------------
+Oper code
+: SPA_OPER_TYPE_CREATE
+IPv6 address(iana)
+: befe::bad1
+IPv6 address(iapd)
+: befe:bed1::
+Link local
+: fe80:abcd::
+Prefix length
+: 64
+IPv6 slaac address
+: beca::
+Prefix length
+: 64
+Session Data
+------------
+Access interface
+: Bundle-Ether1.1
+Mac address
+: 1234.1234.4555
+VRF name
+: default
+Session type
+: SPA_SESSION_TYPE_PPPOE
+SRG group name
+: group1
+PPP Info
+--------
+Local magic number
+: 12345678
+Peer magic number
+: 87654321
+Retry count
+: 1
+Keep alive interval : 60 secs
+PPPOE session id
+: 2
+Vlan Info
+---------
+Outer vlan
+: 1
+ICMP and MTU Info
+-----------------
+PPP MTU
+: 1400
+IPv4 route Info
+---------------
+Oper code
+: SPA_OPER_TYPE_CREATE
+VRF name
+: default
+IPv4 address
+: 200.0.0.0
+Prefix length
+: 24
+Next hop
+: 4.0.0.1
+Tag
+: 0
+Metric
+: 0
+Next hop VRF name
+: default
+Distance
+: 1
+IPv4 route Info
+---------------
+Oper code
+: SPA_OPER_TYPE_CREATE
+VRF name
+: default
+IPv4 address
+: 1.0.0.0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+74
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 81 ---
+
+Prefix length
+: 24
+Next hop
+: 4.0.0.1
+Tag
+: 0
+Metric
+: 0
+Next hop VRF name
+: default
+Distance
+: 0
+IPv6 route Info
+---------------
+Oper code
+: SPA_OPER_TYPE_CREATE
+VRF name
+: default
+IPv6 address
+: 101::
+Prefix length
+: 24
+Next hop
+: ::
+Tag
+: 0
+Metric
+: 0
+Next hop VRF name
+: default
+Distance
+: 1
+IPv6 route Info
+---------------
+Oper code
+: SPA_OPER_TYPE_CREATE
+VRF name
+: default
+IPv6 address
+: 102::
+Prefix length
+: 24
+Next hop
+: ::
+Tag
+: 0
+Metric
+: 0
+Next hop VRF name
+: default
+Distance
+: 0
+[NAL-SRG-WARM-SUBSCRIBER-EVENTS]
+| Event Name
+| Time Stamp
+| User Data
+| Subs create
+| Nov 27 11:26:51.149956
+| feat_flag: 0x051dfe00, subs_flag:
+0x00000001
+===================__#__=======================
+This example shows how to display information about a specific subscriber session (identified by
+CPID 2) that is in the warm state and is associated with a specific location.
+Router# show cnbng-nal subscriber warm cpid 2 location 0/0/CPU0
+Thu Nov 27 11:29:40.870 IST
+=====================
+Location: 0/0/CPU0
+=====================
+Codes: IA - Inactive, AG - Activating, AC - Active,
+CPID(hex)
+State
+Mac Address
+Subscriber IP Addr / Prefix (Vrf)
+-------------------------------------------------------------------
+2
+AC
+1234.1234.4555
+100.0.0.2 default
+200.0.0.0/24 (Framed IPv4)
+1.0.0.0/24 (Framed IPv4)
+befe::bad1 (IANA)
+befe:bed1::/64 (IAPD)
+beca::/64 (Slaac PD)
+101::/24 (Framed IPv6)
+102::/24 (Framed IPv6)
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+75
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber
+
+
+--- Page 82 ---
+
+show cnbng-nal subscriber disconnect-history
+To view the subscriber disconnect history details, use the show cnbng-nal subscriber disconnect-history
+command in EXEC mode.
+show
+cnbng-nal
+subscriber
+disconnect-history
+{ last
+[summary]
+[ location
+{ location |
+all } ] | type | sub-interface
+intf-type
+intf-num
+location
+location | unique
+[summary]
+[ location
+{ location | all } ] }
+Syntax Description
+Displays the subscriber disconnect information on the specifed access interface.
+Use the show interfaces command to see a list of all interfaces currently configured on
+the router.
+For more information, use the question mark (?) online help function.
+access-interface
+Displays the last available subscriber disconnect information on the specifed access
+interface.
+last
+Displays the NAL process filter subscriber records.
+type
+Displays the information of the disconnected subscriber reason.
+unique
+Displays the subscriber disconnect information on the specifed access interface.
+Use the show interfaces command to see a list of all interfaces currently configured on
+the router.
+For more information, use the question mark (?) online help function.
+subinterface
+(optional) Displays information about periodic statistics for the specified location. The
+location argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view information for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+76
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber disconnect-history
+
+
+--- Page 83 ---
+
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to view disconnect history details of the subscriber:
+Router# show cnbng-nal subscriber disconnect-history unique
+Location: 0/RSP1/CPU0
+| Count|
+Last Interface
+| Disconnected Reason | Last Time Disconnected
+Location: 0/1/CPU0
+Location: 0/RSP0/CPU0
+| Count|
+Last Interface
+| Disconnected Reason | Last Time Disconnected
+35494
+Bundle-Ether1.1.ip2148328848
+Disconnect by CP
+Sat Jul 25 02:04:55 2020
+14154
+Bundle-Ether1.1.ip2148324096
+Disconnect by clear CLI
+Sat Jul 25 02:05:48
+2020
+2777
+Bundle-Ether1.1.ip2148194512
+Disconnect due to create failure
+Sat Jul 25
+01:38:29 2020
+This example shows how to view last disconnect information of the subscriber:
+Router# show cnbng-nal subscriber disconnect-history last location all
+Disconnect-reason:
+Disconnect by clear CLI
+Disconnect-timestamp:
+Sat Jul 25 02:05:48 2020
+Message Txn ID: 55663
+Session Txn ID: 1
+Failed at: Sat Jul 25 01:57:03 2020
+Feature Mask: 0x0
+SVM State: 0
+IPSUB flags: 0x600a200
+Pending callback: 0x2
+Data:
+Interface:
+Bundle-Ether1.1.ip2148324096
+UPID:
+0x800cd300
+CPID:
+0x01007bd8
+PPPOE Session Id:
+0x0000
+Type:
+IPoE
+IPv4 Address:
+0.0.0.0
+IPv4 Framed Route:
+Prefix:
+0.0.0.0/0
+Next Hop:
+0.0.0.0
+Tag:
+0
+IPv6 IANA Address:
+1:5::3de5
+IPv6 IAPD Prefix:
+2004:cd0:0:616::/64
+CPE link local Address:
+::
+IPv6 Framed Route:
+Prefix:
+::/0
+Next Hop:
+::
+Tag:
+0
+IPv6 State:
+UP, Sat Jul 25 01:57:03 2020
+Mac Address:
+5065.aaab.cfbb
+Inner VLAN ID:
+Not Set
+Outer VLAN ID:
+100
+Outer VLAN Cos:
+0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+77
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber disconnect-history
+
+
+--- Page 84 ---
+
+Outer VLAN DEI:
+1
+Created:
+Sat Jul 25 02:05:48 2020
+State:
+Init
+Ifhandle:
+0x000323a0
+VRF:
+default
+Access-interface:
+Bundle-Ether1.1
+Attribute List: 0x559125764408
+1:
+ipv6-enable
+len=
+4
+value= 1(1)
+2:
+ipv4-unnumbered len=
+9
+value= Loopback1
+3:
+strict-rpf
+len=
+4
+value= 1(1)
+4:
+ipv6-strict-rpf len=
+4
+value= 1(1)
+5:
+ipv4-icmp-unreachable len=
+4
+value= 1(1)
+6:
+ipv6-unreachable len=
+4
+value= 1(1)
+7:
+ipv4-mtu
+len=
+4
+value= 1500(5dc)
+8:
+ipv6-mtu
+len=
+4
+value= 1500(5dc)
+Session Accounting:
+enabled
+Interim Interval:
+1800 secs
+Last interim timestamp:
+Sat Jul 25 02:05:47 2020
+Interim fail count: None
+Last interim failed reason: NA
+Last stats:
+BytesIn: 0
+BytesOut: 540
+BytesInGiga: 0
+BytesOutGiga: 0
+Feature IDs activated :
+0x800cd301
+0x800cd302
+[Event History]
+UPID:
+0x800cd300
+| Event Name
+| Time Stamp
+| S, M
+| Create
+| Jul 25 01:57:02.999679 | 0, 0
+| New Session Request
+| Jul 25 01:57:02.999686 | 0, 0
+| Interface create
+| Jul 25 01:57:02.999823 | 0, 0
+| SVM create
+| Jul 25 01:57:03.018268 | 0, 0
+| UP Install(req)
+| Jul 25 01:57:03.018321 | 0, 0
+| UP Install(CB)
+| Jul 25 01:57:03.019220 | 0, 0
+| Last Assoc(req)
+| Jul 25 01:57:03.019232 | 0, 0
+| Last Assoc(CB)
+| Jul 25 01:57:03.020160 | 0, 1
+| Produce done(req)
+| Jul 25 01:57:03.020233 | 0, 0
+| IPv4 Caps Up
+| Jul 25 01:57:03.188034 | 0, 0
+| IPv6 Caps Up
+| Jul 25 01:57:03.233210 | 0, 0
+| Init data req
+| Jul 25 01:57:03.254482 | 0, 1
+| Init data cb
+| Jul 25 01:57:03.369027 | 0, 1
+| Client Session up
+| Jul 25 01:57:03.379152 | 0, 0
+| Produce done
+| Jul 25 01:57:03.977629 | 0, 0
+| IPv6 Up
+| Jul 25 01:57:03.977643 | 0, 0
+| Session up notified
+| Jul 25 01:57:03.977650 | 0, 0
+| Stats start
+| Jul 25 01:57:03.977841 | 0, 0
+| Disconnect notified
+| Jul 25 02:05:47.548202 | 0, 0
+| Disconnect ack
+| Jul 25 02:05:47.550293 | 0, 0
+| IPv4 Caps Down
+| Jul 25 02:05:47.652232 | 0, 0
+| IPv6 Caps Down
+| Jul 25 02:05:47.652333 | 0, 0
+| Final stats
+| Jul 25 02:05:47.753805 | 0, 0
+| SVM delete
+| Jul 25 02:05:47.780713 | 0, 0
+| SVM cleanup
+| Jul 25 02:05:48.283050 | 0, 0
+Help: S - Sticky Event, M - Multiple Occurrence
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+78
+cnBNG User Plane Verification Commands
+show cnbng-nal subscriber disconnect-history
+
+
+--- Page 85 ---
+
+show cnbng-nal vrf-table-info
+To view the VRF table information for the user plane of cloud native BNG (cnBNG), use the show cnbng-nal
+vrf-table-info command in EXEC mode.
+show
+cnbng-nal
+vrf-table-info
+vrf
+{ vrf-name | all | default }
+[ location
+location-id ]
+Syntax Description
+Displays the VRF table information of the specified vrf name.
+You can specify a specific vrf-name or the default VRF. Use all to view all the VRF
+information.
+vrf vrf-name
+or
+vrf default
+(optional) Displays information about VRF table, for the specified location. The location
+argument is entered in the rack/slot/module notation.
+You can specify a specific location-id in the rack/slot/module format or specify
+location all to view VRF table information for all locations.
+location
+location-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The task id was changed from cisco-support to network.
+Release
+24.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+Read,
+write
+network
+This example shows how to view the VRF table information for the default VRF.
+Router# show cnbng-nal vrf-table-info vrf default
+Mon Feb 15 10:44:01.280 UTC
+Location: 0/RSP0/CPU0
+VRF: default
+AFI: IPv4
+table-id
+: 0x0
+proto-id
+: NA
+flags
+: 0x0
+in_sync
+: 0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+79
+cnBNG User Plane Verification Commands
+show cnbng-nal vrf-table-info
+
+
+--- Page 86 ---
+
+ref_count
+: 0
+max_ref_count
+: 0
+pending-routes
+: 0
+AFI: IPv6
+table-id
+: 0x0
+proto-id
+: NA
+flags
+: 0x0
+in_sync
+: 0
+ref_count
+: 0
+max_ref_count
+: 0
+pending-routes
+: 0
+RP/0/RSP0/CPU0:ios#
+This example shows how to view the VRF table information for a specific location.
+Router# show cnbng-nal vrf-table-info vrf default location 0/RSP0/CPU0
+Mon Feb 15 10:40:30.255 UTC
+Location: 0/RSP0/CPU0
+VRF: default
+AFI: IPv4
+table-id
+: 0x0
+proto-id
+: NA
+flags
+: 0x0
+in_sync
+: 0
+ref_count
+: 0
+max_ref_count
+: 0
+pending-routes
+: 0
+AFI: IPv6
+table-id
+: 0x0
+proto-id
+: NA
+flags
+: 0x0
+in_sync
+: 0
+ref_count
+: 0
+max_ref_count
+: 0
+pending-routes
+: 0
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+80
+cnBNG User Plane Verification Commands
+show cnbng-nal vrf-table-info
+
+
+--- Page 87 ---
+
+cnBNG User Plane Subscriber Management
+Commands
+This chapter describes the Cisco IOS XR software commands that are used to configure subscriber management
+for the cnBNG user plane on Cisco ASR 9000 Series Routers. For details regarding the related configurations,
+see the Cloud Native BNG User Plane Configuration Guide for Cisco ASR 9000 Series Routers.
+• clear cnbng-nal subscriber sub-type, on page 82
+• dhcp profile, on page 83
+• initiator dhcp, on page 84
+• l2tp enable, on page 86
+• lns enable, on page 87
+• pppoe enable, on page 88
+• subscriber redundancy, on page 89
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+81
+
+
+--- Page 88 ---
+
+clear cnbng-nal subscriber sub-type
+To clear the session record for the user plane of cloud native BNG (cnBNG), use the clear cnbng-nal
+subscriber sub-type command in EXEC mode.
+clear
+cnbng-nal
+{ ipoe | ipoe-l2-connected | ipoe-routed | lac | lns | pppoe }
+Syntax Description
+Clears the IPoE L2 and routed subscriber session records.
+ipoe
+Clears the IPoE L2 connected subscriber session records.
+ipoe-l2-connected
+Clears the IPoE routed subscriber records.
+ipoe-routed
+Clears the LAC subscriber session records.
+lac
+Clears the LNS subscriber session records.
+lns
+Clears the PPPoE subscriber session records.
+pppoe
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.3.1
+The command was modified to include the ipoe-l2-connected and ipoe-routed keywords.
+Release
+25.1.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+network
+This example shows how to clear IPOE subscriber session records:
+Router# clear cnbng-nal subscriber sub-type ipoe
+This example shows how to clear routed subscriber session records:
+Router# clear cnbng-nal subscriber sub-type ipoe-routed
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+82
+cnBNG User Plane Subscriber Management Commands
+clear cnbng-nal subscriber sub-type
+
+
+--- Page 89 ---
+
+dhcp profile
+To specify a DHCP profile for the Dynamic Host Configuration Protocol (DHCP) IPv4 and IPv6 component
+and to enter the profile mode, use the profile command in DHCP IPv4 or DHCP IPv6 configuration submode.
+To disable a profile and exit the profile mode, use the no form of this command.
+dhcp { ipv4 | ipv6 } profile
+profile_name cnbng
+Syntax Description
+Specifies the name of the profile
+that uniquely identifies the proxy
+or server.
+profile_name
+Creates a cloud native BNG
+(cnBNG) profile.
+cnbng
+Command Default
+None
+Command Modes
+DHCP IPv4 configuration
+DHCP IPv6 configuration
+Command History
+Modification
+Release
+Support for the DHCP IPv4 and DHCP IPv6 cnbng profile was added for cnBNG.
+Release
+7.4.2
+Usage Guidelines
+The profile-name and the class-name should be unique per base profile.
+Task ID
+Operations
+Task ID
+read,
+write
+ip-services
+Examples
+This example shows how to create a DHCPv4 cnBNG profile:
+Router(config)#dhcp ipv4
+Router(config-dhcpv4)#profile cnbng_1 cnbng
+Router(config-dhcpv4-cnbng-profile)#exit
+Router(config-dhcpv4)#interface bundle-Ether 1.1 cnbng profile cnbng_1
+Router(config-dhcpv4)#interface bundle-Ether 2.1 cnbng profile cnbng_1
+Router(config-dhcpv4)#commit
+This example shows how to create a DHCPv6 cnBNG profile:
+Router(config)#dhcp ipv6
+Router(config-dhcpv4)#profile cnbng_1 cnbng
+Router(config-dhcpv4-cnbng-profile)#exit
+Router(config-dhcpv4)#interface bundle-Ether 1.1 cnbng profile cnbng_1
+Router(config-dhcpv4)#interface bundle-Ether 2.1 cnbng profile cnbng_1
+Router(config-dhcpv4)#commit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+83
+cnBNG User Plane Subscriber Management Commands
+dhcp profile
+
+
+--- Page 90 ---
+
+initiator dhcp
+To enable DHCP as first-sign-of-life protocol for IPv4 or IPv6 subscriber, use the initiator dhcp command
+in the appropriate configuration submode. To disable this feature, use the no form of this command.
+initiator dhcp { prefix-len length | src-ip-dual-lookup }
+Syntax Description
+Specifies the prefix-length for
+IAPD IP addresses. The range is
+from 1 to 127.
+prefix-len length
+Enables lookup of IPv6 IANA or
+IAPD source address for ingress
+packets from subscriber interface.
+src-ip-dual-lookup
+Command Default
+None
+Command Modes
+IP subscriber IPv4 L2-connected configuration
+IP subscriber IPv6 L2-connected configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.4.2
+The command was modified to include the prefix-len and src-ip-dual-lookup keywords.
+Release
+25.1.1
+Usage Guidelines
+This command is not supported for IPv6 routed subscribers. Starting from Release 25.1.1, you can use this
+command for IPv6 routed subscriber sessions.
+Task ID
+Operation
+Task ID
+read,
+write
+network
+This is an example of configuring the initiator dhcp command in the Interface configuration mode:
+Router# configure
+Router(config)# interface Bundle-Ether 56
+Router(config-if)# ipsubscriber ipv4 l2-connected
+Router(config-if-ipsub-ipv4-l2conn)# initiator dhcp
+This is an example of configuring the initiator dhcp command in the Interface configuration mode:
+Router# configure
+Router(config)# interface Bundle-Ether 56
+Router(config-if)# ipsubscriber ipv6 l2-connected
+Router(config-cnbng-nal-ipsub-l2conn)# initiator dhcp
+Enable the configuration of prefix-length for IAPD IP addresses to enable routed subscriber sessions.
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+84
+cnBNG User Plane Subscriber Management Commands
+initiator dhcp
+
+
+--- Page 91 ---
+
+For Routed subscriber sessions, ensure that the IAPD route prefix length (prefix-len ) matches the
+prefix length configured under the access interface. If not cNBNG CP request is rejected. Routed
+subscriber access interface configuration should only be applied to the bundle main interface.
+Router#configure
+Router(config)#interface bundle-ether 1
+Router(config-if)#ipsubscriber
+Router(config-cnbng-nal-ipsub)#ipv6 routed
+Router(config-cnbng-nal-ipsub-ipv6-routed)#initiator dhcp prefix-len 20 src-ip-dual-lookup
+Router(config-cnbng-nal-ipsub-ipv6-routed)#
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+85
+cnBNG User Plane Subscriber Management Commands
+initiator dhcp
+
+
+--- Page 92 ---
+
+l2tp enable
+To establish the LAC session on cloud native BNG (cnBNG), use the l2tp enable command in cnbng-nal
+configuration mode. To remove this configuration, use the no form of this command.
+l2tp enable
+This command has no keywords or arguments.
+None
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.4.2
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to configure LAC on the user plane of cnBNG:
+Router#configure
+Router(config)#cnbng-nal location 0/0/CPU0
+Router(config-cnbng-nal-local)#l2tp enable
+Router(config-cnbng-nal-local)#commit
+Router(config-cnbng-nal-local)#exit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+86
+cnBNG User Plane Subscriber Management Commands
+l2tp enable
+
+
+--- Page 93 ---
+
+lns enable
+To establish the LNS session on cloud native BNG (cnBNG), use the lns enable command in cnbng-nal
+configuration mode. To remove this configuration, use the no form of this command.
+lns enable
+This command has no keywords or arguments.
+None
+Command Modes
+cnbng-nal
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.4.2
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+This example shows how to configure LNS on the user plane of cnBNG:
+Router(config)#interface bundle-ether 1.1
+Router(config-subif)#ipv4 address 192.5.1.1 255.255.255.0
+Router(config-subif)#ipv6 enable
+Router(config-subif)#lns enable
+Router(config-subif)#commit
+Router(config-subif)#exit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+87
+cnBNG User Plane Subscriber Management Commands
+lns enable
+
+
+--- Page 94 ---
+
+pppoe enable
+To enable pppoe on an interface, use the pppoe enable command in interface configuration mode. To disable
+the pppoe on the interface, use the no form of this command.
+pppoe enable
+This command has no keywords or arguments.
+None
+Command Modes
+Interface configuration
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.4.2
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task
+ID
+read,
+write
+ppp
+This is an example for configuring the pppoe enable command in interface configuration mode:
+Router#configure
+Router(config)#interface Bundle-Ether100.10
+Router(config-if)# pppoe enable
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+88
+cnBNG User Plane Subscriber Management Commands
+pppoe enable
+
+
+--- Page 95 ---
+
+subscriber redundancy
+To configure subscriber redundancy group, use the subscriber redundancy command in cnbng-nal
+configuration mode. To disable the subscriber redundancy, use the no form of this command.
+subscriber-redundancy
+group
+name
+[ access-interface-list
+interface
+name | access-tracking
+name | core-tracking
+name | damping-timer-val
+value | fast-switchover-disable | route-tag
+value
+| virtual-mac
+mac-address ]
+Syntax Description
+Specifies the subscriber redundancy group name.
+group name
+Specifies the access interface for the specified subscriber redundancy
+group.
+access-interface-listinterface name
+Specifies the access tracking object for the specified subscriber
+redundancy group.
+access-tracking name
+Specifies the core tracking object for the specified subscriber
+redundancy group.
+core-tracking name
+Specifies the damping timer value for the specified subscriber
+redundancy group.
+Allowed range is from 60-600 seconds.
+damping-timer-val value
+Disables the fast switchover mode for the specified subscriber
+redundancy group.
+fast-switchover-disable
+Specifies the route tag value to be applied for subnet routes.
+Allowed range is from 1 to 4294967295.
+route-tag value
+Specifies the virtual mac address for the specified subscriber
+redundancy group.
+virtual-mac mac-address value
+None
+Command Modes
+cnbng-nal configuration mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.8.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+config-services
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+89
+cnBNG User Plane Subscriber Management Commands
+subscriber redundancy
+
+
+--- Page 96 ---
+
+This is an example of configure the subscriber redundancy group:
+Router#configure
+Router(config)#cnbng-nal location 0/0/CPU0
+Router(config-cnbng-nal-local)#subscriber-redundancy
+Router(config-cnbng-nal-sub-red)#group group1
+Router(config-cnbng-nal-srg-grp)#virtual-mac 0aaa.0bbb.0c01
+Router(config-cnbng-nal-srg-grp)# core-tracking core1
+Router(config-cnbng-nal-srg-grp)#access-tracking track1
+Router(config-cnbng-nal-srg-grp)#access-interface-list
+Router(config-cfg-srg-grp-intf)#interface Bundle-Ether1.1
+Router(config-cfg-srg-grp-intf)# exit
+Router(config-cfg-srg-grp)# fast-switchover-disable
+Router(config-cfg-srg-grp)# exit
+Cloud Native BNG User Plane Command Reference for Cisco ASR 9000 Series Routers
+90
+cnBNG User Plane Subscriber Management Commands
+subscriber redundancy
