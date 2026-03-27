@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -21,13 +22,19 @@ type IngestResult struct {
 
 // Pipeline orchestrates split → detect → parse → store.
 type Pipeline struct {
-	db       *store.DB
-	registry *Registry
+	db        *store.DB
+	registry  *Registry
+	collector *Collector
 }
 
 // NewPipeline creates a Pipeline backed by the given DB and vendor registry.
 func NewPipeline(db *store.DB, registry *Registry) *Pipeline {
 	return &Pipeline{db: db, registry: registry}
+}
+
+// NewPipelineWithCollector creates a Pipeline that captures CmdUnknown outputs.
+func NewPipelineWithCollector(db *store.DB, registry *Registry, c *Collector) *Pipeline {
+	return &Pipeline{db: db, registry: registry, collector: c}
 }
 
 // Ingest splits raw CLI output into command blocks, parses each one,
@@ -167,6 +174,10 @@ func (p *Pipeline) processBlocks(sourceFile string, blocks []CommandBlock, resul
 				continue
 			}
 
+			if b.CmdType == model.CmdUnknown && p.collector != nil {
+				p.collector.Collect(b)
+			}
+
 			parseResult, err := vp.ParseOutput(b.CmdType, b.Output)
 			if err != nil {
 				slog.Warn("parse failed, storing raw", "cmd", b.Command, "error", err)
@@ -186,6 +197,21 @@ func (p *Pipeline) processBlocks(sourceFile string, blocks []CommandBlock, resul
 }
 
 func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult, capturedAt time.Time, vendor string) error {
+	// Generated parsers return row data via Rows; route to scratch pad.
+	if len(pr.Rows) > 0 {
+		rowsJSON, err := json.Marshal(pr.Rows)
+		if err != nil {
+			rowsJSON = []byte("[]")
+		}
+		_, _ = p.db.InsertScratch(model.ScratchEntry{
+			DeviceID: deviceID,
+			Category: "generated",
+			Query:    string(pr.Type),
+			Content:  string(rowsJSON),
+		})
+		return nil
+	}
+
 	for i := range pr.Interfaces {
 		iface := &pr.Interfaces[i]
 		iface.DeviceID = deviceID

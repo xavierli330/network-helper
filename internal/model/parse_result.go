@@ -13,6 +13,11 @@ const (
 	CmdConfig    CommandType = "config"
 	CmdConfigSet CommandType = "config_set"
 	CmdUnknown   CommandType = "unknown"
+
+	// CmdGenerated is the prefix for all Rule Studio-generated CommandType values.
+	// Individual commands use the full form: "generated:<vendor>:<stem>"
+	// This constant is only used as documentation — classifyGenerated() returns unique types.
+	CmdGenerated CommandType = "generated"
 )
 
 type ParseResult struct {
@@ -26,6 +31,7 @@ type ParseResult struct {
 	SRMappings  []SRMapping    `json:"sr_mappings,omitempty"`
 	ConfigText  string         `json:"config_text,omitempty"`
 	RawText     string         `json:"raw_text"`
+	Rows        []map[string]string `json:"rows,omitempty"`
 }
 
 func (pr ParseResult) IsEmpty() bool {
@@ -35,5 +41,6 @@ func (pr ParseResult) IsEmpty() bool {
 		len(pr.LFIBEntries) == 0 &&
 		len(pr.Neighbors) == 0 &&
 		len(pr.Tunnels) == 0 &&
-		len(pr.SRMappings) == 0
+		len(pr.SRMappings) == 0 &&
+		len(pr.Rows) == 0
 }

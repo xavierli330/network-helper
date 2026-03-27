@@ -61,6 +61,8 @@ func (p *promptOnlyParser) ClassifyCommand(cmd string) model.CommandType { retur
 func (p *promptOnlyParser) ParseOutput(cmdType model.CommandType, raw string) (model.ParseResult, error) {
 	return model.ParseResult{RawText: raw}, nil
 }
+func (p *promptOnlyParser) SupportedCmdTypes() []model.CommandType { return nil }
+func (p *promptOnlyParser) FieldSchema(cmdType model.CommandType) []FieldDef { return nil }
 
 type promptMatch struct {
 	lineIndex  int

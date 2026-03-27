@@ -89,6 +89,12 @@ func (w *Watcher) debounce(path string) {
 	})
 }
 
+// TriggerFile manually queues a file for processing via the debounce callback.
+// Safe to call before Start().
+func (w *Watcher) TriggerFile(path string) {
+	w.debounce(path)
+}
+
 func (w *Watcher) Stop() {
 	close(w.stop)
 	w.fsw.Close()

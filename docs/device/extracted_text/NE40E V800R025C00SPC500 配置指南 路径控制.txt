@@ -1,0 +1,2225 @@
+# Source: NE40E V800R025C00SPC500 配置指南 路径控制.pdf
+# Total pages: 42, Extracted: 42
+
+
+--- Page 1 ---
+
+HUAWEI NetEngine40E
+V800R025C00SPC500
+配置指南
+文档版本
+01
+发布日期
+2025-09-30
+华为技术有限公司
+
+
+--- Page 2 ---
+
+ 
+ 
+版权所有 © 华为技术有限公司 2025。 保留一切权利。
+非经本公司书面许可，任何单位和个人不得擅自摘抄、复制本文档内容的部分或全部，并不得以任何形式传
+播。
+ 
+商标声明
+和其他华为商标均为华为技术有限公司的商标。
+本文档提及的其他所有商标或注册商标，由各自的所有人拥有。
+ 
+注意
+您购买的产品、服务或特性等应受华为公司商业合同和条款的约束，本文档中描述的全部或部分产品、服务或
+特性可能不在您的购买或使用范围之内。除非合同另有约定，华为公司对本文档内容不做任何明示或暗示的声
+明或保证。
+由于产品版本升级或其他原因，本文档内容会不定期进行更新。除非另有约定，本文档仅作为使用指导，本文
+档中的所有陈述、信息和建议不构成任何明示或暗示的担保。
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+华为技术有限公司
+地址：
+深圳市龙岗区坂田华为总部办公楼 邮编：518129
+网址：
+https://www.huawei.com
+客户服务邮箱：support@huawei.com
+客户服务电话：4008302118
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+i
+
+
+--- Page 3 ---
+
+目 录
+1 路径控制......................................................................................................................................1
+1.1 前 言............................................................................................................................................................................................. 1
+1.2 PCEP 配置................................................................................................................................................................................... 5
+1.2.1 PCEP 概述................................................................................................................................................................................ 6
+1.2.2 PCEP 配置注意事项.............................................................................................................................................................. 7
+1.2.3 配置PCEP 触发创建MPLS TE 隧道................................................................................................................................. 7
+1.2.3.1 配置隧道入节点为PCE Client........................................................................................................................................ 8
+1.2.3.2 配置PCE Client 的候选算路PCE Server..................................................................................................................... 9
+1.2.3.3 （可选）配置PCE Client 将TE LSP 向所有PCE Server 托管.............................................................................11
+1.2.3.4 （可选）配置PCE Client 的定时器............................................................................................................................ 11
+1.2.3.5 检查配置结果....................................................................................................................................................................12
+1.2.4 配置PCEP 触发创建SR-MPLS TE Policy..................................................................................................................... 13
+1.2.4.1 使能PCE Client 处理SR-MPLS TE Policy 的能力.................................................................................................. 13
+1.2.4.2 配置PCE Client 的候选算路PCE Server...................................................................................................................14
+1.2.4.3 配置PCEP 计算SR-MPLS TE Policy 的约束.............................................................................................................15
+1.2.4.4 （可选）配置PCE Client 的定时器............................................................................................................................ 19
+1.2.4.5 检查配置结果....................................................................................................................................................................20
+1.2.5 使能PCC-Initiated SR-MPLS TE Policy 的自动带宽调整能力................................................................................20
+1.2.6 配置PCEP 触发创建SRv6 TE Policy............................................................................................................................. 22
+1.2.6.1 使能PCE Client 处理SRv6 TE Policy 的能力.......................................................................................................... 22
+1.2.6.2 配置PCE Client 的候选算路PCE Server...................................................................................................................23
+1.2.6.3 配置PCEP 计算SRv6 TE Policy 的约束.....................................................................................................................25
+1.2.6.4 （可选）配置PCE Client 的定时器............................................................................................................................ 28
+1.2.6.5 检查配置结果....................................................................................................................................................................29
+1.2.7 使能PCE Client 支持IETF 定义的AO 格式.................................................................................................................29
+1.2.8 使能PCE Client 支持IETF 定义的AO 和PPAG TLV 的编码格式.......................................................................... 30
+1.2.9 配置PCE Client 关闭Open 报文中PPAG/SRPAG/GMPLS 能力协商功能.......................................................... 31
+1.2.10 配置PCEPv4 会话的安全认证....................................................................................................................................... 31
+1.2.11 配置PCEPv6 会话的安全认证....................................................................................................................................... 32
+1.2.12 配置PCEPv4 白名单Session-CAR 功能..................................................................................................................... 33
+1.2.13 配置PCEPv6 白名单Session-CAR 功能..................................................................................................................... 34
+1.2.14 配置PCEPv4 的微隔离协议CAR 功能........................................................................................................................ 35
+1.2.15 配置PCEPv6 的微隔离协议CAR 功能........................................................................................................................ 36
+HUAWEI NetEngine40E
+配置指南
+目 录
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+ii
+
+
+--- Page 4 ---
+
+1.2.16 维护PCEP........................................................................................................................................................................... 36
+1.2.16.1 配置PCEP 接收未知消息最大速率........................................................................................................................... 36
+1.2.16.2 配置PCEP 接收未知Reply 消息最大速率.............................................................................................................. 37
+1.2.16.3 查看PCEP 会话的统计信息........................................................................................................................................ 37
+1.2.16.4 清除PCEP 会话的统计信息........................................................................................................................................ 38
+HUAWEI NetEngine40E
+配置指南
+目 录
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+iii
+
+
+--- Page 5 ---
+
+1 路径控制
+1.1 前 言
+概述
+本文档介绍了路径控制的基本概念、在不同应用场景中的配置过程和配置举例。
+License 依赖
+License的详细信息，请查阅License使用指南。
+●
+企业网用户：
+–
+NE40E：License使用指南
+–
+NE40E-X8AK：License使用指南
+产品版本
+与本文档相对应的产品版本如下所示。
+产品名称
+产品版本
+HUAWEI NetEngine40E
+V800R025C00SPC500
+iMaster NCE-IP
+V100R025C00SPC101
+ 
+读者对象
+本文档主要适用于以下工程师：
+●
+数据配置工程师
+●
+调测工程师
+●
+网络监控工程师
+●
+系统维护工程师
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+1
+
+
+--- Page 6 ---
+
+安全声明
+●
+受限公开声明
+产品资料中主要介绍了您在使用华为设备时，在网络部署及维护时，需要使用的
+命令。对用于生产、装备、返厂检测维修的接口、命令，不在资料中说明。
+对于部分仅用于工程实施、定位故障的高级命令以及升级兼容命令，如使用不
+当，将可能导致设备异常或者业务中断，建议较高权限的工程师使用。如您需
+要，请向华为公司申请。
+●
+加密算法声明
+使用加密算法时，DES/3DES/RSA（3072位以下)/MD5（数字签名场景和口令加
+密）/SHA1（数字签名场景）加密算法安全性低，存在安全风险，在协议支持的
+加密算法选择范围内，建议使用更安全的加密算法，例如AES/RSA（3072位及以
+上）/SHA2/HMAC-SHA2。
+出于安全性考虑，不建议使用不安全协议Telnet、FTP、TFTP；不建议使用特性
+BGP、LDP、PCEP、MSDP、DCN、TCP-AO、MSTP、VRRP、E-trunk、AAA、
+IPSEC、BFD、QX、端口扩展、SSH、SNMP、IS-IS、RIP、SSL、NTP、OSPF、
+Keychain中的弱安全算法。如果确实需要使用，请执行undo crypto weak-
+algorithm disable命令使能弱安全算法功能。详细步骤请参见《配置指南》。
+出于安全性考虑，不建议使用该特性中的弱安全算法，若当前系统已关闭弱安全
+算法功能，配置弱安全算法会提示Error信息。如果确实需要使用弱安全算法，请
+先执行undo crypto weak-algorithm disable命令使能弱安全算法功能。
+●
+密码配置声明
+–
+当密码加密方式为cipher时，输入以%^%#......%^%#为起始和结束符的合法
+密文（本设备可以解密的密文）时，在设备上查看配置文件时显示的是和配
+置相同的密文，请不要采用该方式直接配置密码。
+–
+为保证设备安全，请定期修改密码。
+●
+MAC地址、公网IP地址使用的声明
+–
+出于特性介绍及配置示例的需要，产品资料中会使用真实设备的MAC地址、
+公网的IP地址，如无特殊说明，出现的真实设备的MAC地址、公网的IP地址
+均为示意，不指代任何实际意义。
+–
+因开源及第三方软件中自带公网地址（包括公网IP地址、公网URL地址/域
+名、邮箱地址），本产品没有使用这些公网地址，这遵循业界实践，也符合
+开源软件使用规范。
+–
+出于功能特性实现的需要，设备会使用如下公网地址
+表1-1 公网地址列表
+公网地址
+说明
+http://www.huawei.com
+华为官方网站地址
+support_e@huawei.com
+华为企业用户服务邮箱
+ 
+●
+个人数据声明
+–
+您购买的产品、服务或特性在业务运营或故障定位的过程中将可能获取或使
+用用户的某些个人数据，因此您有义务根据所适用国家的法律制定必要的用
+户隐私政策并采取足够的措施以确保用户的个人数据受到充分的保护。
+–
+废弃、回收或者再利用设备时，请注意根据需要备份或清除设备中的数据，
+避免数据泄露的安全风险。如需支持，请联系售后技术支持人员。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+2
+
+
+--- Page 7 ---
+
+●
+产品生命周期政策
+华为公司对产品生命周期的规定以“产品生命周期终止政策”为准，该政策的详
+细内容请参见如下网址：https://support.huawei.com/ecolumnsweb/zh/
+warranty-policy。
+●
+漏洞处理流程
+华为公司对产品漏洞管理的规定以“漏洞处理流程”为准，该流程的详细内容请
+参见如下网址：https://www.huawei.com/cn/psirt/vul-response-process
+如企业客户须获取漏洞信息，请参见如下网址：https://
+securitybulletin.huawei.com/enterprise/cn/security-advisory
+●
+华为企业业务最终用户许可协议(EULA)
+本最终用户许可协议是最终用户（个人、公司或其他任何实体）与华为公司就华
+为软件的使用所缔结的协议。最终用户对华为软件的使用受本协议约束，该协议
+的详细内容请参见如下网址：https://e.huawei.com/cn/about/eula。
+●
+产品资料生命周期策略
+华为公司针对随产品版本发布的售后客户资料（产品资料），发布了“产品资料
+生命周期策略”，该策略的详细内容请参见如下网址：https://
+support.huawei.com/enterprise/zh/bulletins-website/
+ENEWS2000017760。
+●
+华为设备初始数字证书权责说明
+华为公司对随设备出厂的初始数字证书，发布了“华为设备初始数字证书权责说
+明”，该说明的详细内容请参见如下网址：https://support.huawei.com/
+enterprise/zh/bulletins-service/ENEWS2000015766。
+华为初始证书有效期可以通过display pki cert_list domain default命令查看。
+●
+设备升级、打补丁的声明
+对设备进行升级或打补丁操作时，请使用软件数字签名（OpenPGP）验证工具验
+证软件。为避免软件被篡改或替换，防止给用户带来安全风险，建议用户进行此
+项操作。
+●
+特性声明
+–
+NetStream功能，出于对网络流量的统计管理，可能涉及对最终用户的通信
+内容分析，建议您在所适用法律法规允许的目的和范围内方可启用相应的功
+能。在采集、存储用户通信内容的过程中，您应采取足够的措施以确保用户
+的通信内容受到严格保护。
+–
+镜像功能，可能基于运维目的需要对某些最终用户的通信内容进行分析，建
+议您在所适用法律法规允许的目的和范围内方可启用相应的功能。在采集、
+存储用户通信内容的过程中，您应采取足够的措施以确保用户的通信内容受
+到严格保护。
+–
+报文头获取功能，出于检测通信传输中的故障和错误的目的，可能涉及采集
+或存储个人用户某些通信内容。本公司无法单方采集或存储用户通信内容。
+建议您只有在所适用法律法规允许的目的和范围内方可启用相应的功能。在
+采集、存储用户通信内容的过程中，您应采取足够的措施以确保用户的通信
+内容受到严格保护。
+–
+远端镜像、SA特性受客户与华为签订的合同约束，可能不在您的购买或使用
+范围之内。该特性相关文档属机密信息，不在本文档包中提供。如购买或使
+用相关特性，请联系华为工程师获取《远端镜像》、《SA业务专题文档》。
+●
+可靠性设计声明
+对于网络规划和站点设计，必须严格遵守可靠性设计原则，具备设备级和方案级
+保护。设备级保护包括双网双平面，双机、跨板双链路的规划原则，避免出现单
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+3
+
+
+--- Page 8 ---
+
+点，单链路故障。方案级指FRR、VRRP等快速收敛保护机制。在应用方案级保护
+时，应避免保护方案的主备路径经过相同链路或者传输，以免方案级保护不生
+效。
+特别声明
+●
+本文档中包含了NE40E系列支持的所有产品内容，如果需要了解在本国销售的设
+备或单板等硬件相关信息，请查阅硬件描述章节。
+●
+本手册仅作为使用指导，其内容依据实验室设备信息编写。手册提供的内容具有
+一般性的指导意义，并不确保涵盖所有使用场景。因版本升级、设备型号不同、
+板卡限制不同、配置文件不同等原因，可能造成手册中提供的内容与用户使用的
+设备界面不一致。请以用户设备界面的信息为准，本手册不再针对前述情况造成
+的差异一一说明。
+●
+本手册中提供的最大值是设备在实验室特定场景（例如被测试设备上只有某种类
+型的单板，或者只配置了某一种协议）达到的最大值。在现实网络中，由于设备
+硬件配置不同、承载的业务不同等原因可能会使设备测试出的最大值与手册中提
+供的数据不一致。
+●
+本手册中出现的接口类型和接口编号仅作示例，并不代表设备上实际具有此类型
+或编号的接口，实际使用中请以设备上存在的接口类型和接口编号为准。
+●
+本手册中的硬件照片仅供参考，具体请以发货的硬件实物为准。
+●
+本手册中体现设备支持的相关硬件板卡，存在特定客户定制的需求，实际支持以
+售前销售界面为准。
+●
+出于特性介绍及配置示例的需要，产品资料中会使用公网IP地址，如无特殊说
+明，资料里出现的公网IP地址均为示意，不指代任何实际意义。
+●
+本手册中配置指南出现的“XX配置注意事项”，请结合产品的实际特性支持情况
+来使用。
+●
+本手册中的日志参考和告警参考，记录的是对应产品上注册的日志和告警信息。
+实际应用中可触发的日志和告警，取决于当前产品所支持的业务功能。
+●
+本文档中描述的所有设备尺寸数据均为设计尺寸，不包含尺寸公差。在部件制造
+过程中，由于加工或测量等因素的影响，实际尺寸存在一定的偏差。
+符号约定
+在本文中可能出现下列标志，它们所代表的含义如下。
+符号
+说明
+表示如不避免则将会导致死亡或严重伤害的具有高等
+级风险的危害。
+表示如不避免则可能导致死亡或严重伤害的具有中等
+级风险的危害。
+表示如不避免则可能导致轻微或中度伤害的具有低等
+级风险的危害。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+4
+
+
+--- Page 9 ---
+
+符号
+说明
+用于传递设备或环境安全警示信息。如不避免则可能
+会导致设备损坏、数据丢失、设备性能降低或其它不
+可预知的结果。
+“须知”不涉及人身伤害。
+对正文中重点信息的补充说明。
+“说明”不是安全警示信息，不涉及人身、设备及环
+境伤害信息。
+ 
+命令格式约定
+格式
+意义
+粗体
+命令行关键字（命令中保持不变、必须照输的部分）采用
+加粗字体表示。
+斜体
+命令行参数（命令中必须由实际值进行替代的部分）采用
+斜体表示。
+[ ]
+表示用“[ ]”括起来的部分在命令配置时是可选的。
+{ x | y | ... }
+表示从两个或多个选项中选取一个。
+[ x | y | ... ]
+表示从两个或多个选项中选取一个或者不选。
+{ x | y | ... } *
+表示从两个或多个选项中选取多个，最少选取一个，最多
+选取所有选项。
+[ x | y | ... ] *
+表示从两个或多个选项中选取多个或者不选。
+&<1-n>
+表示符号&前面的参数可以重复1～n次。
+#
+由“#”开始的行表示为注释行。
+ 
+修订记录
+修改记录累积了每次文档变更的说明。最新版本的文档包含以前所有文档版本的更新
+内容。
+产品版本
+文档版本
+发布日期
+V800R025C00SPC500
+01
+2025-09-30
+ 
+1.2 PCEP 配置
+介绍了PCEP的基本原理、配置过程和典型配置举例。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+5
+
+
+--- Page 10 ---
+
+1.2.1 PCEP 概述
+PCEP是控制器（用作PCE）和转发器（用作PCC）之间的通信协议，配合控制器集中
+算路，可以实现路径全局最优，达到充分利用网络资源的目的。
+PCE最早是为了解决大型的多区域网络路径计算问题被提出，通过PCE可以为TE计算跨
+域路径。如图1-1所示，PCE架构包含如下3个部分：
+1.
+PCE（Path Computation Element，路径计算单元）：PCE是能够基于网络拓扑
+信息计算满足约束的路径的部件。PCE可以部署在路由设备中，也可以部署在一个
+独立的服务器中。大多数时候，将PCE和控制器集成在一起。
+2.
+PCC（Path Computation Client，路径计算客户端）：PCC是请求路径计算单元
+执行路径计算的客户端应用程序。PCC向PCE发送路径请求，并接受PCE返回的路
+径计算结果。一般情况下，路由设备集成了PCC功能，可以认为路由设备是PCC。
+3.
+PCEP（Path Computation Element Protocol，路径计算单元通信协议）：PCEP
+是PCC和PCE之间的通信协议。
+PCEP是IETF PCE工作组定义的基于TCP的协议，定义了一组消息和对象，用于管
+理PCEP会话，以及为多域流量工程LSP（TE LSP）请求和发送路径。它为PCE给
+PCC的跨域LSP执行路径计算提供了一种机制。PCEP交互包括PCC向PCE发送的
+LSP状态报告，以及PCE对外部LSP的更新。
+图1-1 PCE 架构
+有状态PCE（Stateful PCE）是PCE的一个重要扩展。Stateful PCE不仅维护用于路径计
+算的拓扑信息和TE信息，而且会保留TE路径的信息，这样在路径计算的时候可以基于
+现有的TE路径实现全网的优化，而不仅仅是简单地计算一个满足约束条件的路径。
+Stateful PCE有Passive和Active两种模式：
+●
+Passive Stateful PCE：PCE通过从PCC学习到的LSP状态信息进行路径计算优化，
+不主动更新LSP状态。PCC与PCE保持同步。
+●
+Active Stateful PCE：PCE可以主动向网络下发关于路径的建议，更新路径，例
+如，Active Stateful PCE可以通过授权机制将PCC对LSP的控制权委托给PCE，由
+此PCE可以更新PCC中的LSP参数。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+6
+
+
+--- Page 11 ---
+
+PCEP技术可以给用户带来如下受益：
+●
+PCEP能够进行端到端的最优路径计算，使得承载的业务路径最优化。
+●
+PCEP能够进一步提高网络的带宽资源利用率，有利于用户对网络资源的优化利
+用，且部署维护更简单。
+●
+PCEP支持对TE网络拓扑信息和隧道约束进行的集中配置和管理，有利于简化网络
+的运维。
+1.2.2 PCEP 配置注意事项
+特性限制
+表1-2 本特性的使用限制
+特性限制
+系列
+涉及产品
+Symbolic Path Name的格式为字符串形式，区分
+大小写，不可以有空格，长度范围是1～255。
+备注：
+1、包含不可打印的ASCII字符时，设备报错；
+2、包含问号或空格时，设备不报错。但是关联生
+成的Tunnel或SR Policy名字中存在问号或空格
+时，ping/tracert不能指定名字，也不能指定名字
+查询。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+ 
+1.2.3 配置PCEP 触发创建MPLS TE 隧道
+采用PCE（Path Computation Element）算路方式建立MPLS TE隧道相比于CSPF方
+式，能够更加优化网络资源的利用。
+应用环境
+当前MPLS TE隧道的路径计算是由隧道的Ingress节点采用CSPF算法根据TEDB计算得
+到的。对于一个MPLS TE网络来说，会有多条隧道，通常不同隧道的Ingress节点也不
+相同，各个Ingress节点的算路都是独立的，这导致全网的资源利用不能最优化。
+PCEP for MPLS TE可以解决上述问题。PCEP中共有PCE Server和PCE Client两种角
+色。PCE Server是路径计算的完成方，存储了整网的路径信息。PCE Client为算路请求
+的发起方，即隧道的Ingress节点。PCE Client向PCE Server发出请求后，PCE Server会
+根据整网的资源情况进行路径计算，最终达到整网资源的最优化。
+区别于采用隧道入节点CSPF算路的方式，PCE支持在PCE Server上配置和管理整网的
+TE信息（包括节点信息，链路信息以及隧道属性信息），因此很多CSPF必要的配置步
+骤在PCE变成了可选，配置时请务必注意。
+前置任务
+在配置通过PCEP触发创建MPLS TE隧道之前，需完成以下任务：
+●
+参考配置IS-IS的基本功能（IPv4），配置IS-IS协议，保证各节点在网络层互通
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+7
+
+
+--- Page 12 ---
+
+●
+参考配置RSVP-TE隧道，进行如下配置：
+–
+使能MPLS TE和RSVP-TE
+–
+使能IS-IS TE
+–
+（可选）配置链路的TE属性
+–
+配置隧道接口
+说明
+采用在PCE Server上配置和管理整网的TE信息的方式时，如果PCE Client上的配置与PCE Server
+上的配置重复时，则隧道应用PCE Server上的配置。例如，在隧道接口下配置了带宽为
+1000kbit/s，在PCE Server上又为这条隧道配置了2000kbit/s，最终隧道会应用2000kbit/s的带
+宽值。如果PCE Client配置了某一隧道属性，而PCE Server没有配置，则隧道仍会应用PCE
+Client对该属性的配置。
+如果需要提升通过PCEP建立的TE隧道的可靠性，则可在隧道接口下配置CR-LSP热备份功能。
+1.2.3.1 配置隧道入节点为PCE Client
+通过配置PCE Client，能够使隧道入节点与PCE Server建立会话，并申请算路。
+应用环境
+区别于采用隧道入节点CSPF算路的方式，PCE支持在PCE Server上配置和管理整网的
+TE信息（包括节点信息，链路信息以及隧道属性信息），因此很多采用CSPF算路方式
+时必要的配置步骤在PCE中变成了可选，配置时请务必注意。
+由于同一入节点上可能存在多条TE隧道，如果只有一部分TE隧道的LSP由PCE Server托
+管，而另一部分TE隧道的LSP不托管，但为了保证PCE Server准确计算全局的带宽信
+息，这部分LSP的信息也需要上报给PCE Server，此时有以下两种配置方案，用户可根
+据实际需要选择其中一种进行配置：
+●
+先在入节点上配置所有TE隧道的LSP由PCE Server托管，然后在指定TE隧道接口下
+配置只将当前隧道的LSP信息上报给PCE Server，但LSP不由PCE Server托管。
+●
+先在入节点上配置将所有TE隧道的LSP信息上报给PCE Server，但LSP不由PCE
+Server托管，然后在指定TE隧道接口下配置当前隧道的LSP由PCE Server托管。
+请在隧道入节点上执行如下步骤。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，将节点配置为PCE客户端（PCE Client），并进入PCE客户端视
+图。
+步骤3 （可选）执行命令stateless-bringup，配置PCE Client向PCE Server发送PCReq请求算
+路能力。
+配置stateless-bringup命令后，PCE Client与PCE Server同步结束，PCE Client新配置
+的TE隧道LSP需要首先发起PCReq消息请求算路，PCE Server收到请求后，通过PCRep
+消息返回算路结果。在PCE托管场景，可以配置该功能。如果PCE Server返回算路结果
+可以满足业务需求，就可以启动托管；如果返回NO-PATH或其他异常，则需要排除问
+题后再启动托管。
+步骤4 （可选）执行命令pcep speaker-entity-id speaker-entity-id-value，配置PCEP实体
+标识值。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+8
+
+
+--- Page 13 ---
+
+PCEP实体可以配置speaker-entity-id-value参数来作为PCEP实体的唯一标识值。本端
+PCEP实体可以根据对端实体的speaker-entity-id-value来识别对端实体是否为已知的
+PCEP peer。
+说明
+需要本地设备和对端控制器同时配置speaker-entity-id-value参数，如果只有本地设备配置该参
+数，可能导致PCEP会话无法Up。因此当对端控制器不支持配置speaker-entity-id-value时，本
+地设备不建议配置该命令行。
+步骤5 执行命令quit，退回系统视图。
+步骤6 执行命令mpls，进入MPLS视图。
+步骤7 （可选）执行命令mpls te pce cleanup lsp-state，使能PCE Client在PCEP会话失效
+时自动降级，使用本地的算路功能。
+当PCE Server故障或PCEP连接中断时，为了保证MPLS TE隧道能够正常建立，需要
+PCE Client能够自动降级，使用本地的算路功能。如果本地配置了CSPF，则使用CSPF
+进行算路；如果没有配置CSPF，则按照路由进行建路。
+步骤8 请根据实际需要在以下两种方案中选择一种进行配置：
+●
+方案一：适用于大多数LSP均需要托管的场景
+a.
+执行命令mpls te pce delegate (MPLS视图)，配置本地所有TE隧道的LSP由
+PCE Server托管。
+b.
+执行命令quit，回退到系统视图。
+c.
+执行命令interface tunnel tunnel-number，进入指定的TE隧道接口视图。
+d.
+执行命令mpls te pce passive-delegate report-only (Tunnel接口视图) ，
+将当前隧道的LSP信息上报给PCE Server，但LSP不由PCE Server托管。
+●
+方案二：适用于仅少数LSP需要托管的场景
+a.
+执行命令mpls te pce passive-delegate report-only (MPLS视图)，将本地
+所有TE隧道的LSP信息上报给PCE Server，但LSP不由PCE Server托管。
+b.
+执行命令quit，回退到系统视图。
+c.
+执行命令interface tunnel tunnel-number，进入指定的TE隧道接口视图。
+d.
+执行命令mpls te pce delegate (Tunnel接口视图) ，配置当前隧道的LSP由
+PCE Server托管。
+步骤9 执行命令commit，提交配置。
+----结束
+1.2.3.2 配置PCE Client 的候选算路PCE Server
+通过配置PCE Client的候选算路Server可以为PCE Client提供算路服务，如果配置多
+个，则会形成备份，有助于提高网络的可靠性。
+应用环境
+PCEP中共有PCE Server和PCE Client两种角色。PCE Server是路径计算的完成方，PCE
+Client为算路请求的发起方。对于PCE Client，需要执行connect-server命令配置它的
+候选PCE Server。
+对于一台PCE Client设备来说，可以有多个候选PCE Server。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+9
+
+
+--- Page 14 ---
+
+当PCE Server和PCE Client使用IPv4地址建立连接时，则为PCEPv4会话；当PCE Server
+和PCE Client使用IPv6地址建立连接时，则为PCEPv6会话。
+该配置任务同时适用于PCEPv4会话和PCEPv6会话。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行如下命令，配置PCE Client的候选PCE Server，并进入相关视图。
+●
+对于PCEPv4会话：执行命令connect-server ip-address，配置PCE Client的候选
+PCE Server，并进入连接PCE服务器视图。
+●
+对于PCEPv6会话：执行命令connect-server ipv6 ipv6-address，配置PCE Client
+的候选PCE Server，并进入连接PCE服务器IPv6视图。
+ip-address/ipv6-address为PCE Server的源IPv4/IPv6地址。用户可以配置多个候选PCE
+Server，以便形成备份。
+步骤4 （可选）执行命令preference preference，配置候选PCE Server的优先级。
+preference为整数形式，取值范围是0～7。数值越大优先级越高。
+配置PCE特性时，可以为单个PCE Client配置多个候选PCE Server。可以为不同的候选
+PCE Server设置不同的优先级，优先级越高的候选PCE Server将被优先选做算路PCE
+Server。
+如果不配置优先级，则按优先级0设置，标识优先级最低。
+说明
+当PCEPv4会话和PCEPv6会话同时存在时，按照如下原则进行会话优选：
+1. 比较PCEPv4会话和PCEPv6会话的优先级，优选高优先级的会话。
+2. 若PCEPv4会话和PCEPv6会话的优先级相同，则优选PCEPv6会话。
+3. 若PCEPv4下存在多个优先级相同的会话时，优选候选PCE Server的IP地址较小的会话。
+PCEPv6会话亦然。
+步骤5 （可选）执行如下命令，配置PCEP会话的源IP地址。
+●
+对于PCEPv4会话：执行命令source-interface port-type port-num，配置PCEPv4
+会话的源IP地址。
+PCEPv4会话默认使用MPLS LSR-ID作为源IP地址建立。在有些特殊情况下，MPLS
+LSR-ID不可达，此时可以配置此命令借用本地其他LoopBack接口的IPv4地址作为
+源IPv4地址。
+●
+对于PCEPv6会话：执行命令source-interface port-type port-num或source-
+address ipv6 ipv6-address，配置PCEPv6会话的源IPv6地址。
+PCEPv6会话默认使用IPv6-LSR-ID作为源IPv6地址建立。在有些特殊情况下，IPv6
+LSR-ID不可达，此时可以配置此命令借用本地其他LoopBack接口的IPv6地址作为
+源IPv6地址。
+PCEPv6会话借用LoopBack接口IPv6地址场景，如果LoopBack接口配置多个IPv6
+地址，则取其中最小IPv6地址作为会话源地址。当修改LoopBack接口下的配置
+时，若最小IPv6地址发生改变，将会导致PCEPv6会话重建。
+步骤6 （可选）执行命令dscp dscp-val，配置PCEP报文的差分服务优先级。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+10
+
+
+--- Page 15 ---
+
+在网络数据传输比较稳定的时候，PCE Client不需要对上送的数据报文进行DSCP值更
+改，当数据传输出现时延丢包时，可以配置上送报文的DSCP值，提高报文传输的优先
+级，保证网络数据传输的质量。
+步骤7 执行命令commit，提交配置。
+----结束
+1.2.3.3 （可选）配置PCE Client 将TE LSP 向所有PCE Server 托管
+通过配置PCE Client将TE LSP向所有PCE Server托管，可以解决转发器选举的主PCE
+Server和控制器设置的主PCE Server不一致导致主PCE Server不能算路的问题。
+应用环境
+在目前PCEP场景中，由转发器选举出主备PCE Server，PCE Client将所有TE LSP向选
+举出的或者最高优先级的主PCE Server进行托管，只有所有TE LSP向主PCE Server托管
+之后才能进行算路。但是在异地容灾场景中，是由控制器设置主备PCE Server。这种
+情况下，可能会出现转发器选举出来的主PCE Server和控制器设置的主PCE Server不一
+致，造成PCE Client将所有TE LSP向不是控制器设置的主PCE Server托管，导致主PCE
+Server不能进行算路。为了解决上述问题，可以配置multi-delegate enable命令使能
+PCE Client将所有TE LSP向所有已建立PCEP会话的PCE Server托管，这样就不会出现
+主PCE Server不能算路的问题。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行命令multi-delegate enable，使能PCE Client将所有TE LSP向所有已建立PCEP会
+话的PCE Server托管。
+步骤4 执行命令commit，提交配置。
+----结束
+1.2.3.4 （可选）配置PCE Client 的定时器
+PCE Client定时器包括存活定时器、保持定时器、重传PCReq定时器以及LSP托管定时
+器等。
+应用环境
+PCEP（Path Computation Element Communication Protocol）定义了存活定时器和
+保持定时器以便维护PCEP会话。PCEP会话的任意一端都会运行这两种定时器。每次存
+活定时器超时时，本端都会重新发送Keepalive消息。如果在保持定时器超时时没有收
+到对端发来的Keepalive消息，本端将认为会话中断。通常，保持定时器的值 = 4 × 存
+活定时器的值。因此配置存活定时器的值后，保持定时器的值会随之自动按照公式更
+新。但是，有如下限制：
+●
+任何时候，保持定时器的值都不能小于存活定时器。
+●
+配置存活定时器会按照公式改变保持定时器的值，但保持定时器的配置不会引起
+存活定时器值的变化。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+11
+
+
+--- Page 16 ---
+
+●
+如果配置存活定时器的值大于63时，保持定时器的值始终是255。
+说明
+PCEP会话两端设备的存活定时器（或保持定时器）是独立的，不要求取相同的值，两端也不会
+协商采用一个相同的值。
+假如PCEP连接变为Down，PCE Client会启动LSP托管定时器。在LSP托管定时器超时
+之前，PCE Client将尝试与当前PCE Server恢复PCEP连接。当LSP托管定时器超时后，
+PCE Client将尝试与其他可用的PCE Server建立PCEP会话；同时，PCE Client会启动
+LSP状态超时定时器，在LSP状态超时定时器超时之前，被托管LSP的状态不允许改
+变。当LSP状态超时定时器超时之后，被托管LSP的状态将允许修改，此时PCE Client
+可能有以下两种状态：
+●
+如果PCE Client配置了mpls te pce cleanup lsp-state命令，则被托管的LSP状态
+将被清除，PCE Client自动降级使用本地算路功能来重新建立LSP。
+●
+如果PCE Client没有配置mpls te pce cleanup lsp-state命令，则PCE Client将维
+持现状，继续等待与PCE Server建立连接。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行命令timer { keepalive keepalive-value | hold hold-time | request request-
+time | delegate-hold delegate-value | state-timeout state-timeout-value }，配置
+PCE Client的定时器。
+各个参数的说明如下，建议采用缺省值。
+参数
+参数说明
+取值
+keepalive
+keepalive-time
+指定存活定时
+器的值。
+整数形式，取值范围是0～255，单位是秒。
+缺省值是30秒。
+hold hold-time
+指定保持定时
+器的值。
+整数形式，取值范围是0～255，单位是秒。
+缺省值是120秒。
+request request-
+time
+指定重传
+PCReq定时器
+的值。
+整数形式，取值范围是5～300，单位是秒。
+缺省值是30秒。
+delegate-hold
+delegate-value
+指定LSP托管
+定时器的值。
+整数形式，取值范围是30～255，单位是
+秒。缺省值是30秒。
+state-timeout
+state-timeout-
+value
+指定LSP状态
+超时定时器的
+值。
+整数形式，取值范围是0～2147483647，单
+位是秒。缺省值是259200秒，即72小时。
+ 
+步骤4 执行命令commit，提交配置。
+----结束
+1.2.3.5 检查配置结果
+PCE Client配置成功后，您可以查看PCEP会话的信息和PCEP协议统计信息。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+12
+
+
+--- Page 17 ---
+
+前提条件
+已经完成PCE Client的所有配置。
+操作步骤
+●
+使用display pce protocol session [ ip-address | verbose ]命令查看PCEPv4会话
+信息。
+●
+使用display pce protocol ipv6 session [ ipv6-address | verbose ]命令查看
+PCEPv6会话信息。
+●
+使用display mpls te tunnel-interface命令查看TE隧道的PCE托管类型。
+----结束
+1.2.4 配置PCEP 触发创建SR-MPLS TE Policy
+采用PCEP算路方式建立SR-MPLS TE Policy，能够更快的响应业务的请求，更加合理的
+利用网络资源。
+应用环境
+PCEP解决方案中共有PCE Server和PCE Client两种角色。PCE Server是路径计算的完成
+方，存储了整网的路径信息。PCE Client是路径信息的接收方和使用方。
+转发器内置PCE Client组件，所以转发器就是PCE Client，而PCE Server一般由控制器
+充任。
+前置任务
+在配置PCEP触发创建SR-MPLS TE Policy之前，需完成以下任务：
+●
+配置IGP（IS-IS/OSPF）协议，保证各节点在网络层互通
+●
+使能SR-MPLS能力
+1.2.4.1 使能PCE Client 处理SR-MPLS TE Policy 的能力
+配置PCE Client，与PCE Server建立会话，可以接收PCE Server下发的SR-MPLS TE
+Policy信息。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，将节点配置为PCE客户端（PCE Client），并进入PCE客户端视
+图。
+步骤3 执行命令capability segment-routing [ algorithm ]，使能PCE Client处理SR-MPLS
+TE Policy的能力。
+步骤4 （可选）执行命令disjoint-path enable，使能PCE Client处理不相交关联组的能力。
+步骤5 （可选）执行命令policy-association-group enable，使能PCE Client处理策略关联
+组的能力。
+步骤6 （可选）执行命令bidirectional sr-path，使能PCE Client处理SR双向关联组能力。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+13
+
+
+--- Page 18 ---
+
+步骤7 （可选）执行命令stateless-bringup，配置PCE Client向PCE Server发送PCReq请求算
+路能力。
+配置stateless-bringup命令后，PCE Client与PCE Server同步结束，PCE Client新配置
+的SR-MPLS TE Policy的LSP需要首先发起PCReq消息请求算路，PCE Server收到请求
+后，通过PCRep消息返回算路结果。在PCE托管场景，可以配置该功能。如果PCE
+Server返回算路结果可以满足业务需求，就可以启动托管；如果返回NO-PATH或其他
+异常，则需要排除问题后再启动托管。
+步骤8 （可选）执行命令pcep speaker-entity-id speaker-entity-id-value，配置PCEP实体
+标识值。
+PCEP实体可以配置speaker-entity-id-value参数来作为PCEP实体的唯一标识值。本端
+PCEP实体可以根据对端实体的speaker-entity-id-value来识别对端实体是否为已知的
+PCEP peer。
+说明
+需要本地设备和对端控制器同时配置speaker-entity-id-value参数，如果只有本地设备配置该参
+数，可能导致PCEP会话无法Up。因此当对端控制器不支持配置speaker-entity-id-value时，本
+地设备不建议配置该命令行。
+步骤9 执行命令commit，提交配置。
+----结束
+1.2.4.2 配置PCE Client 的候选算路PCE Server
+通过配置PCE Client的候选算路PCE Server可以为PCE Client提供算路服务，如果配置
+多个，则会形成备份，有助于提高网络的可靠性。
+应用环境
+PCEP中共有PCE Server和PCE Client两种角色。对于PCE Client，需要执行connect-
+server命令配置它的候选PCE Server。一台PCE Client设备来说可以有多个候选PCE
+Server。
+当PCE Server和PCE Client使用IPv4地址建立连接时，则为PCEPv4会话；当PCE Server
+和PCE Client使用IPv6地址建立连接时，则为PCEPv6会话。
+该配置任务同时适用于PCEPv4会话和PCEPv6会话。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行如下命令，配置PCE Client的候选PCE Server，并进入相关视图。
+●
+对于PCEPv4会话：执行命令connect-server ip-address，配置PCE Client的候选
+PCE Server，并进入连接PCE服务器视图。
+●
+对于PCEPv6会话：执行命令connect-server ipv6 ipv6-address，配置PCE Client
+的候选PCE Server，并进入连接PCE服务器IPv6视图。
+ip-address/ipv6-address为PCE Server的源IPv4/IPv6地址。用户可以配置多个候选PCE
+Server，以便形成备份。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+14
+
+
+--- Page 19 ---
+
+步骤4 （可选）执行命令preference preference，配置候选PCE Server的优先级。
+preference为整数形式，取值范围是0～7。数值越大优先级越高。
+配置PCE特性时，可以为单个PCE Client配置多个候选PCE Server。可以为不同的候选
+PCE Server设置不同的优先级，优先级越高的候选PCE Server将被优先选做算路PCE
+Server。
+如果不配置优先级，则按优先级0设置，标识优先级最低。
+说明
+当PCEPv4会话和PCEPv6会话同时存在时，按照如下原则进行会话优选：
+1. 比较PCEPv4会话和PCEPv6会话的优先级，优选高优先级的会话。
+2. 若PCEPv4会话和PCEPv6会话的优先级相同，则优选PCEPv6会话。
+3. 若PCEPv4下存在多个优先级相同的会话时，优选候选PCE Server的IP地址较小的会话。
+PCEPv6会话亦然。
+步骤5 （可选）执行如下命令，配置PCEP会话的源IP地址。
+●
+对于PCEPv4会话：执行命令source-interface port-type port-num，配置PCEPv4
+会话的源IP地址。
+PCEPv4会话默认使用MPLS LSR-ID作为源IP地址建立。在有些特殊情况下，MPLS
+LSR-ID不可达，此时可以配置此命令借用本地其他LoopBack接口的IPv4地址作为
+源IPv4地址。
+●
+对于PCEPv6会话：执行命令source-interface port-type port-num或source-
+address ipv6 ipv6-address，配置PCEPv6会话的源IPv6地址。
+PCEPv6会话默认使用IPv6-LSR-ID作为源IPv6地址建立。在有些特殊情况下，IPv6
+LSR-ID不可达，此时可以配置此命令借用本地其他LoopBack接口的IPv6地址作为
+源IPv6地址。
+PCEPv6会话借用LoopBack接口IPv6地址场景，如果LoopBack接口配置多个IPv6
+地址，则取其中最小IPv6地址作为会话源地址。当修改LoopBack接口下的配置
+时，若最小IPv6地址发生改变，将会导致PCEPv6会话重建。
+步骤6 执行命令commit，提交配置。
+----结束
+1.2.4.3 配置PCEP 计算SR-MPLS TE Policy 的约束
+在配置PCEP算路场景，可以提前执行本任务配置SR-MPLS TE Policy的一些约束。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 配置SR-MPLS TE Policy的算路方式为PCEP。
+1.
+执行命令segment-routing，使能全局Segment Routing能力，进入Segment
+Routing视图。
+2.
+（可选）执行命令sr-te-policy pcep lsp-identifiers report，开启SR-MPLS TE
+Policy上报IPV4-LSP-IDENTIFIERS TLV给PCEP的能力。
+IPv4-LSP-IDENTIFIERS TLV出现在PCRpt消息的LSP object中。当与第三方控制器
+对接时，可以打开此开关，上报Candidate-Path的Tunnel ID、Extended Tunnel
+ID和SR-MPLS TE Policy的Endpoint地址等信息。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+15
+
+
+--- Page 20 ---
+
+3.
+根据实际需要选择进行如下配置，或者配置二者的组合。
+–
+全局配置所有SR-MPLS TE Policy的算路方式为PCEP。
+执行命令sr-te-policy dynamic-computation-seq pcep，指定动态算路方
+式为PCEP算路。
+–
+配置单个SR-MPLS TE Policy的算路方式。
+i.
+执行命令sr-te policy policy-name [ endpoint ipv4-address color
+color-value ]，进入SR-MPLS TE Policy视图。
+ii.
+执行命令dynamic-computation-seq { pcep | none } ，指定SR-MPLS
+TE Policy的动态算路方式为PCEP算路。
+参数none将取消单个SR-MPLS TE Policy的动态算路方式。
+iii.
+执行命令quit，退回Segment Routing视图。
+注意全局配置优先级低于个体配置优先级。如果二者同时存在，个体配置优先生
+效。如果不存在个体配置，则继承全局配置。
+实际应用时，通常可以分为三种情况：
+a.
+如果配置所有SR-MPLS TE Policy的动态算路方式为PCEP算路，则仅执行命令
+sr-te-policy dynamic-computation-seq pcep，打开全局开关即可。
+b.
+如果配置大部分SR-MPLS TE Policy的动态算路方式为PCEP算路，则可以先执
+行命令sr-te-policy dynamic-computation-seq pcep打开全局开关，然后
+对于不需要PCEP算路的SR-MPLS TE Policy逐个执行命令dynamic-
+computation-seq none。
+c.
+如果配置少部分SR-MPLS TE Policy的动态算路方式为PCEP算路，则无须配置
+命令sr-te-policy dynamic-computation-seq pcep，直接对于需要PCEP算
+路的SR-MPLS TE Policy逐个执行命令dynamic-computation-seq pcep。
+4.
+执行命令quit，退回系统视图。
+步骤3 （可选）创建SR-MPLS TE Policy的路径约束
+如果后续步骤里需要为SR-MPLS TE Policy配置路径约束，需要提前执行此步骤配置具
+体的约束条件。
+1.
+执行命令segment-routing policy constraint-path path-name，创建SR-MPLS
+TE Policy路径约束，并且进入对应名称的路径约束视图。
+2.
+执行命令index index-value address ipv4 ipv4-address [ include [ strict |
+loose ] | exclude ]，在路径约束中指定下一跳IP地址。
+3.
+执行命令quit，退回系统视图。
+步骤4 配置SR-MPLS TE Policy的创建约束
+说明
+注意约束模板配置优先级低于SR-MPLS TE Policy下直接配置优先级。
+如果二者同时存在，SR-MPLS TE Policy下直接配置优先生效。如果不存在直接配置，则继承约
+束模板配置。
+●
+利用SR-MPLS TE Policy约束模板配置。
+a.
+执行命令segment-routing policy constraint-template constraintName，
+创建SR-MPLS TE Policy约束模板，并且进入对应名称的约束模板视图。
+b.
+执行命令priority setup-priority hold-priority，配置约束模板中的路径建立
+优先级和保持优先级。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+16
+
+
+--- Page 21 ---
+
+c.
+执行命令affinity { include-all | include-any | exclude } { affinity-name }
+&<1-32>，配置约束模板中的亲和属性约束。
+d.
+执行命令bandwidth ct0 bandwidth-value，配置约束模板中的带宽约束。
+e.
+执行命令constraint-path constraint-path-name，配置约束模板中的路径约
+束。
+constraint-path-name参数由命令segment-routing policy constraint-
+path path-name配置，取值与path-name一致。
+f.
+执行命令link-bandwidth utilization utilization-value，配置约束模板中的
+带宽利用率。
+g.
+执行命令metric-type { igp | te | delay | hop-count }，配置约束模板中的
+度量算路类型。
+配置完成后，选择执行如下对应命令，配置相应的约束值：
+▪
+执行命令max-cumulation igp max-igp-cost，配置约束模板中的最大
+IGP cost约束。
+▪
+执行命令max-cumulation te max-te-cost，配置约束模板中的最大TE
+cost约束。
+▪
+执行命令max-cumulation delay max-delay，配置约束模板中的最大
+时延约束。
+▪
+执行命令max-cumulation hop-count max-hop-count，配置约束模板
+中的最大跳数约束。
+h.
+执行命令sid-algorithm sidAlgoId [ strict ] [ path-computation-mode
+{ flex-algo | sid-filter } ]，配置约束模板中的灵活算法（Flex-Algo）约束。
+i.
+执行命令disjoint-path group-id group-id-value source-ip source-ip-value
+type { link | node | srlg | srlg-node } [ shortest ] [ strict | of-code { msl
+| mss | msn } ]，配置约束模板引用Disjoint Association Group。
+j.
+执行命令policy-association-group group-id group-id-value source-ip
+source-ip-value [ policy-parameters policy-parameters-value ]，配置约束
+模板引用Policy Association Group。
+k.
+执行命令sid selection { unprotected-preferred | protected-preferred |
+unprotected-only | protected-only }，配置约束模板的SID选择原则。
+l.
+执行命令quit，退回系统视图。
+m.
+执行命令segment-routing，使能全局Segment Routing能力，进入
+Segment Routing视图。
+n.
+执行命令sr-te policy policy-name [ endpoint ipv4-address color color-
+value ]，进入SR-MPLS TE Policy视图。
+o.
+执行命令constraint-template constraintName，指定SR-MPLS TE Policy引
+用的约束模板。
+p.
+执行命令candidate-path preference preference，配置SR-MPLS TE Policy
+的候选路径及其优先级。
+每一个SR-MPLS TE Policy允许配置多个候选路径。preference越大，候选路
+径优先级越高，存在多个候选路径时，优先级最高的生效。
+q.
+执行命令dynamic，配置SR-MPLS TE Policy候选路径为动态路径。
+●
+在SR-MPLS TE Policy下直接配置。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+17
+
+
+--- Page 22 ---
+
+a.
+执行命令segment-routing，使能全局Segment Routing能力，进入
+Segment Routing视图。
+b.
+执行命令sr-te policy policy-name [ endpoint ipv4-address color color-
+value ]，进入SR-MPLS TE Policy视图。
+c.
+执行命令candidate-path preference preference，配置SR-MPLS TE Policy
+的候选路径及其优先级。
+每一个SR-MPLS TE Policy允许配置多个候选路径。preference越大，候选路
+径优先级越高，存在多个候选路径时，优先级最高的生效。
+d.
+执行命令dynamic，配置SR-MPLS TE Policy候选路径为动态路径。
+e.
+执行命令affinity { include-all | include-any | exclude } { affinity-name }
+&<1-32>，配置SR-MPLS TE Policy动态候选路径下的亲和属性约束。
+f.
+执行命令constraint-path constraint-path-name，配置SR-MPLS TE Policy
+动态候选路径下的路径约束。
+constraint-path-name参数由命令segment-routing policy constraint-
+path path-name配置，取值与path-name一致。
+g.
+执行命令link-bandwidth utilization utilization-value，配置SR-MPLS TE
+Policy动态候选路径下的带宽利用率。
+h.
+执行命令metric-type { igp | te | delay | hop-count }，配置SR-MPLS TE
+Policy动态候选路径下的度量算路类型。
+配置完成后，选择执行如下对应命令，配置相应的约束值：
+▪
+执行命令max-cumulation igp max-igp-cost，配置SR-MPLS TE Policy
+动态候选路径下的最大IGP cost约束。
+▪
+执行命令max-cumulation te max-te-cost，配置SR-MPLS TE Policy动
+态候选路径下的最大TE cost约束。
+▪
+执行命令max-cumulation delay max-delay，配置SR-MPLS TE Policy
+动态候选路径下的最大时延约束。
+▪
+执行命令max-cumulation hop-count max-hop-count，配置SR-MPLS
+TE Policy动态候选路径下的最大跳数约束。
+i.
+执行命令sid-algorithm sidAlgoId [ strict ] [ path-computation-mode
+{ flex-algo | sid-filter } ]，配置SR-MPLS TE Policy动态候选路径下的灵活
+算法（Flex-Algo）约束。
+j.
+执行命令disjoint-path group-id group-id-value source-ip source-ip-value
+type { link | node | srlg | srlg-node } [ shortest ] [ strict | of-code { msl
+| mss | msn } ]，配置SR-MPLS TE Policy动态候选路径引用Disjoint
+Association Group。
+k.
+执行命令policy-association-group group-id group-id-value source-ip
+source-ip-value [ policy-parameters policy-parameters-value ]，配置SR-
+MPLS TE Policy动态候选路径引用Policy Association Group。
+l.
+执行命令bidirectional group-id group-id-value source-ip source-ip-value
+[ co-routed ]，配置SR-MPLS TE Policy动态路径引用Bidirectional
+Association Group。
+m.
+执行命令sid selection { unprotected-preferred | protected-preferred |
+unprotected-only | protected-only }，配置SR-MPLS TE Policy动态候选路
+径下的SID选择原则。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+18
+
+
+--- Page 23 ---
+
+步骤5 执行命令commit，提交配置。
+----结束
+1.2.4.4 （可选）配置PCE Client 的定时器
+PCE Client定时器包括存活定时器、保持定时器以及LSP托管定时器。
+应用环境
+PCEP定义了存活定时器和保持定时器以便维护PCEP会话。PCEP会话的任意一端都会
+运行这两种定时器。每次存活定时器超时时，本端都会重新发送Keepalive消息。如果
+在保持定时器超时时没有收到对端发来的Keepalive消息，本端将认为会话中断。通
+常，保持定时器的值 = 4 × 存活定时器的值。因此配置存活定时器的值后，保持定时
+器的值会随之自动按照公式更新。但是，有如下限制：
+●
+任何时候，保持定时器的值都不能小于存活定时器。
+●
+配置存活定时器会按照公式改变保持定时器的值，但保持定时器的配置不会引起
+存活定时器值的变化。
+●
+如果配置存活定时器的值大于63时，保持定时器的值始终是255。
+说明
+PCEP会话两端设备的存活定时器（或保持定时器）是独立的，不要求取相同的值，两端也不会
+协商采用一个相同的值。
+假如PCEP连接变为IDLE，PCE Client会启动LSP托管定时器。在LSP托管定时器超时之
+前，PCE Client将尝试与当前PCE Server恢复PCEP连接。
+当LSP托管定时器超时后，PCE Client将尝试与其他可用的PCE Server建立PCEP会话；
+同时，PCE Client会启动LSP状态超时定时器，在LSP状态超时定时器超时之前，被托
+管LSP的状态不允许改变。当LSP状态超时定时器超时之后，被托管LSP的状态将允许
+修改。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行命令timer { keepalive keepalive-value | hold hold-time | request request-
+time | delegate-hold delegate-value | state-timeout state-timeout-value }，配置
+PCE Client的定时器。
+各个参数的说明如下，建议采用缺省值。
+参数
+参数说明
+取值
+keepalive
+keepalive-time
+指定存活定时
+器的值。
+整数形式，取值范围是0～255，单位是秒。
+缺省值是30秒。
+hold hold-time
+指定保持定时
+器的值。
+整数形式，取值范围是0～255，单位是秒。
+缺省值是120秒。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+19
+
+
+--- Page 24 ---
+
+参数
+参数说明
+取值
+request request-
+time
+指定重传
+PCReq定时器
+的值。
+整数形式，取值范围是5～300，单位是秒。
+缺省值是30秒。
+delegate-hold
+delegate-value
+指定LSP托管
+定时器的值。
+整数形式，取值范围是30～255，单位是
+秒。缺省值是30秒。
+state-timeout
+state-timeout-
+value
+指定LSP状态
+超时定时器的
+值。
+整数形式，取值范围是0～2147483647，单
+位是秒。缺省值是259200秒，即72小时。
+ 
+步骤4 执行命令commit，提交配置。
+----结束
+1.2.4.5 检查配置结果
+PCE Client配置成功后，您可以查看PCEP会话的信息和PCEP协议统计信息。
+前提条件
+已经完成PCE Client的所有配置。
+操作步骤
+●
+使用display pce protocol session [ ip-address | verbose ]命令查看PCEPv4会话
+信息。
+●
+使用display pce protocol ipv6 session [ ipv6-address | verbose ]命令查看
+PCEPv6会话信息。
+●
+使用display pce protocol sr-te policy [ endpoint ipv6-address color color-
+value ]命令查看PCC上报给PCE Server的SR-MPLS TE Policy数据库信息。
+----结束
+1.2.5 使能PCC-Initiated SR-MPLS TE Policy 的自动带宽调整能力
+使能PCC-Initiated SR-MPLS TE Policy的自动带宽调整能力，更好地响应业务需求变
+化。
+背景信息
+配置PCC-Initiated SR-MPLS TE Policy的自动带宽调整功能后，通过固定时间间隔A的
+采样（比如每隔5分钟采样一次），可以获得该隧道流量在一个自动带宽调整周期B
+（比如24小时）内的最大带宽。然后根据此采样值向控制器发送请求带宽，控制器根
+据此带宽重新计算SR-MPLS TE Policy路径，并下发更新。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+20
+
+
+--- Page 25 ---
+
+步骤2 执行命令pce-client，将节点配置为PCE客户端（PCE Client），并进入PCE客户端视
+图。
+步骤3 执行命令capability auto-bandwidth，使能PCE Client自动带宽调整的能力。
+步骤4 执行命令quit，退回系统视图。
+步骤5 执行命令segment-routing，使能全局Segment Routing能力，进入Segment
+Routing视图。
+步骤6 执行命令sr-te-policy auto-bandwidth adjustment enable，开启SR-MPLS TE
+Policy处理自动带宽调整的能力。
+步骤7 执行命令sr-te-policy auto-bandwidth sample interval [ sample-interval-
+value ]，使能自动带宽调整功能对SR-MPLS TE Policy隧道进行出口速率采样，并配置
+全局出口速率采样周期。
+步骤8 执行命令sr-te policy policy-name [ endpoint ipv4-address color color-value ]，进
+入SR-MPLS TE Policy视图。
+步骤9 执行命令auto-bandwidth adjustment，使能当前PCC-Initiate SR-MPLS TE Policy隧
+道自动带宽调整功能，并进入SR-MPLS TE Policy自动带宽调整视图。
+1.
+执行命令adjustment threshold { absolute-bw absolute-bw-value | percent
+percent-value [ minimum-bw minimum-bw-value ] } * [ down adjustment
+{ down-absolute-bw down-absolute-bw-value | down-percent down-
+percent-value [ down-minimum-bw down-minimum-bw-value ] } * ]，配置指
+定SR-MPLS TE Policy隧道的自动带宽调整周期调整参数。
+2.
+执行命令bandwidth { minimum min-bandwidth-value | maximum max-
+bandwidth-value } *，配置指定SR-MPLS TE Policy自动带宽调整的带宽上下限。
+该步骤用于配置自动带宽调整可以预留的最大带宽及最小带宽，当最高流量速率
+不在本命令配置的带宽范围内时，即低于配置的最小带宽/高于配置的最大带宽值
+时，将按照配置最小/最大带宽值进行带宽请求。
+3.
+执行命令overflow-limit { absolute-bw absolute-bw-value count count-value
+| percent percent-value count percent-count-value [ minimum-bw
+minimum-bw-value ] } *，配置指定SR-MPLS TE Policy自动带宽调整向上突发调
+整参数。
+该步骤用于配置快速自动带宽调整阈值参数。如果连续采样值与当前带宽预留差
+值大于或等于满足配置的快速调整的阈值，则绕过向上周期调整，调整到当前最
+高流量速率采样值。该命令用来配置快速自动带宽调整的最小阈值参数、向上绝
+对调整阈值、向上相对调整阈值及对应的溢出次数。本命令可与周期调整阈值命
+令同时使用，快速调整与周期调整任一触发后，将清除所有带宽速率统计数据并
+开始新的并重新启动自动带宽调整功能。
+4.
+执行命令underflow-limit { absolute-bw absolute-bw-value count count-
+value | percent percent-value count percent-count-value [ minimum-bw
+minimum-bw-value ] } *，配置指定SR-MPLS TE Policy隧道的自动带宽调整向下
+突发调整参数。
+该步骤用于配置向下快速自动带宽调整阈值参数。如果连续采样值与当前带宽预
+留差值大于或等于满足配置的快速调整的阈值，则绕过向下周期调整，调整到当
+前最高流量速率采样值。该命令用来配置向下快速自动带宽调整的最小阈值参
+数、向下绝对调整阈值、向下相对调整阈值及对应的溢出次数。未配置当前命令
+时，将应用向上快速调整命令参数。本命令可与周期调整阈值命令同时使用，快
+速调整与周期调整任一触发后，将清除所有带宽速率统计数据并开始新的并重新
+启动自动带宽调整功能。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+21
+
+
+--- Page 26 ---
+
+步骤10 （可选）执行命令adjustment interval adjustment-interval-value [ down
+adjustment interval down-adjustment-interval-value ]，配置指定SR-MPLS TE
+Policy隧道的自动带宽调整周期。
+若sr-te-policy auto-bandwidth sample interval命令配置的全局带宽采样周期大于
+本命令设置的自动带宽调整周期，自动带宽调整功能将不会生效。
+步骤11 执行命令commit，提交配置。
+----结束
+检查配置结果
+PCC-Initiated SR-MPLS TE Policy的自动带宽调整能力配置成功以后，可以按照如下指
+导检查配置结果：
+●
+执行命令display sr-te policy auto-bandwidth adjustment [ policy-name
+policy-name | endpoint ipv4-address color color-value | binding-sid sid-
+value ]，查看SR-MPLS TE Policy自动带宽调整的详细信息。
+●
+执行命令display pce protocol session verbose，查看PCEPv4自动带宽调整拥塞
+状态及定时器的剩余时间。
+●
+执行命令display pce protocol ipv6 session verbose，查看PCEPv6自动带宽调
+整拥塞状态及定时器的剩余时间。
+1.2.6 配置PCEP 触发创建SRv6 TE Policy
+采用PCEP算路方式建立SRv6 TE Policy，能够更快的响应业务的请求，更加合理的利
+用网络资源。
+应用环境
+PCEP解决方案中共有PCE Server和PCE Client两种角色。PCE Server是路径计算的完成
+方，存储了整网的路径信息。PCE Client是路径信息的接收方和使用方。
+转发器内置PCE Client组件，所以转发器就是PCE Client，而PCE Server一般由控制器
+充任。
+前置任务
+在配置PCEP触发创建SRv6 TE Policy之前，需完成以下任务：
+●
+配置IGP（IS-IS/OSPFv3）协议，保证各节点在网络层互通
+●
+使能SRv6能力
+1.2.6.1 使能PCE Client 处理SRv6 TE Policy 的能力
+配置PCE Client，与PCE Server建立会话，可以接收PCE Server下发的SRv6 TE Policy
+信息。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，将节点配置为PCE客户端（PCE Client），并进入PCE客户端视
+图。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+22
+
+
+--- Page 27 ---
+
+步骤3 执行命令capability segment-routing-ipv6 [ algorithm ]，使能PCE Client处理
+SRv6 TE Policy的能力。
+步骤4 （可选）执行命令disjoint-path enable，使能PCE Client处理不相交关联组的能力。
+设备端的同一个SRv6 TE Policy内，可以为不同Candidate-Path配置不相交关联组，向
+PCE Server请求算路时携带此分离约束，PCE-Server会为相同关联组的不同
+Candidate-Path计算分离路径，其中一条路径故障时，其余的备份路径能够很大程度
+避免同时故障，提高网络业务的可靠性。配置disjoint-path enable后，PCE Client能上
+报不相交关联组给PCE Server。
+步骤5 （可选）执行命令policy-association-group enable，使能PCE Client处理策略关联
+组的能力。
+PCE Client和PCE Server可以使用通用的机制，将一组LSP与策略关联起来，而不需要
+了解策略的细节。这样可以简化网络操作，避免频繁的软件升级，并且可以更快的应
+用新的策略。配置policy-association-group enable后，PCE Client能处理PCE Server
+下发的策略关联组并应用，能上报策略关联组约束给PCE Server。
+步骤6 （可选）执行命令stateless-bringup，配置PCE Client向PCE Server发送PCReq请求算
+路能力。
+配置stateless-bringup命令后，PCE Client与PCE Server同步结束，PCE Client新配置
+的SRv6 TE Policy的LSP需要首先发起PCReq消息请求算路，PCE Server收到请求后，
+通过PCRep消息返回算路结果。在PCE托管场景，可以配置该功能。如果PCE Server返
+回算路结果可以满足业务需求，就可以启动托管；如果返回NO-PATH或其他异常，则
+需要排除问题后再启动托管。
+步骤7 （可选）执行命令pcep speaker-entity-id speaker-entity-id-value，配置PCEP实体
+标识值。
+PCEP实体可以配置speaker-entity-id-value参数来作为PCEP实体的唯一标识值。本端
+PCEP实体可以根据对端实体的speaker-entity-id-value来识别对端实体是否为已知的
+PCEP peer。
+说明
+需要本地设备和对端控制器同时配置speaker-entity-id-value参数，如果只有本地设备配置该参
+数，可能导致PCEP会话无法Up。因此当对端控制器不支持配置speaker-entity-id-value时，本
+地设备不建议配置该命令行。
+步骤8 执行命令commit，提交配置。
+----结束
+1.2.6.2 配置PCE Client 的候选算路PCE Server
+通过配置PCE Client的候选算路PCE Server可以为PCE Client提供算路服务，如果配置
+多个，则会形成备份，有助于提高网络的可靠性。
+应用环境
+PCEP中共有PCE Server和PCE Client两种角色。对于PCE Client，需要执行connect-
+server命令配置它的候选PCE Server。一台PCE Client设备来说可以有多个候选PCE
+Server。
+当PCE Server和PCE Client使用IPv4地址建立连接时，则为PCEPv4会话；当PCE Server
+和PCE Client使用IPv6地址建立连接时，则为PCEPv6会话。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+23
+
+
+--- Page 28 ---
+
+该配置任务同时适用于PCEPv4会话和PCEPv6会话。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行如下命令，配置PCE Client的候选PCE Server，并进入相关视图。
+●
+对于PCEPv4会话：执行命令connect-server ip-address，配置PCE Client的候选
+PCE Server，并进入连接PCE服务器视图。
+●
+对于PCEPv6会话：执行命令connect-server ipv6 ipv6-address，配置PCE Client
+的候选PCE Server，并进入连接PCE服务器IPv6视图。
+ip-address/ipv6-address为PCE Server的源IPv4/IPv6地址。用户可以配置多个候选PCE
+Server，以便形成备份。
+步骤4 （可选）执行命令preference preference，配置候选PCE Server的优先级。
+preference为整数形式，取值范围是0～7。数值越大优先级越高。
+配置PCE特性时，可以为单个PCE Client配置多个候选PCE Server。可以为不同的候选
+PCE Server设置不同的优先级，优先级越高的候选PCE Server将被优先选做算路PCE
+Server。
+如果不配置优先级，则按优先级0设置，标识优先级最低。
+说明
+当PCEPv4会话和PCEPv6会话同时存在时，按照如下原则进行会话优选：
+1. 比较PCEPv4会话和PCEPv6会话的优先级，优选高优先级的会话。
+2. 若PCEPv4会话和PCEPv6会话的优先级相同，则优选PCEPv6会话。
+3. 若PCEPv4下存在多个优先级相同的会话时，优选候选PCE Server的IP地址较小的会话。
+PCEPv6会话亦然。
+步骤5 （可选）执行如下命令，配置PCEP会话的源IP地址。
+●
+对于PCEPv4会话：执行命令source-interface port-type port-num，配置PCEPv4
+会话的源IP地址。
+PCEPv4会话默认使用MPLS LSR-ID作为源IP地址建立。在有些特殊情况下，MPLS
+LSR-ID不可达，此时可以配置此命令借用本地其他LoopBack接口的IPv4地址作为
+源IPv4地址。
+●
+对于PCEPv6会话：执行命令source-interface port-type port-num或source-
+address ipv6 ipv6-address，配置PCEPv6会话的源IPv6地址。
+PCEPv6会话默认使用IPv6-LSR-ID作为源IPv6地址建立。在有些特殊情况下，IPv6
+LSR-ID不可达，此时可以配置此命令借用本地其他LoopBack接口的IPv6地址作为
+源IPv6地址。
+PCEPv6会话借用LoopBack接口IPv6地址场景，如果LoopBack接口配置多个IPv6
+地址，则取其中最小IPv6地址作为会话源地址。当修改LoopBack接口下的配置
+时，若最小IPv6地址发生改变，将会导致PCEPv6会话重建。
+步骤6 执行命令commit，提交配置。
+----结束
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+24
+
+
+--- Page 29 ---
+
+1.2.6.3 配置PCEP 计算SRv6 TE Policy 的约束
+在配置PCEP算路场景时，可以提前执行本任务配置SRv6 TE Policy的一些约束。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 配置SRv6 TE Policy的算路方式为PCEP。
+1.
+执行命令segment-routing ipv6，使能SRv6功能，并且进入SRv6视图。
+2.
+根据实际需要选择进行如下配置，或者配置二者的组合。
+–
+全局配置所有SRv6 TE Policy的算路方式为PCEP。
+执行命令srv6-te-policy dynamic-computation-seq pcep，指定动态算路
+方式为PCEP算路。
+–
+配置单个SRv6 TE Policy的算路方式。
+i.
+执行命令srv6-te policy policy-name [ endpoint endpoint-ip color
+color-value ]，进入SRv6 TE Policy视图。
+ii.
+执行命令dynamic-computation-seq { pcep | none } ，指定SRv6 TE
+Policy的动态算路方式为PCEP算路。
+参数none将取消单个SRv6 TE Policy的动态算路方式。
+iii.
+执行命令quit，退回SRv6视图。
+说明
+全局配置优先级低于个体配置优先级。如果二者同时存在，个体配置优先生效。如果不存
+在个体配置，则继承全局配置。
+实际应用时，通常可以分为三种情况：
+a.
+如果配置所有SRv6 TE Policy的动态算路方式为PCEP算路，则仅执行命令
+srv6-te-policy dynamic-computation-seq pcep，打开全局开关即可。
+b.
+如果配置大部分SRv6 TE Policy的动态算路方式为PCEP算路，则可以先执行
+命令srv6-te-policy dynamic-computation-seq pcep打开全局开关，然后
+对于不需要PCEP算路的SRv6 TE Policy逐个执行命令dynamic-
+computation-seq none。
+c.
+如果配置少部分SRv6 TE Policy的动态算路方式为PCEP算路，则无须配置命
+令srv6-te-policy dynamic-computation-seq pcep，直接对于需要PCEP算
+路的SRv6 TE Policy逐个执行命令dynamic-computation-seq pcep。
+3.
+执行命令quit，退回系统视图。
+步骤3 （可选）创建SRv6 TE Policy的路径约束。
+说明
+如果后续步骤里需要为SRv6 TE Policy配置路径约束，需要提前执行此步骤配置具体的约束条
+件。
+1.
+执行命令segment-routing policy constraint-path path-name，创建SRv6 TE
+Policy路径约束，并且进入对应名称的路径约束视图。
+2.
+执行命令hop-type ipv6，指定路径约束下的约束的地址类型为IPv6。
+3.
+执行命令index index-value address ipv6 ipv6-address [ include [ strict |
+loose ] | exclude ]，在路径约束中指定下一跳IP地址。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+25
+
+
+--- Page 30 ---
+
+4.
+执行命令quit，退回系统视图。
+步骤4 配置SRv6 TE Policy的算路约束。
+说明
+约束模板配置优先级低于SRv6 TE Policy下直接配置优先级。
+如果二者同时存在，SRv6 TE Policy下直接配置优先生效；如果SRv6 TE Policy下未直接配置，
+则继承约束模板配置。
+●
+利用SRv6 TE Policy约束模板配置。
+a.
+执行命令segment-routing policy constraint-template constraintName，
+创建SRv6 TE Policy约束模板，并且进入对应名称的约束模板视图。
+b.
+执行命令priority setup-priority hold-priority，配置约束模板中的路径建立
+优先级和保持优先级。
+c.
+执行命令affinity { include-all | include-any | exclude } { affinity-name }
+&<1-32>，配置约束模板中的亲和属性约束。
+d.
+执行命令bandwidth ct0 bandwidth-value，配置约束模板中的带宽约束。
+e.
+执行命令constraint-path constraint-path-name，配置约束模板中的路径约
+束。
+constraint-path-name参数由命令segment-routing policy constraint-
+path path-name配置，取值与path-name一致。
+f.
+执行命令link-bandwidth utilization utilization-value，配置约束模板中的
+带宽利用率。
+g.
+执行命令metric-type { igp | te | delay | hop-count }，配置约束模板中的
+度量算路类型。
+配置完成后，选择执行如下对应命令，配置相应的约束值：
+▪
+执行命令max-cumulation igp max-igp-cost，配置约束模板中的最大
+IGP cost约束。
+▪
+执行命令max-cumulation te max-te-cost，配置约束模板中的最大TE
+cost约束。
+▪
+执行命令max-cumulation delay max-delay，配置约束模板中的最大
+时延约束。
+▪
+执行命令max-cumulation hop-count max-hop-count，配置约束模板
+中的最大跳数约束。
+h.
+执行命令sid-algorithm sidAlgoId [ strict ] [ path-computation-mode
+{ flex-algo | sid-filter } ]，配置约束模板中的灵活算法（Flex-Algo）约束。
+说明
+配置flex-algo参数与亲和属性约束冲突，二者不能同时配置。
+i.
+执行命令disjoint-path group-id group-id-value source-ip source-ipv6-
+value type { link | node | srlg | srlg-node } [ shortest ] [ strict | of-code
+{ msl | mss | msn } ]，配置约束模板引用Disjoint Association Group。
+j.
+执行命令policy-association-group group-id group-id-value source-ip
+source-ipv6-value [ policy-parameters policy-parameters-value ]，配置
+约束模板引用Policy Association Group。
+k.
+执行命令sid selection { unprotected-preferred | protected-preferred |
+unprotected-only | protected-only }，配置约束模板的SID选择原则。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+26
+
+
+--- Page 31 ---
+
+l.
+执行命令quit，退回系统视图。
+m.
+执行命令segment-routing ipv6，使能IPv6转发平面的Segment Routing功
+能，并且进入SRv6视图。
+n.
+执行命令srv6-te policy policy-name [ endpoint endpoint-ip color color-
+value ]，进入SRv6 TE Policy视图。
+o.
+执行命令constraint-template constraintName，指定SRv6 TE Policy引用的
+约束模板。
+p.
+执行命令candidate-path preference preference，配置SRv6 TE Policy的候
+选路径及候选路径优先级。
+每一个SRv6 TE Policy允许配置多个候选路径。preference越大，候选路径优
+先级越高，存在多个候选路径时，优先级最高的生效。
+q.
+执行命令dynamic，配置SRv6 TE Policy候选路径为动态路径。
+●
+在SRv6 TE Policy下直接配置。
+a.
+执行命令segment-routing ipv6，使能IPv6转发平面的Segment Routing功
+能，并且进入SRv6视图。
+b.
+执行命令srv6-te policy policy-name [ endpoint endpoint-ip color color-
+value ]，进入SRv6 TE Policy视图。
+c.
+执行命令candidate-path preference preference，配置SRv6 TE Policy的候
+选路径及候选路径优先级。
+每一个SRv6 TE Policy允许配置多个候选路径。preference越大，候选路径优
+先级越高，存在多个候选路径时，优先级最高的生效。
+d.
+执行命令dynamic，配置SRv6 TE Policy候选路径为动态路径。
+e.
+执行命令affinity { include-all | include-any | exclude } { affinity-name }
+&<1-32>，配置SRv6 TE Policy动态候选路径下的亲和属性约束。
+f.
+执行命令constraint-path constraint-path-name，配置SRv6 TE Policy动态
+候选路径下的路径约束。
+constraint-path-name参数由命令segment-routing policy constraint-
+path path-name配置，取值与path-name一致。
+g.
+执行命令link-bandwidth utilization utilization-value，配置SRv6 TE
+Policy动态候选路径下的带宽利用率约束。
+h.
+执行命令metric-type { igp | te | delay | hop-count }，配置SRv6 TE Policy
+动态候选路径下的度量算路类型。
+配置完成后，选择执行如下对应命令，配置相应的约束值：
+▪
+执行命令max-cumulation igp max-igp-cost，配置SRv6 TE Policy动态
+候选路径下的最大IGP cost约束。
+▪
+执行命令max-cumulation te max-te-cost，配置SRv6 TE Policy动态候
+选路径下的最大TE cost约束。
+▪
+执行命令max-cumulation delay max-delay，配置SRv6 TE Policy动态
+候选路径下的最大时延约束。
+▪
+执行命令max-cumulation hop-count max-hop-count，配置SRv6 TE
+Policy动态候选路径下的最大跳数约束。
+i.
+执行命令sid-algorithm sidAlgoId [ strict ] [ path-computation-mode
+{ flex-algo | sid-filter } ]，配置SRv6 TE Policy动态候选路径下的灵活算法
+（Flex-Algo）约束。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+27
+
+
+--- Page 32 ---
+
+说明
+配置flex-algo参数与亲和属性约束冲突，二者不能同时配置。
+j.
+执行命令disjoint-path group-id group-id-value source-ip source-ipv6-
+value type { link | node | srlg | srlg-node } [ shortest ] [ strict | of-code
+{ msl | mss | msn } ]，配置SRv6 TE Policy动态候选路径引用Disjoint
+Association Group。
+k.
+执行命令policy-association-group group-id group-id-value source-ip
+source-ipv6-value [ policy-parameters policy-parameters-value ]，配置
+SRv6 TE Policy动态候选路径引用Policy Association Group。
+l.
+执行命令sid selection { unprotected-preferred | protected-preferred |
+unprotected-only | protected-only }，配置SRv6 TE Policy动态候选路径下
+的SID选择原则。
+步骤5 执行命令commit，提交配置。
+----结束
+1.2.6.4 （可选）配置PCE Client 的定时器
+PCE Client定时器包括存活定时器、保持定时器以及LSP托管定时器。
+应用环境
+PCEP定义了存活定时器和保持定时器以便维护PCEP会话。PCEP会话的任意一端都会
+运行这两种定时器。每次存活定时器超时时，本端都会重新发送Keepalive消息。如果
+在保持定时器超时时没有收到对端发来的Keepalive消息，本端将认为会话中断。通
+常，保持定时器的值 = 4 × 存活定时器的值。因此配置存活定时器的值后，保持定时
+器的值会随之自动按照公式更新。但是，有如下限制：
+●
+任何时候，保持定时器的值都不能小于存活定时器。
+●
+配置存活定时器会按照公式改变保持定时器的值，但保持定时器的配置不会引起
+存活定时器值的变化。
+●
+如果配置存活定时器的值大于63时，保持定时器的值始终是255。
+说明
+PCEP会话两端设备的存活定时器（或保持定时器）是独立的，不要求取相同的值，两端也不会
+协商采用一个相同的值。
+假如PCEP连接变为IDLE，PCE Client会启动LSP托管定时器。在LSP托管定时器超时之
+前，PCE Client将尝试与当前PCE Server恢复PCEP连接。
+当LSP托管定时器超时后，PCE Client将尝试与其他可用的PCE Server建立PCEP会话；
+同时，PCE Client会启动LSP状态超时定时器，在LSP状态超时定时器超时之前，被托
+管LSP的状态不允许改变。当LSP状态超时定时器超时之后，被托管LSP的状态将允许
+修改。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+28
+
+
+--- Page 33 ---
+
+步骤3 执行命令timer { keepalive keepalive-value | hold hold-time | request request-
+time | delegate-hold delegate-value | state-timeout state-timeout-value }，配置
+PCE Client的定时器。
+各个参数的说明如下，建议采用缺省值。
+参数
+参数说明
+取值
+keepalive
+keepalive-time
+指定存活定时
+器的值。
+整数形式，取值范围是0～255，单位是秒。
+缺省值是30秒。
+hold hold-time
+指定保持定时
+器的值。
+整数形式，取值范围是0～255，单位是秒。
+缺省值是120秒。
+request request-
+time
+指定重传
+PCReq定时器
+的值。
+整数形式，取值范围是5～300，单位是秒。
+缺省值是30秒。
+delegate-hold
+delegate-value
+指定LSP托管
+定时器的值。
+整数形式，取值范围是30～255，单位是
+秒。缺省值是30秒。
+state-timeout
+state-timeout-
+value
+指定LSP状态
+超时定时器的
+值。
+整数形式，取值范围是0～2147483647，单
+位是秒。缺省值是259200秒，即72小时。
+ 
+步骤4 执行命令commit，提交配置。
+----结束
+1.2.6.5 检查配置结果
+PCE Client配置成功后，您可以查看PCEP会话的信息和PCEP协议统计信息。
+前提条件
+已经完成PCE Client的所有配置。
+操作步骤
+●
+使用display pce protocol session [ ip-address | verbose ]命令查看PCEPv4会话
+信息。
+●
+使用display pce protocol ipv6 session [ ipv6-address | verbose ]命令查看
+PCEPv6会话信息。
+●
+使用display pce protocol srv6-te policy [ endpoint ipv6-address color color-
+value ]命令查看PCC上报给PCE Server的SRv6 TE Policy数据库信息。
+----结束
+1.2.7 使能PCE Client 支持IETF 定义的AO 格式
+通过使能PCE Client支持IETF定义的AO格式，可以解决PCEP协议下定义的对象不支持
+IETF定义的问题。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+29
+
+
+--- Page 34 ---
+
+应用环境
+PCE Server和PCE Client通过PCEP协议进行信息交互。PCEP协议定义了很多对象，发
+送端和接收端通过对象进行编码和解码操作。AO（Association Object）就是PCEP协
+议中的一个对象，但是现在PCEP并不支持AO的编解码功能，为了解决上述问题，可以
+配置association-type enable命令，使能PCE Client支持IETF定义的AO格式，这样就
+不会出现PCEP不支持AO的编解码的问题。
+该配置任务同时适用于PCEPv4会话和PCEPv6会话。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行命令association-type enable，使能PCE Client支持IETF定义的AO格式。
+步骤4 执行命令commit，提交配置。
+----结束
+1.2.8 使能PCE Client 支持IETF 定义的AO 和PPAG TLV 的编码格
+式
+通过调整PCE Client支持IETF定义的AO和PPAG TLV的编码格式，便于进行互通测试。
+背景信息
+该功能主要用于互通测试场景，设备能够解析草案中定义的AO（Association
+Object）和PPAG格式，也能解析RFC 8745和RFC 8697中定义的AO和PPAG格式，默
+认按照RFC 8745和RFC 8697中定义的AO和PPAG格式进行编码，用户可以根据对端设
+备实际支持情况进行调整。
+如果对端的控制器或者测试仪使用RFC 8745和RFC 8697定义的格式，设备就必须使能
+ppag standard enable命令，发送的报文中AO和PPAG按照RFC中定义的格式进行编
+码，设备才能互通，否则对端设备无法解析本设备的PCRpt消息。
+该配置任务同时适用于PCEPv4会话和PCEPv6会话。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行命令ppag standard enable，使能PCE Client通过PCEP会话发送的报文中AO和
+PPAG TLV的编码格式按照RFC 8697和RFC 8745中定义的格式进行编码。
+步骤4 执行命令commit，提交配置。
+----结束
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+30
+
+
+--- Page 35 ---
+
+1.2.9 配置PCE Client 关闭Open 报文中PPAG/SRPAG/GMPLS 能
+力协商功能
+配置调整PCE Client的Open报文中PPAG/SRPAG/GMPLS能力协商功能，便于与其他厂
+商互通。
+背景信息
+该命令主要用于解决与某些厂商的PCEP互通问题。某些厂商不支持PPAG/SRPAG/
+GMPLS的PCEP协商或者支持此功能但会下发错误报文，为了与这些厂商互通，可以去
+使能PPAG/SRPAG/GMPLS在PCEP Open报文中的协商功能。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行命令{ ppag | | srpag | gmpls } negotiate disable，关闭PCEP Open报文中的
+PPAG/SRPAG/GMPLS功能协商能力。
+某些厂商不支持PPAG/SRPAG/GMPLS的PCEP协商，或者支持此功能但会下发错误报
+文，为了与这些厂商互通，可以去使能PPAG/SRPAG/GMPLS在Open报文中的协商功
+能。
+●
+ppag参数指定MPLS TE的PPAG（Path Protection Association Group，路径保护
+关联组）功能。
+●
+srpag指定SRPAG（SR Policy Association Group，SR Policy关联组）功能，适用
+于SR Policy场景。
+●
+gmpls参数指定GMPLS（Generalized Multiprotocol Label Switching，通用多协
+议标签交换）功能，关于GMPLS UNI的配置，请参考GMPLS UNI配置。
+步骤4 执行命令commit，提交配置。
+----结束
+1.2.10 配置PCEPv4 会话的安全认证
+配置PCEPv4会话认证能够提高网络的安全性，防止网络攻击。
+应用环境
+为了确保PCE Server和PCE Client在建立会话时的安全性，防止非法用户的入侵，可以
+配置PCEPv4会话的安全认证，以便提高网络的安全性。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行命令connect-server ip-address，配置PCE Client的候选PCE Server，并进入连接
+PCE服务器视图。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+31
+
+
+--- Page 36 ---
+
+步骤4 配置PCEPv4会话的安全认证，请选择配置如下步骤之一：
+●
+执行命令bind ssl-policy ssl-policy-name [ pceps ]，配置PCEP会话连接绑定SSL
+策略。PCEP会话是普通的TCP连接，存在安全风险，可以执行此步骤为PCEP会话
+绑定SSL策略，使PCE Client与PCE Server之间建立安全的SSL连接。
+pceps参数用来指定TLS协商模式为PCEPS，即开始TLS协商之前两端先进行
+StartTLS协商（符合RFC 8253）。
+说明
+执行此步骤前，请先保证已创建相关的SSL策略。
+●
+执行命令authentication keychain keychain-name，配置PCE Client与PCE
+Server间的Keychain会话认证。
+●
+执行命令authentication md5 cipher md5text，配置PCE Client与PCE Server之
+间建立PCEP会话时采用MD5认证。为了确保PCE Client与PCE Server在建立会话
+时的安全性，防止非法用户的入侵，可以配置MD5认证，以便提高网络的安全
+性。
+说明
+MD5算法安全性低，存在安全风险，建议改用更安全的认证方法。
+认证密码建议符合密码复杂度规则：大写字母、小写字母、数字、特殊字符中至少各1种，
+并且长度不能小于8。
+●
+执行命令authentication tcp-ao tcp-ao-name，配置PCE Client与PCE Server之
+间建立PCEP会话时采用TCP-AO认证。
+说明
+使用TCP-AO认证，需要预先创建TCP-AO，具体配置方法，请参考配置TCP-AO并绑定
+Keychain。
+步骤5 执行命令commit，提交配置。
+----结束
+1.2.11 配置PCEPv6 会话的安全认证
+配置PCEPv6会话认证能够提高网络的安全性，防止网络攻击。
+应用环境
+为了确保PCE Server和PCE Client在建立会话时的安全性，防止非法用户的入侵，可以
+配置PCEPv6会话的安全认证，以便提高网络的安全性。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行命令connect-server ipv6 ipv6-address，配置PCE Client的IPv6候选PCE
+Server，并进入连接PCE服务器IPv6视图。
+步骤4 配置PCEPv6会话的安全认证，请选择配置如下步骤之一：
+●
+执行命令bind ssl-policy ssl-policy-name [ pceps ]，配置PCEP会话连接绑定SSL
+策略。PCEP会话是普通的TCP连接，存在安全风险，可以执行此步骤为PCEP会话
+绑定SSL策略，使PCE Client与PCE Server之间建立安全的SSL连接。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+32
+
+
+--- Page 37 ---
+
+pceps参数用来指定TLS协商模式为PCEPS，即开始TLS协商之前两端先进行
+StartTLS协商（符合RFC 8253）。
+说明
+执行此步骤前，请先保证已创建相关的SSL策略。
+●
+执行命令authentication keychain keychain-name，配置PCE Client与PCE
+Server间的Keychain会话认证。
+●
+执行命令authentication md5 cipher md5text，配置PCE Client与PCE Server之
+间建立PCEP会话时采用MD5认证。为了确保PCE Client与PCE Server在建立会话
+时的安全性，防止非法用户的入侵，可以配置MD5认证，以便提高网络的安全
+性。
+说明
+MD5算法安全性低，存在安全风险，建议改用更安全的认证方法。
+认证密码建议符合密码复杂度规则：大写字母、小写字母、数字、特殊字符中至少各1种，
+并且长度不能小于8。
+●
+执行命令authentication tcp-ao tcp-ao-name，配置PCE Client与PCE Server之
+间建立PCEP会话时采用TCP-AO认证。
+说明
+使用TCP-AO认证，需要预先创建TCP-AO，具体配置方法，请参考配置TCP-AO并绑定
+Keychain。
+步骤5 执行命令commit，提交配置。
+----结束
+1.2.12 配置PCEPv4 白名单Session-CAR 功能
+通过配置PCEPv4的白名单Session-CAR（会话承诺访问速率）功能，可以实现会话限
+速，避免当出现PCEPv4报文流量冲击时，发生PCEPv4会话之间报文互相抢占带宽的情
+况。
+背景信息
+当出现PCEPv4报文流量攻击时，可能发生PCEPv4会话之间报文会发生互相抢占带宽的
+情况。PCEPv4的白名单Session-CAR功能用于对白名单报文通道进行隔离，实现区分
+会话限速，避免PCEPv4会话之间报文互相抢占带宽资源。当默认的白名单Session-
+CAR的带宽参数不满足业务要求时，可以对带宽参数进行调整，灵活适应业务要求。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令whitelist session-car pcep-ipv4 { cir cir-value | cbs cbs-value | pir pir-
+value | pbs pbs-value } *，配置PCEPv4的白名单Session-CAR功能相关参数。
+步骤3 执行命令commit，提交配置。
+----结束
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+33
+
+
+--- Page 38 ---
+
+检查配置结果
+PCEPv4的白名单Session-CAR功能配置成功以后，可以按照如下指导检查配置结果：
+执行命令display cpu-defend whitelist session-car pcep statistics slot slot-id，查
+看指定接口板PCEPv4的白名单Session-CAR的统计信息。
+如果需要查看某一段时间的统计信息，可以使用reset cpu-defend whitelist session-
+car pcep statistics slot slot-id命令先清除指定接口板上PCEPv4的白名单Session-CAR
+的统计信息，然后过一段时间，再使用display cpu-defend whitelist session-car
+pcep statistics slot slot-id命令。
+说明
+清除指定接口板上的白名单Session-CAR的统计信息后，之前的统计信息将无法恢复，请务必仔
+细确认。
+异常处理
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令whitelist session-car pcep-ipv4 disable，关闭PCEPv4的白名单Session-
+CAR功能。
+只有当该功能异常时，才需要去使能。正常情况下，建议保持开启PCEPv4的白名单
+Session-CAR功能。
+步骤3 执行命令commit，提交配置。
+----结束
+1.2.13 配置PCEPv6 白名单Session-CAR 功能
+通过配置PCEPv6的白名单Session-CAR（会话承诺访问速率）功能，可以实现会话限
+速，避免当出现PCEPv6报文流量冲击时，发生PCEPv6会话之间报文互相抢占带宽的情
+况。
+背景信息
+当出现PCEPv6报文流量攻击时，可能发生PCEPv6会话之间报文会发生互相抢占带宽的
+情况。PCEPv6的白名单Session-CAR功能用于对白名单报文通道进行隔离，实现区分
+会话限速，避免PCEPv6会话之间报文互相抢占带宽资源。当默认的白名单Session-
+CAR的带宽参数不满足业务要求时，可以对带宽参数进行调整，灵活适应业务要求。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令whitelist session-car pcep-ipv6 { cir cir-value | cbs cbs-value | pir pir-
+value | pbs pbs-value } *，配置PCEPv6的白名单Session-CAR功能相关参数。
+步骤3 执行命令commit，提交配置。
+----结束
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+34
+
+
+--- Page 39 ---
+
+检查配置结果
+PCEPv6的白名单Session-CAR功能配置成功以后，可以按照如下指导检查配置结果：
+执行命令display cpu-defend whitelist session-car pcep statistics slot slot-id，查
+看指定接口板PCEPv6的白名单Session-CAR的统计信息。
+如果需要查看某一段时间的统计信息，可以使用reset cpu-defend whitelist session-
+car pcep statistics slot slot-id命令先清除指定接口板上PCEPv6的白名单Session-CAR
+的统计信息，然后过一段时间，再使用display cpu-defend whitelist session-car
+pcep statistics slot slot-id命令。
+说明
+清除指定接口板上的白名单Session-CAR的统计信息后，之前的统计信息将无法恢复，请务必仔
+细确认。
+异常处理
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令whitelist session-car pcep-ipv6 disable，关闭PCEPv6的白名单Session-
+CAR功能。
+只有当该功能异常时，才需要去使能。正常情况下，建议保持开启PCEPv6的白名单
+Session-CAR功能。
+步骤3 执行命令commit，提交配置。
+----结束
+1.2.14 配置PCEPv4 的微隔离协议CAR 功能
+背景信息
+PCEPv4的微隔离CAR功能默认开启，可以对PCEPv4建连报文进行微隔离保护。当遭受
+攻击时，可能存在PCEPv4不同会话间报文发生互相抢占带宽的情况，因此，一般情况
+下，不建议关闭该功能。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令micro-isolation protocol-car pcep-ipv4 { cir cir-value | cbs cbs-value |
+pir pir-value | pbs pbs-value } *，配置PCEPv4的微隔离CAR的参数值。
+正常情况下，建议使用默认参数。pir-value应该大于等于cir-value，pbs-value应该大
+于等于cbs-value。
+步骤3 执行命令commit，提交配置。
+----结束
+异常处理
+步骤1 执行命令system-view，进入系统视图。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+35
+
+
+--- Page 40 ---
+
+步骤2 执行命令micro-isolation protocol-car pcep-ipv4 disable，关闭PCEPv4的微隔离
+CAR功能。
+执行micro-isolation protocol-car pcep-ipv4 disable命令后可以关闭PCEPv4的微隔
+离CAR功能，此时不再对PCEPv4报文进行微隔离保护。正常情况下，建议保持开启
+PCEPv4的微隔离CAR功能。
+步骤3 执行命令commit，提交配置。
+----结束
+1.2.15 配置PCEPv6 的微隔离协议CAR 功能
+背景信息
+PCEPv6的微隔离CAR功能默认开启，可以对PCEPv6建连报文进行微隔离保护。当遭受
+攻击时，可能存在PCEPv6不同会话间报文发生互相抢占带宽的情况，因此，一般情况
+下，不建议关闭该功能。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令micro-isolation protocol-car pcep-ipv6 { cir cir-value | cbs cbs-value |
+pir pir-value | pbs pbs-value } *，配置PCEPv6的微隔离CAR的参数值。
+正常情况下，建议使用默认参数。pir-value应该大于等于cir-value，pbs-value应该大
+于等于cbs-value。
+步骤3 执行命令commit，提交配置。
+----结束
+异常处理
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令micro-isolation protocol-car pcep-ipv6 disable，关闭PCEPv6的微隔离
+CAR功能。
+执行micro-isolation protocol-car pcep-ipv6 disable命令后可以关闭PCEPv6的微隔
+离CAR功能，此时不再对PCEPv6报文进行微隔离保护。正常情况下，建议保持开启
+PCEPv6的微隔离CAR功能。
+步骤3 执行命令commit，提交配置。
+----结束
+1.2.16 维护PCEP
+介绍PCEP的日常维护操作。
+1.2.16.1 配置PCEP 接收未知消息最大速率
+配置PCEP接收未知消息最大速率，提升PCEP会话可靠性。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+36
+
+
+--- Page 41 ---
+
+背景信息
+当PCE Client接收未知消息速率超过配置的最大速率，此时PCE Server可能已经发生故
+障，PCE Client要主动中断PCEP会话，并且重新与其他PCE Server建连。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行命令pcep max-unknown-messages max-unknown-messages-rate，配置PCE
+Client接收未知消息的最大速率。
+步骤4 执行命令commit，提交配置。
+----结束
+1.2.16.2 配置PCEP 接收未知Reply 消息最大速率
+配置PCEP接收未知Reply消息最大速率，提升PCEP会话可靠性。
+背景信息
+PCE特性分为PCE Server和PCE Client两种角色。PCE Server是路径计算的完成方，
+PCE Client为算路请求的发起方。PCE Client发送的每个算路请求消息（PCReq）会有
+ID标识，PCE Server回复的算路结果消息（PCRep）会携带对应的ID，当PCE Client收
+到PCE Server发送的算路结果消息（PCRep）里的ID与Client发送的算路请求
+（PCReq）的ID不一致时认为是未知的Reply消息。当PCE Client收到超过一定速率的
+未知的Reply消息，认为PCE Server已经发生故障，PCE Client要主动中断PCEP会话。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令pce-client，进入PCE客户端视图。
+步骤3 执行命令pcep max-unknown-replies max-unknown-replies-value，配置PCE Client
+接收未知Reply消息的最大速率。
+步骤4 执行命令commit，提交配置。
+----结束
+1.2.16.3 查看PCEP 会话的统计信息
+介绍通过命令查看PCEP会话的统计信息。
+前提条件
+当需要对PCEP会话信息做精确的统计时，可以先执行reset命令清除之前的统计信息，
+然后再执行display命令查看最新的统计信息。
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+37
+
+
+--- Page 42 ---
+
+操作步骤
+●
+使用display pce protocol statistics [ ip-address ]命令查看PCEPv4会话的统计
+信息。
+●
+使用display pce protocol ipv6 statistics [ ipv6-address ]命令查看PCEPv6会话
+的统计信息。
+----结束
+1.2.16.4 清除PCEP 会话的统计信息
+介绍通过命令手工清除PCEP会话的统计信息。
+前提条件
+当需要对PCEP会话信息做精确的统计时，可以先执行reset命令清除之前的统计信息，
+然后再执行display命令查看最新的统计信息。
+操作步骤
+●
+使用reset pce protocol statistics { ip-address | all }命令清除PCEPv4会话的统
+计信息。
+●
+使用reset pce protocol ipv6 statistics ipv6-address命令清除PCEPv6会话的统
+计信息。
+----结束
+HUAWEI NetEngine40E
+配置指南
+1 路径控制
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+38

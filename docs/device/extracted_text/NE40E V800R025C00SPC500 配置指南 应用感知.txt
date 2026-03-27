@@ -1,0 +1,3534 @@
+# Source: NE40E V800R025C00SPC500 配置指南 应用感知.pdf
+# Total pages: 56, Extracted: 56
+
+
+--- Page 1 ---
+
+HUAWEI NetEngine40E
+V800R025C00SPC500
+配置指南
+文档版本
+01
+发布日期
+2025-09-30
+华为技术有限公司
+
+
+--- Page 2 ---
+
+ 
+ 
+版权所有 © 华为技术有限公司 2025。 保留一切权利。
+非经本公司书面许可，任何单位和个人不得擅自摘抄、复制本文档内容的部分或全部，并不得以任何形式传
+播。
+ 
+商标声明
+和其他华为商标均为华为技术有限公司的商标。
+本文档提及的其他所有商标或注册商标，由各自的所有人拥有。
+ 
+注意
+您购买的产品、服务或特性等应受华为公司商业合同和条款的约束，本文档中描述的全部或部分产品、服务或
+特性可能不在您的购买或使用范围之内。除非合同另有约定，华为公司对本文档内容不做任何明示或暗示的声
+明或保证。
+由于产品版本升级或其他原因，本文档内容会不定期进行更新。除非另有约定，本文档仅作为使用指导，本文
+档中的所有陈述、信息和建议不构成任何明示或暗示的担保。
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+华为技术有限公司
+地址：
+深圳市龙岗区坂田华为总部办公楼 邮编：518129
+网址：
+https://www.huawei.com
+客户服务邮箱：support@huawei.com
+客户服务电话：4008302118
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+i
+
+
+--- Page 3 ---
+
+目 录
+1 应用感知......................................................................................................................................1
+1.1 前 言............................................................................................................................................................................................. 1
+1.2 APN6 配置.................................................................................................................................................................................. 5
+1.2.1 APN6 概述...............................................................................................................................................................................6
+1.2.2 APN6 配置注意事项............................................................................................................................................................. 7
+1.2.3 配置APN6 基本功能.......................................................................................................................................................... 10
+1.2.3.1 配置APN ID 模板............................................................................................................................................................10
+1.2.3.2 配置APN ID 实例............................................................................................................................................................10
+1.2.3.3 配置流量策略....................................................................................................................................................................11
+1.2.3.4 检查配置结果....................................................................................................................................................................14
+1.2.4 （可选）配置APN ID 引流.............................................................................................................................................. 14
+1.2.5 （可选）配置APN ID 隔离策略..................................................................................................................................... 16
+1.2.6 维护APN6............................................................................................................................................................................ 17
+1.2.7 配置举例................................................................................................................................................................................17
+1.2.7.1 配置APN6 在L3VPNv4 over SRv6 TE Policy 场景的应用示例......................................................................... 17
+1.2.7.2 配置APN ID 隔离在EVPN L3VPNv6 over SRv6 TE Policy 场景的应用示例................................................. 36
+HUAWEI NetEngine40E
+配置指南
+目 录
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+ii
+
+
+--- Page 4 ---
+
+1 应用感知
+1.1 前 言
+概述
+本文档介绍了应用感知的基本概念、在不同应用场景中的配置过程和配置举例。
+License 依赖
+License的详细信息，请查阅License使用指南。
+●
+企业网用户：
+–
+NE40E：License使用指南
+–
+NE40E-X8AK：License使用指南
+产品版本
+与本文档相对应的产品版本如下所示。
+产品名称
+产品版本
+HUAWEI NetEngine40E
+V800R025C00SPC500
+iMaster NCE-IP
+V100R025C00SPC101
+ 
+读者对象
+本文档主要适用于以下工程师：
+●
+数据配置工程师
+●
+调测工程师
+●
+网络监控工程师
+●
+系统维护工程师
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+1
+
+
+--- Page 5 ---
+
+安全声明
+●
+受限公开声明
+产品资料中主要介绍了您在使用华为设备时，在网络部署及维护时，需要使用的
+命令。对用于生产、装备、返厂检测维修的接口、命令，不在资料中说明。
+对于部分仅用于工程实施、定位故障的高级命令以及升级兼容命令，如使用不
+当，将可能导致设备异常或者业务中断，建议较高权限的工程师使用。如您需
+要，请向华为公司申请。
+●
+加密算法声明
+使用加密算法时，DES/3DES/RSA（3072位以下)/MD5（数字签名场景和口令加
+密）/SHA1（数字签名场景）加密算法安全性低，存在安全风险，在协议支持的
+加密算法选择范围内，建议使用更安全的加密算法，例如AES/RSA（3072位及以
+上）/SHA2/HMAC-SHA2。
+出于安全性考虑，不建议使用不安全协议Telnet、FTP、TFTP；不建议使用特性
+BGP、LDP、PCEP、MSDP、DCN、TCP-AO、MSTP、VRRP、E-trunk、AAA、
+IPSEC、BFD、QX、端口扩展、SSH、SNMP、IS-IS、RIP、SSL、NTP、OSPF、
+Keychain中的弱安全算法。如果确实需要使用，请执行undo crypto weak-
+algorithm disable命令使能弱安全算法功能。详细步骤请参见《配置指南》。
+出于安全性考虑，不建议使用该特性中的弱安全算法，若当前系统已关闭弱安全
+算法功能，配置弱安全算法会提示Error信息。如果确实需要使用弱安全算法，请
+先执行undo crypto weak-algorithm disable命令使能弱安全算法功能。
+●
+密码配置声明
+–
+当密码加密方式为cipher时，输入以%^%#......%^%#为起始和结束符的合法
+密文（本设备可以解密的密文）时，在设备上查看配置文件时显示的是和配
+置相同的密文，请不要采用该方式直接配置密码。
+–
+为保证设备安全，请定期修改密码。
+●
+MAC地址、公网IP地址使用的声明
+–
+出于特性介绍及配置示例的需要，产品资料中会使用真实设备的MAC地址、
+公网的IP地址，如无特殊说明，出现的真实设备的MAC地址、公网的IP地址
+均为示意，不指代任何实际意义。
+–
+因开源及第三方软件中自带公网地址（包括公网IP地址、公网URL地址/域
+名、邮箱地址），本产品没有使用这些公网地址，这遵循业界实践，也符合
+开源软件使用规范。
+–
+出于功能特性实现的需要，设备会使用如下公网地址
+表1-1 公网地址列表
+公网地址
+说明
+http://www.huawei.com
+华为官方网站地址
+support_e@huawei.com
+华为企业用户服务邮箱
+ 
+●
+个人数据声明
+–
+您购买的产品、服务或特性在业务运营或故障定位的过程中将可能获取或使
+用用户的某些个人数据，因此您有义务根据所适用国家的法律制定必要的用
+户隐私政策并采取足够的措施以确保用户的个人数据受到充分的保护。
+–
+废弃、回收或者再利用设备时，请注意根据需要备份或清除设备中的数据，
+避免数据泄露的安全风险。如需支持，请联系售后技术支持人员。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+2
+
+
+--- Page 6 ---
+
+●
+产品生命周期政策
+华为公司对产品生命周期的规定以“产品生命周期终止政策”为准，该政策的详
+细内容请参见如下网址：https://support.huawei.com/ecolumnsweb/zh/
+warranty-policy。
+●
+漏洞处理流程
+华为公司对产品漏洞管理的规定以“漏洞处理流程”为准，该流程的详细内容请
+参见如下网址：https://www.huawei.com/cn/psirt/vul-response-process
+如企业客户须获取漏洞信息，请参见如下网址：https://
+securitybulletin.huawei.com/enterprise/cn/security-advisory
+●
+华为企业业务最终用户许可协议(EULA)
+本最终用户许可协议是最终用户（个人、公司或其他任何实体）与华为公司就华
+为软件的使用所缔结的协议。最终用户对华为软件的使用受本协议约束，该协议
+的详细内容请参见如下网址：https://e.huawei.com/cn/about/eula。
+●
+产品资料生命周期策略
+华为公司针对随产品版本发布的售后客户资料（产品资料），发布了“产品资料
+生命周期策略”，该策略的详细内容请参见如下网址：https://
+support.huawei.com/enterprise/zh/bulletins-website/
+ENEWS2000017760。
+●
+华为设备初始数字证书权责说明
+华为公司对随设备出厂的初始数字证书，发布了“华为设备初始数字证书权责说
+明”，该说明的详细内容请参见如下网址：https://support.huawei.com/
+enterprise/zh/bulletins-service/ENEWS2000015766。
+华为初始证书有效期可以通过display pki cert_list domain default命令查看。
+●
+设备升级、打补丁的声明
+对设备进行升级或打补丁操作时，请使用软件数字签名（OpenPGP）验证工具验
+证软件。为避免软件被篡改或替换，防止给用户带来安全风险，建议用户进行此
+项操作。
+●
+特性声明
+–
+NetStream功能，出于对网络流量的统计管理，可能涉及对最终用户的通信
+内容分析，建议您在所适用法律法规允许的目的和范围内方可启用相应的功
+能。在采集、存储用户通信内容的过程中，您应采取足够的措施以确保用户
+的通信内容受到严格保护。
+–
+镜像功能，可能基于运维目的需要对某些最终用户的通信内容进行分析，建
+议您在所适用法律法规允许的目的和范围内方可启用相应的功能。在采集、
+存储用户通信内容的过程中，您应采取足够的措施以确保用户的通信内容受
+到严格保护。
+–
+报文头获取功能，出于检测通信传输中的故障和错误的目的，可能涉及采集
+或存储个人用户某些通信内容。本公司无法单方采集或存储用户通信内容。
+建议您只有在所适用法律法规允许的目的和范围内方可启用相应的功能。在
+采集、存储用户通信内容的过程中，您应采取足够的措施以确保用户的通信
+内容受到严格保护。
+–
+远端镜像、SA特性受客户与华为签订的合同约束，可能不在您的购买或使用
+范围之内。该特性相关文档属机密信息，不在本文档包中提供。如购买或使
+用相关特性，请联系华为工程师获取《远端镜像》、《SA业务专题文档》。
+●
+可靠性设计声明
+对于网络规划和站点设计，必须严格遵守可靠性设计原则，具备设备级和方案级
+保护。设备级保护包括双网双平面，双机、跨板双链路的规划原则，避免出现单
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+3
+
+
+--- Page 7 ---
+
+点，单链路故障。方案级指FRR、VRRP等快速收敛保护机制。在应用方案级保护
+时，应避免保护方案的主备路径经过相同链路或者传输，以免方案级保护不生
+效。
+特别声明
+●
+本文档中包含了NE40E系列支持的所有产品内容，如果需要了解在本国销售的设
+备或单板等硬件相关信息，请查阅硬件描述章节。
+●
+本手册仅作为使用指导，其内容依据实验室设备信息编写。手册提供的内容具有
+一般性的指导意义，并不确保涵盖所有使用场景。因版本升级、设备型号不同、
+板卡限制不同、配置文件不同等原因，可能造成手册中提供的内容与用户使用的
+设备界面不一致。请以用户设备界面的信息为准，本手册不再针对前述情况造成
+的差异一一说明。
+●
+本手册中提供的最大值是设备在实验室特定场景（例如被测试设备上只有某种类
+型的单板，或者只配置了某一种协议）达到的最大值。在现实网络中，由于设备
+硬件配置不同、承载的业务不同等原因可能会使设备测试出的最大值与手册中提
+供的数据不一致。
+●
+本手册中出现的接口类型和接口编号仅作示例，并不代表设备上实际具有此类型
+或编号的接口，实际使用中请以设备上存在的接口类型和接口编号为准。
+●
+本手册中的硬件照片仅供参考，具体请以发货的硬件实物为准。
+●
+本手册中体现设备支持的相关硬件板卡，存在特定客户定制的需求，实际支持以
+售前销售界面为准。
+●
+出于特性介绍及配置示例的需要，产品资料中会使用公网IP地址，如无特殊说
+明，资料里出现的公网IP地址均为示意，不指代任何实际意义。
+●
+本手册中配置指南出现的“XX配置注意事项”，请结合产品的实际特性支持情况
+来使用。
+●
+本手册中的日志参考和告警参考，记录的是对应产品上注册的日志和告警信息。
+实际应用中可触发的日志和告警，取决于当前产品所支持的业务功能。
+●
+本文档中描述的所有设备尺寸数据均为设计尺寸，不包含尺寸公差。在部件制造
+过程中，由于加工或测量等因素的影响，实际尺寸存在一定的偏差。
+符号约定
+在本文中可能出现下列标志，它们所代表的含义如下。
+符号
+说明
+表示如不避免则将会导致死亡或严重伤害的具有高等
+级风险的危害。
+表示如不避免则可能导致死亡或严重伤害的具有中等
+级风险的危害。
+表示如不避免则可能导致轻微或中度伤害的具有低等
+级风险的危害。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+4
+
+
+--- Page 8 ---
+
+符号
+说明
+用于传递设备或环境安全警示信息。如不避免则可能
+会导致设备损坏、数据丢失、设备性能降低或其它不
+可预知的结果。
+“须知”不涉及人身伤害。
+对正文中重点信息的补充说明。
+“说明”不是安全警示信息，不涉及人身、设备及环
+境伤害信息。
+ 
+命令格式约定
+格式
+意义
+粗体
+命令行关键字（命令中保持不变、必须照输的部分）采用
+加粗字体表示。
+斜体
+命令行参数（命令中必须由实际值进行替代的部分）采用
+斜体表示。
+[ ]
+表示用“[ ]”括起来的部分在命令配置时是可选的。
+{ x | y | ... }
+表示从两个或多个选项中选取一个。
+[ x | y | ... ]
+表示从两个或多个选项中选取一个或者不选。
+{ x | y | ... } *
+表示从两个或多个选项中选取多个，最少选取一个，最多
+选取所有选项。
+[ x | y | ... ] *
+表示从两个或多个选项中选取多个或者不选。
+&<1-n>
+表示符号&前面的参数可以重复1～n次。
+#
+由“#”开始的行表示为注释行。
+ 
+修订记录
+修改记录累积了每次文档变更的说明。最新版本的文档包含以前所有文档版本的更新
+内容。
+产品版本
+文档版本
+发布日期
+V800R025C00SPC500
+01
+2025-09-30
+ 
+1.2 APN6 配置
+介绍了APN6的基本原理，基于APN6的配置过程和典型配置举例。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+5
+
+
+--- Page 9 ---
+
+1.2.1 APN6 概述
+APN6（Application-aware IPv6 Networking，应用感知型IPv6网络）是一种新的网络
+架构，它利用IPv6报文自带的可编程空间，将应用信息（APN Attribute），包括应用
+标识信息（APN ID）和应用需求参数信息（APN Parameters）携带进入网络，进而为
+服务提供商提供精细的网络服务和精准的网络运维，当前版本应用信息中只支持携带
+APN ID。
+APN6能够有效感知关键应用（组）、关键用户（组）、及其对网络的性能需求。对于
+服务提供商来说，SRv6、网络切片、DetNet、SFC、SD-WAN、IFIT等技术与APN6的
+结合，将极大地丰富云网服务维度，扩大云网商业增值空间，使能云网精细化运营。
+对于终端用户来说，可以享受更加精细的网络服务。
+●
+敏捷的自动选路：通过APN ID精细标识关键的应用（组）或用户（组），引导进
+入相应的SRv6 TE Policy，网络切片，或者SFC（Service Function Chain，业务功
+能链）路径等，实现应用分流和灵活选路。
+●
+应用流量可视监控：结合APN6，人工智能和大数据分析可以对关键应用或用户进
+行流量特征画像，呈现其流量路径、特征、变化规律及趋势，实现应用流量可视
+监控。
+●
+智能的网络运维：通过APN ID精细标识关键的应用（组）或用户（组），实施随
+流检测IFIT（逐跳、端到端两种选择模式），可以实现关键业务的实时性能监控。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+6
+
+
+--- Page 10 ---
+
+1.2.2 APN6 配置注意事项
+特性限制
+表1-2 本特性的使用限制
+特性限制
+系列
+涉及产品
+LPUF-50/LPUF-50-L/LPUI-21-L/LPUI-51-L/
+LPUF-51/LPUF-51-B/LPUI-51/LPUI-51-B/
+LPUS-51/LPUF-101/LPUF-101-B/LPUI-101/
+LPUI-101-B/LPUS-101单板不支持APN特性：
+1、LPUF-50/LPUF-50-L/LPUI-21-L/LPUI-51-L/
+LPUF-51/LPUF-51-B/LPUI-51/LPUI-51-B/
+LPUS-51/LPUF-101/LPUF-101-B/LPUI-101/
+LPUI-101-B/LPUS-101单板是上行板，不支持
+remark APN ID和识别APN ID，支持携带APN ID
+的SRv6报文解封装；
+2、LPUF-50/LPUF-50-L/LPUI-21-L/LPUI-51-L/
+LPUF-51/LPUF-51-B/LPUI-51/LPUI-51-B/
+LPUS-51/LPUF-101/LPUF-101-B/LPUI-101/
+LPUI-101-B/LPUS-101单板是下行板，新封装
+SRv6帧头时不支持封装APN ID；
+3、LPUF-50/LPUF-50-L/LPUI-21-L/LPUI-51-L/
+LPUF-51/LPUF-51-B/LPUI-51/LPUI-51-B/
+LPUS-51/LPUF-101/LPUF-101-B/LPUI-101/
+LPUI-101-B/LPUS-101单板不支持基于APN ID的
+流量隔离；
+4、设备上配置APN6业务时，设备会上报单板不
+支持告警。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+SRv6 HoVPN场景，如果CPE无法生成APN ID，
+在网PE还要基于APN ID做流量隔离策略时，可以
+在网PE的VPN实例下配置ACL生成APN ID，
+但是要保证不同CPE VPN隔离策略相同且分配相
+同的组ID或者是CPE五元组等信息不冲突，在网
+PE上配置ACL匹配，这时相当于把原来在各个CPE
+上配置的ACL，都集中在网PE上配置。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+增值业务单板（VSU）不支持APN特性，不支持
+APN ID引流，不支持APN ID隔离。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+7
+
+
+--- Page 11 ---
+
+特性限制
+系列
+涉及产品
+历史版本作为尾节点，不支持APN特性，对于携
+带APN ID的报文，如果是数据报文，不支持处理
+导致断流，如果是ping/trace报文，不支持处理导
+致ping/trace不通，如果是BFD等检测类报文，不
+支持处理导致检测失败。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+VE方式的二三层互通场景，不同CPE VPN隔离策
+略不同或者分配不同的组ID时，要保证L3VE子接
+口和CPE的一对一关系；OptionA场景，不同CPE
+VPN隔离策略不同或者分配不同的组ID时，要保
+证给每个CPE规划一个VLAN子接口。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+SRv6 HoVPN场景，依赖在CPE上生成APN ID，
+并随报文携带到网PE，基于APN ID做流量隔离策
+略时源APN ID从报文获取。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+TWAMP检测业务，不会执行接口ACL匹配，不会
+封装APN ID。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+L3VPN本地接入场景，收到报文无法携带APN
+ID，基于APN ID做流量隔离策略时，需要本地配
+置APN ID。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+基于APN ID的流量隔离，直连路由场景不支持。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+8
+
+
+--- Page 12 ---
+
+特性限制
+系列
+涉及产品
+CPE不支持APN，网PE支持APN场景，在网PE基
+于APN ID做流量隔离策略时，要控制ACL只匹配
+阻断的流量，如果ACL也匹配到通的流量，会打
+上APN ID转发出去，导致在CPE因不支持APN处
+理导致丢包。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+历史版本作为中间节点，对于携带APN ID的报
+文，如果报文为多个IPv6头encap形式封装，外层
+SRv6携带APN ID，不支持做跨IPv6头的TEFRR处
+理。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+Netstream采样，对于路由是迭代SRv6隧道且基
+于APN ID引流时，采集到的出接口信息不准确。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+2544和Y.1564检测业务，和数据报文一样，会执
+行接口ACL匹配，如果命中，会封装APN ID。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+在封装APN ID的节点做下行镜像时，镜像出来报
+文无法携带APN ID。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+叠加QPPB时，叠加QPPB时，复杂流行为视图下
+配置的remark apn-id-ipv6仅能将APN ID封装到
+报文中，不支持基于APN ID引流入隧道。
+NE40E
+NE40E-X16A,
+NE40E-X16C,
+NE40E-X3A,
+NE40E-X8A,
+NE40E-X8C,
+NetEngine 40E-
+X8AK
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+9
+
+
+--- Page 13 ---
+
+特性限制
+系列
+涉及产品
+叠加UCL时，叠加UCL时，复杂流行为视图下配
+置的remark apn-id-ipv6仅能将APN ID封装到报
+文中，不支持基于APN ID引流入隧道。
+NE40E
+NE40E-X16A,
+NE40E-X3A,
+NE40E-X8A,
+NetEngine 40E-
+X8AK
+ 
+1.2.3 配置APN6 基本功能
+介绍了APN ID生成的基本配置。
+1.2.3.1 配置APN ID 模板
+APN ID的模板配置主要用来定义一个APN ID的层次化结构模板。APN ID可以划分为
+app-group、user-group和保留字段三部分，APN ID的总长度、app-group和user-
+group的长度以及每个group下更细粒度的字段划分可以根据网络需求在模板中进行设
+计。模板配置完成后，APN ID实例可以引用配置的模板，为模板下的字段赋值，生成
+真正的APN ID。
+前置任务
+在配置APN6功能前，需要先申请APN6相关License，然后执行命令license active，
+激活带有APN6资源的License文件。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令apn，创建并进入APN视图。
+步骤3 执行命令ipv6，创建并进入APN IPv6视图。
+步骤4 （可选）执行命令apn-id inherit { enable | disable }，使能APN ID继承功能。
+步骤5 执行命令apn-id template template-name [ length total-length { [ app-group
+app-group-length ] | [ user-group user-group-length ] } * ]，创建并进入模板视
+图。
+步骤6 根据实际情况选择以下配置。
+●
+执行命令app-group index index-value field-name length field-length，配置
+模板下app-group字段的名称和长度。
+●
+执行命令user-group index index-value field-name length field-length，配置
+模板下user-group字段的名称和长度。
+步骤7 执行命令commit，提交配置。
+----结束
+1.2.3.2 配置APN ID 实例
+APN ID实例配置中主要是给APN ID模板各字段赋值。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+10
+
+
+--- Page 14 ---
+
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令apn，创建并进入APN视图。
+步骤3 执行命令ipv6，创建并进入APN IPv6视图。
+步骤4 执行命令apn-id instance instance-name，创建并进入APN ID实例视图。
+步骤5 执行命令template template-name，配置实例下引用的APN ID模板，该模板必须是
+在APN IPv6视图下已经存在的。
+步骤6 执行命令apn-field field-name field-value，配置实例下app-group或者user-group对
+应的值。
+步骤7 执行命令commit，提交配置。
+----结束
+1.2.3.3 配置流量策略
+在应用感知引流场景中，设备根据报文目的地址查找FIB表获取Mapping Policy，然后
+根据Mapping Policy ID和APN标识确定报文的转发路径。为实现应用感知引流，需要
+先执行本章节配置流量策略。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 定义流分类规则。
+1.
+根据ACL或ACL6的类型，选择以下的命令创建ACL或ACL6并进入ACL或ACL6视
+图：
+–
+基本ACL，即acl-number的范围为2000～2999，请执行命令acl { name
+basic-acl-name { basic | [ basic ] number basic-acl-number } |
+[ number ] basic-acl-number } [ match-order { config | auto } ]。
+–
+高级ACL，即acl-number的范围为3000～3999：请执行命令acl { name
+advance-acl-name [ advance | [ advance ] number advance-acl-
+number ] | [ number ] advance-acl-number } [ match-order { config |
+auto } ]。
+–
+基本ACL6，即acl-number的范围为2000～2999，请执行命令acl ipv6
+{ name basic-acl6-name [ basic ] | [ number ] basic-acl6-number }
+[ match-order { config | auto } ]。
+–
+高级ACL6，即acl-number的范围为3000～3999：请执行命令acl ipv6
+{ name advance-acl6-name [ advance ] | [ number ] advance-acl6-
+number } [ match-order { config | auto } ]。
+2.
+根据ACL或ACL6的类型，选择以下的命令创建ACL或ACL6规则：
+–
+基本ACL，即acl-number的范围为2000～2999，请执行命令rule [ rule-id ]
+[ name rule-name ] { deny | permit } [ fragment-type { fragment |
+non-fragment | non-subseq | fragment-subseq | fragment-spe-first } |
+source { source-ip-address { source-wildcard | 0 | src-netmask } | any } |
+time-range time-name | [ vpn-instance vpn-instance-name | vpn-
+instance-any ] | logging ] *。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+11
+
+
+--- Page 15 ---
+
+–
+高级ACL，即acl-number的范围为3000～3999，根据不同的协议进行配置：
+rule [ rule-id ] [ name rule-name ] { deny | permit } { protocol | tcp }
+[ [ dscp dscp | [ precedence precedence | tos tos ] * ] | { destination
+{ destination-ip-address { destination-wildcard | 0 | des-netmask } | any }
+| destination-pool destination-pool-name } | { destination-port operator
+port-number | destination-port-pool destination-port-pool-name } |
+fragment-type { fragment | non-fragment | non-subseq | fragment-
+subseq | fragment-spe-first } | { source { source-ip-address { source-
+wildcard | 0 | src-netmask } | any } | source-pool source-pool-name } |
+{ source-port operator port-number | source-port-pool source-port-pool-
+name } | { tcp-flag | syn-flag } { tcp-flag [ mask mask-value ] |
+established |{ ack [ fin | psh | rst | syn | urg ] * } | { fin [ ack | psh | rst |
+syn | urg ] * } | { psh [ fin | ack |rst |syn | urg ] * } | { rst [ fin | psh | ack |
+syn | urg ] * } | { syn [ fin | psh | rst | syn | urg ] * } | { urg [ fin | psh | rst
+| syn | urg ] * } } |time-range time-name | ttl ttl-operation ttl-value |
+packet-length length-operation length-value ] *
+此处以protocol为TCP协议为例进行介绍，其他协议的配置方法类似，详情可
+参考《命令参考》中的命令：rule (高级ACL视图)(UDP)、rule (高级ACL视
+图)(ICMP)、rule (高级ACL视图)(gre-igmp-ip-ipinip-ospf)。
+–
+基本ACL6，即acl-number的范围为2000～2999，请执行命令rule [ rule-id ]
+[ name rule-name ] { permit | deny } [ fragment | source { source-ipv6-
+address prefix-length | source-ipv6-address/prefix-length | any } | time-
+range time-name | [ { vpn-instance | vpn6-instance } vpn-instance-
+name | vpn-instance-any ] ] *。
+–
+高级ACL6，即acl-number的范围为3000～3999，根据不同的协议进行配
+置：
+rule [ rule-id ] [ name rule-name ] { permit | deny } { tcp | 6 }
+[ { destination { destination-ipv6-address { prefix-length | destination-
+wildcard } | dest-ipv6-addr-prefix | any } | destination-pool destination-
+pool-name } | destination-port { range { port | chargen | bgp | cmd |
+daytime | discard | domain | echo | exec | finger | ftp | ftp-data |
+gopher | hostname | irc | klogin | kshell | login | lpd | nntp | pop2 |
+pop3 | smtp | sunrpc | tacacs | talk | telnet | time | uucp | whois |
+www } { port | chargen | bgp | cmd | daytime | discard | domain | echo
+| exec | finger | ftp | ftp-data | gopher | hostname | irc | klogin | kshell |
+login | lpd | nntp | pop2 | pop3 | smtp | sunrpc | tacacs | talk | telnet |
+time | uucp | whois | www } | { gt | lt | eq | neq } { port | chargen | bgp
+| cmd | daytime | discard | domain | echo | exec | finger | ftp | ftp-data |
+gopher | hostname | irc | klogin | kshell | login | lpd | nntp | pop2 |
+pop3 | smtp | sunrpc | tacacs | talk | telnet | time | uucp | whois |
+www } } | fragment | { source { source-ipv6-address { prefix-length |
+source-wildcard } | src-ipv6-addr-prefix | any } | source-pool source-pool-
+name } | source-port { range { port | chargen | bgp | cmd | daytime |
+discard | domain | echo | exec | finger | ftp | ftp-data | gopher |
+hostname | irc | klogin | kshell | login | lpd | nntp | pop2 | pop3 | smtp |
+sunrpc | tacacs | talk | telnet | time | uucp | whois | www } { port |
+chargen | bgp | cmd | daytime | discard | domain | echo | exec | finger |
+ftp | ftp-data | gopher | hostname | irc | klogin | kshell | login | lpd |
+nntp | pop2 | pop3 | smtp | sunrpc | tacacs | talk | telnet | time | uucp |
+whois | www } | { gt | lt | eq | neq } { port | chargen | bgp | cmd |
+daytime | discard | domain | echo | exec | finger | ftp | ftp-data |
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+12
+
+
+--- Page 16 ---
+
+gopher | hostname | irc | klogin | kshell | login | lpd | nntp | pop2 |
+pop3 | smtp | sunrpc | tacacs | talk | telnet | time | uucp | whois |
+www } } | time-range time-name | [ dscp dscp-value | [ precedence
+{ precedence | critical | flash | flash-override | immediate | internet |
+network | priority | routine } | tos { value | max-reliability | max-
+throughput | min-delay | min-monetary-cost | normal } ] * ] | [ vpn-
+instance vpn-instance-name | vpn-instance-any ] | tcp-flag { tcp-flag
+[ mask mask-value ] | established | { ack [ fin | psh | rst | syn | urg ] * } |
+{ fin [ ack | psh | rst | syn | urg ] * } | { psh [ fin | ack | rst | syn | urg ] * }
+| { rst [ fin | psh | ack | syn | urg ] * } | { syn [ fin | psh | rst | ack | urg ]
+* } | { urg [ fin | psh | rst | syn | ack ] * } } ] *
+此处以protocol为TCP协议为例进行介绍，其他协议的配置方法类似，详情可
+参考配置高级ACL6的规则。
+说明
+–
+配置ACL规则时通常匹配源IP地址，如果要在ACL中添加多条规则，可以重复执行步骤
+步骤2.2。
+–
+同一ACL视图下的多条规则之间的匹配顺序可以配置为按深度优先（auto）或按配置优
+先（config）。缺省情况下，多条规则按照配置优先（config）的顺序进行匹配。
+通过ACL关联实例时，ACL规则中的地址通配符不支持非连续方式的子网掩码（子网掩
+码中的“0”和“1”位不连续，如255.0.255.0等），必须使用连续方式的子网掩码
+（子网掩码中的“0”和“1”位必须连续，如255.255.255.0等）。
+3.
+执行命令commit，提交配置。
+4.
+执行命令quit，回到系统视图。
+步骤3 定义流分类。
+1.
+执行命令traffic classifier classifier-name [ operator { and | or } ]定义一个流
+分类并进入流分类视图。
+2.
+执行命令if-match [ ipv6 ] acl acl-number，配置基于ACL列表进行复杂流分类
+的匹配规则。
+如果要配置多条基于ACL列表的匹配规则，可以重复执行该步骤。
+如果为IPv6报文，请指定关键字ipv6。
+3.
+执行命令commit，提交配置。
+4.
+执行命令quit，回到系统视图。
+步骤4 定义流行为。
+1.
+执行命令traffic behavior behavior-name，定义一个流行为并进入流行为视图。
+2.
+执行命令remark apn-id-ipv6 instance apn-instance-name，定义流量动作是为
+IPv6报文添加APN ID。
+3.
+执行命令commit，提交配置。
+4.
+执行命令quit，回到系统视图。
+步骤5 定义流策略。
+1.
+执行命令traffic policy policy-name，定义流量策略并进入策略视图。
+2.
+执行命令classifier classifier-name behavior behavior-name，在流量策略中为
+流分类指定采用的行为。
+3.
+执行命令commit，提交配置。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+13
+
+
+--- Page 17 ---
+
+4.
+执行命令quit，回到系统视图。
+步骤6 应用流分类策略。
+说明
+匹配本地ACL策略生成APN ID后，只有路由迭代到SRv6 BE或者SRv6 TE Policy时支持把APN ID
+添加到报文中，其它隧道不支持添加APN ID。
+在接口下应用流策略。
+1.
+执行命令interface interface-type interface-number，进入接口视图。
+2.
+执行命令traffic-policy policy-name inbound [ link-layer | all-layer | mpls-
+layer ]，在接口应用流量策略。
+3.
+执行命令commit，提交配置。
+在VPN实例下应用流策略。
+1.
+执行命令ip vpn-instance vpn-instance-name，进入VPN实例视图。
+2.
+执行命令traffic-policy policy-name network inbound link-layer，在VPN实例
+视图下应用流量策略。
+3.
+执行命令commit，提交配置。
+----结束
+1.2.3.4 检查配置结果
+前提条件
+配置APN6基本功能。
+操作步骤
+步骤1 在APN视图下，执行命令display this，查看APN6相关的配置信息。
+步骤2 执行命令display apn-id-ipv6 instance [ name instance-name ]，查看APN ID实例
+的详细信息。
+----结束
+1.2.4 （可选）配置APN ID 引流
+通过配置APN ID引流特性，可以使业务基于APN ID迭代到SRv6 TE Policy，利用SRv6
+TE Policy里的路径信息指导数据转发。
+前提条件
+配置SRv6 TE Policy。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令segment-routing ipv6，进入Segment Routing IPv6视图。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+14
+
+
+--- Page 18 ---
+
+步骤3 执行命令mapping-policy name-value color color-value，创建SRv6 Mapping
+Policy，并且进入SRv6 Mapping Policy视图。
+步骤4 （可选）执行命令description description-value，配置SRv6 Mapping Policy的描述
+信息。
+步骤5 执行命令match-type apn-id-ipv6，配置SRv6 Mapping Policy的映射类型为APN
+ID。
+步骤6 根据实际情况选择如下命令，配置SRv6 TE Flow Group中SRv6 TE Policy或者Native
+IP和APN ID实例的映射。
+●
+index index-value instance instance-name match { srv6-te-policy color
+color-value | native-ip }
+●
+default match { srv6-te-policy color color-value | native-ip }
+每个APN ID实例仅支持关联一个SRv6 TE Policy或者Native IP。只有处于Up状态的路
+径才能和APN ID实例形成映射。
+携带APN ID值的流量入SRv6 TE Flow Group，按照如下规则进行转发：
+1.
+按照index命令的index-value进行顺序匹配，如果匹配成功，选择APN ID实例对
+应的SRv6 TE Policy或Native IP进行转发。
+说明
+如果多个APN ID实例对应的APN ID相同，按照index-value顺序选择第一个路径进行转
+发。
+2.
+若未匹配或对应的路径故障，则按照default命令对应的SRv6 TE Policy或Native
+IP进行转发。但若未配置default或者配置的default命令对应的路径不Up，流量
+会重新去选择index-value最小的且处于Up状态的路径进行转发。
+说明
+建议低优先级的业务对应的APN ID实例配置在index-value小的映射规则中，保证APN ID
+未匹配的流量优先抢占低优先级业务的带宽。
+步骤7 执行命令quit，退回Segment Routing IPv6视图。
+步骤8 执行命令quit，退回系统视图。
+步骤9 执行命令tunnel-policy policy-name，创建隧道策略，并进入Tunnel策略视图。
+步骤10 （可选）执行命令description description-text，对隧道策略配置描述信息。
+步骤11 执行命令tunnel select-seq ipv6 srv6-te-flow-group load-balance-number
+loadBalanceNumber，配置隧道选择策略。
+步骤12 执行命令commit，提交配置。
+----结束
+后续处理
+1.
+执行命令display srv6-te flow-group，查看SRv6 TE Flow Group的详细状态信
+息。
+2.
+执行命令display srv6-te flow-group last-down-reason，查看SRv6 TE Flow
+Group的down记录。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+15
+
+
+--- Page 19 ---
+
+1.2.5 （可选）配置APN ID 隔离策略
+通过识别报文的APN ID信息，可以做业务的隔离控制。
+前提条件
+配置APN6基本功能。
+操作步骤
+步骤1 执行命令system-view，进入系统视图。
+步骤2 执行命令apn，创建并进入APN视图。
+步骤3 执行命令ipv6，创建并进入APN IPv6视图。
+步骤4 执行命令isolate-group name group-name，配置APN隔离组。
+步骤5 （可选）配置VPN实例和隔离组之间的映射。
+说明
+该步骤仅在出接口是SRv6隧道的场景下必须配置。
+1.
+执行命令isolate-group mapping-vpn，创建并进入隔离组VPN映射视图。
+2.
+执行命令vpn-instance vpn-instance-name peer-locator peer-locator-value
+mask-length match isolate-group group-name，配置VPN实例与隔离组之间的
+映射。
+3.
+执行命令commit，提交配置。
+4.
+执行命令quit，回到APN IPv6视图。
+步骤6 配置APN ID隔离策略。
+1.
+执行命令apn-id isolate policy policy-name，配置APN ID隔离策略并进入隔离
+策略视图。
+2.
+（可选）执行命令statistics enable，配置APN ID隔离策略的统计功能。
+3.
+执行命令index index-value instance instance-name isolate-group group-
+name behavior deny，配置隔离策略内的APN ID实例与APN ID隔离组之间的行
+为规则。
+4.
+执行命令commit，提交配置。
+5.
+执行命令quit，回到APN IPv6视图。
+步骤7 执行命令quit，回到APN视图。
+步骤8 执行命令quit，回到系统视图。
+步骤9 （可选）将相关接口加入到隔离组中。
+说明
+该步骤仅在通过不同接口实现业务流量隔离的场景下必须配置。
+1.
+执行命令interface interface-type interface-number，进入接口视图。
+2.
+执行命令apn-id-ipv6 isolate-group group-name，在接口下指定对应的隔离
+组。
+3.
+执行命令commit，提交配置。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+16
+
+
+--- Page 20 ---
+
+4.
+执行命令quit，回到系统视图。
+步骤10 引用隔离策略。
+1.
+执行命令ip vpn-instance vpn-instance-name，进入VPN实例视图。
+2.
+执行命令apn-id-ipv6 isolate-policy policy-name inbound，在VPN实例下应用
+APN ID隔离策略。
+3.
+执行命令commit，提交配置。
+4.
+执行命令quit，回到系统视图。
+----结束
+后续处理
+●
+执行命令display apn-id-ipv6 isolate-policy statistics [ [ policy policy-name ]
+[ vpn-instance instance-name ] ]，查看VPN流量的隔离策略统计。
+1.2.6 维护APN6
+在APN6网络中，可以通过Ping/Tracert来检查网络的连通性/故障发生的位置。
+操作步骤
+●
+执行命令ping ipv6 { -apn-id-ipv6 instance instName [ -a source-ipv6-address
+| -c echo-number | { -s byte-number | -range [ [ min min-value | max max-
+value | step step-value ] * ] } | -t timeout | { -tc traffic-class-value | -dscp
+dscp } | vpn-instance vpn-instance-name | -m wait-time | -name | -si
+{ source-interface-name | source-interface-type source-interface-number | -h
+hoplimit } | { -brief | [ -system-time | -ri | -detail ] * } | -p pattern ] *
+destination-ipv6-address }检测网络连接是否正常。
+●
+执行命令tracert ipv6 -apn-id-ipv6 instance instName [ -f first-hop-limit | -m
+max-hop-limit | -p port-number | -fixedPort | -q probes | -w timeout | vpn-
+instance vpn-instance-name | -s size | -name | -a source-ipv6-address | -v | -si
+{ source-interface-name | source-interface-type source-interface-number } | { -
+tc tc | -dscp dscp } ] * host-name测试故障发生的位置。
+----结束
+1.2.7 配置举例
+1.2.7.1 配置APN6 在L3VPNv4 over SRv6 TE Policy 场景的应用示例
+介绍通过APN6在L3VPNv4 over SRv6 TE Policy场景应用的配置过程。
+组网需求
+如图1-1所示：
+●
+PE1、P1、P2和PE2属于同一自治系统，要求它们之间通过IS-IS协议达到IPv6网络
+互连的目的。
+●
+PE1、P1、P2和PE2属于IS-IS进程1，都是Level-1设备。
+要求在PE1和PE2之间建立双向SRv6 TE Flow Group，承载L3VPNv4业务。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+17
+
+
+--- Page 21 ---
+
+SRv6 TE Flow Group是实现APN ID引流的一种方式。在路由迭代时，头节点根据业务
+路由的下一跳地址关联到指定的SRv6 TE Flow Group。在数据转发时，业务携带APN
+ID信息，根据SRv6 Mapping Policy配置，关联到指定的Color，进而关联到SRv6 TE
+Flow Group内具体的某一个SRv6 TE Policy，从而实现报文的APN ID引流。
+图1-1 配置L3VPNv4 over SRv6 TE Flow Group 组网图
+说明
+本例中interface1、interface2、interface3分别代表GE1/0/0、GE2/0/0、GE3/0/0。
+配置思路
+采用如下的思路配置L3VPNv4 over SRv6 TE Flow Group示例：
+1.
+使能PE1、P1、P2和PE2各接口的IPv6转发能力，配置各接口的IPv6地址。
+2.
+在PE1、P1、P2和PE2上使能IS-IS，配置Level级别，指定网络实体。
+3.
+在PE1和PE2上配置VPN实例。
+4.
+在PE和CE之间建立EBGP对等体关系。
+5.
+在PE之间建立MP-IBGP对等体关系。
+6.
+在PE1、P1、P2和PE2上配置SRv6 SID，配置IS-IS的SRv6能力。同时在PE1和PE2
+上配置VPN私网路由携带SID属性。
+7.
+在PE1和PE2上配置SRv6 TE Policy。
+8.
+在PE1和PE2上配置APN6实例信息。
+9.
+在PE1和PE2上配置业务流的过滤策略，符合条件的业务流按照指定的方式生成
+APN ID信息。
+10. 在PE1和PE2上配置SRv6 Mapping Policy。
+11. 在PE1和PE2上配置隧道策略，优选SRv6 TE Flow Group，引入私网流量。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+18
+
+
+--- Page 22 ---
+
+数据准备
+为完成此配置例，需准备如下的数据：
+●
+PE1、P1、P2和PE2各接口的IPv6地址。
+●
+PE1、P1、P2和PE2的IS-IS进程号。
+●
+PE1、P1、P2和PE2的IS-IS级别。
+●
+PE1和PE2上VPN实例名称，VPN实例的RD和RT。
+操作步骤
+步骤1 使能各接口的IPv6转发能力，配置各接口的IPv6地址
+# 配置PE1。P1、P2和PE2的配置过程与PE1类似，不再赘述，详情可参考配置文件。
+<HUAWEI> system-view
+[~HUAWEI] sysname PE1
+[*HUAWEI] commit
+[~PE1] interface gigabitethernet 1/0/0
+[~PE1-GigabitEthernet1/0/0] ipv6 enable
+[*PE1-GigabitEthernet1/0/0] ipv6 address 2001:DB8:11::1 96
+[*PE1-GigabitEthernet1/0/0] quit
+[*PE1] interface gigabitethernet 3/0/0
+[*PE1-GigabitEthernet3/0/0] ipv6 enable
+[*PE1-GigabitEthernet3/0/0] ipv6 address 2001:DB8:13::1 96
+[*PE1-GigabitEthernet3/0/0] quit
+[*PE1] interface LoopBack 1
+[*PE1-LoopBack1] ipv6 enable
+[*PE1-LoopBack1] ipv6 address 2001:DB8:1::1 128
+[*PE1-LoopBack1] quit
+[*PE1] commit
+步骤2 配置IS-IS
+# 配置PE1。
+[~PE1] isis 1
+[*PE1-isis-1] is-level level-1
+[*PE1-isis-1] cost-style wide
+[*PE1-isis-1] network-entity 10.0000.0000.0001.00
+[*PE1-isis-1] ipv6 enable topology ipv6
+[*PE1-isis-1] quit
+[*PE1] interface gigabitethernet 1/0/0
+[*PE1-GigabitEthernet1/0/0] isis ipv6 enable 1
+[*PE1-GigabitEthernet1/0/0] quit
+[*PE1] interface gigabitethernet 3/0/0
+[*PE1-GigabitEthernet3/0/0] isis ipv6 enable 1
+[*PE1-GigabitEthernet3/0/0] quit
+[*PE1] interface loopback1
+[*PE1-LoopBack1] isis ipv6 enable 1
+[*PE1-LoopBack1] commit
+[~PE1-LoopBack1] quit
+# 配置P1。
+[~P1] isis 1 
+[*P1-isis-1] is-level level-1
+[*P1-isis-1] cost-style wide
+[*P1-isis-1] network-entity 10.0000.0000.0002.00
+[*P1-isis-1] ipv6 enable topology ipv6
+[*P1-isis-1] quit
+[*P1] interface gigabitethernet 1/0/0
+[*P1-GigabitEthernet1/0/0] isis ipv6 enable 1
+[*P1-GigabitEthernet1/0/0] quit
+[*P1] interface gigabitethernet 2/0/0
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+19
+
+
+--- Page 23 ---
+
+[*P1-GigabitEthernet2/0/0] isis ipv6 enable 1
+[*P1-GigabitEthernet2/0/0] quit
+[*P1] interface loopback1
+[*P1-LoopBack1] isis ipv6 enable 1
+[*P1-LoopBack1] commit
+[~P1-LoopBack1] quit
+# 配置PE2。
+[~PE2] isis 1
+[*PE2-isis-1] is-level level-1
+[*PE2-isis-1] cost-style wide
+[*PE2-isis-1] network-entity 10.0000.0000.0003.00
+[*PE2-isis-1] ipv6 enable topology ipv6
+[*PE2-isis-1] quit
+[*PE2] interface gigabitethernet 1/0/0
+[*PE2-GigabitEthernet1/0/0] isis ipv6 enable 1
+[*PE2-GigabitEthernet1/0/0] quit
+[*PE2] interface gigabitethernet 3/0/0
+[*PE2-GigabitEthernet3/0/0] isis ipv6 enable 1
+[*PE2-GigabitEthernet3/0/0] quit
+[*PE2] interface loopback1
+[*PE2-LoopBack1] isis ipv6 enable 1
+[*PE2-LoopBack1] commit
+[~PE2-LoopBack1] quit
+# 配置P2。
+[~P2] isis 1 
+[*P2-isis-1] is-level level-1
+[*P2-isis-1] cost-style wide
+[*P2-isis-1] network-entity 10.0000.0000.0004.00
+[*P2-isis-1] ipv6 enable topology ipv6
+[*P2-isis-1] quit
+[*P2] interface gigabitethernet 1/0/0
+[*P2-GigabitEthernet1/0/0] isis ipv6 enable 1
+[*P2-GigabitEthernet1/0/0] quit
+[*P2] interface gigabitethernet 2/0/0
+[*P2-GigabitEthernet2/0/0] isis ipv6 enable 1
+[*P2-GigabitEthernet2/0/0] quit
+[*P2] interface loopback1
+[*P2-LoopBack1] isis ipv6 enable 1
+[*P2-LoopBack1] commit
+[~P2-LoopBack1] quit
+配置完成后，可按如下指导检查IS-IS是否配置成功。
+# 显示IS-IS邻居信息。以PE1为例。
+[~PE1] display isis peer
+                          Peer information for ISIS(1)
+                         
+  System Id     Interface          Circuit Id        State HoldTime Type     PRI
+-------------------------------------------------------------------------------- 
+0000.0000.0002* GE1/0/0            0000.0000.0003.01  Up   9s       L1       64 
+0000.0000.0004* GE3/0/0            0000.0000.0004.02  Up   7s       L1       64   
+Total Peer(s): 2
+步骤3 在PE设备上配置使能IPv4地址族的VPN实例，将CE接入PE
+# 配置PE1。
+[~PE1] ip vpn-instance vpna
+[*PE1-vpn-instance-vpna] ipv4-family
+[*PE1-vpn-instance-vpna-af-ipv4] route-distinguisher 100:1
+[*PE1-vpn-instance-vpna-af-ipv4] vpn-target 111:1 both
+[*PE1-vpn-instance-vpna-af-ipv4] quit
+[*PE1-vpn-instance-vpna] quit
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+20
+
+
+--- Page 24 ---
+
+[*PE1] interface gigabitethernet 2/0/0
+[*PE1-GigabitEthernet2/0/0] ip binding vpn-instance vpna
+[*PE1-GigabitEthernet2/0/0] ip address 10.1.1.1 24
+[*PE1-GigabitEthernet2/0/0] quit
+[*PE1] commit
+# 配置PE2。
+[~PE2] ip vpn-instance vpna
+[*PE2-vpn-instance-vpna] ipv4-family
+[*PE2-vpn-instance-vpna-af-ipv4] route-distinguisher 200:1
+[*PE2-vpn-instance-vpna-af-ipv4] vpn-target 111:1 both
+[*PE2-vpn-instance-vpna-af-ipv4] quit
+[*PE2-vpn-instance-vpna] quit
+[*PE2] interface gigabitethernet 2/0/0
+[*PE2-GigabitEthernet2/0/0] ip binding vpn-instance vpna
+[*PE2-GigabitEthernet2/0/0] ip address 10.2.1.1 24
+[*PE2-GigabitEthernet2/0/0] quit
+[*PE2] commit
+# 按图1-1配置各CE的接口IP地址，配置过程请参见后面的配置文件。
+配置完成后，在PE设备上执行display ip vpn-instance verbose命令可以看到VPN实
+例的配置情况。各PE能ping通自己接入的CE。
+说明
+当PE上有多个绑定了同一个VPN的接口，则使用ping -vpn-instance命令ping对端PE接入的CE
+时，要指定源IP地址，即要指定ping -vpn-instance vpn-instance-name -a source-ip-address
+dest-ip-address命令中的参数-a source-ip-address，否则可能ping不通。
+步骤4 在PE与CE之间建立EBGP对等体关系
+# 配置CE1。
+[~CE1] interface loopback 1
+[*CE1-LoopBack1] ip address 11.11.11.11 32
+[*CE1-LoopBack1] quit
+[*CE1] bgp 65410
+[*CE1-bgp] peer 10.1.1.1 as-number 100
+[*CE1-bgp] network 11.11.11.11 32
+[*CE1-bgp] quit
+[*CE1] commit
+# 配置PE1。
+[~PE1] bgp 100
+[*PE1-bgp] router-id 1.1.1.1
+[*PE1-bgp] ipv4-family vpn-instance vpna
+[*PE1-bgp-vpna] peer 10.1.1.2 as-number 65410
+[*PE1-bgp-vpna] import-route direct
+[*PE1-bgp-vpna] commit
+[~PE1-bgp-vpna] quit
+[~PE1-bgp] quit
+# 配置CE2。
+[~CE2] interface loopback 1
+[*CE2-LoopBack1] ip address 22.22.22.22 32
+[*CE2-LoopBack1] quit
+[*CE2] bgp 65420
+[*CE2-bgp] peer 10.2.1.1 as-number 100
+[*CE2-bgp] network 22.22.22.22 32
+[*CE2-bgp] quit
+[*CE2] commit
+# 配置PE2。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+21
+
+
+--- Page 25 ---
+
+[~PE2] bgp 100
+[*PE2-bgp] router-id 2.2.2.2
+[*PE2-bgp] ipv4-family vpn-instance vpna
+[*PE2-bgp-vpna] peer 10.2.1.2 as-number 65420
+[*PE2-bgp-vpna] import-route direct
+[*PE2-bgp-vpna] commit
+[~PE2-bgp-vpna] quit
+[~PE2-bgp] quit
+配置完成后，在PE设备上执行display bgp vpnv4 vpn-instance peer命令，可以看到
+PE与CE之间的BGP对等体关系已建立，并达到Established状态。
+以PE1与CE1的对等体关系为例：
+[~PE1] display bgp vpnv4 vpn-instance vpna peer
+ BGP local router ID : 1.1.1.1                                                  
+ Local AS number : 100      
+ VPN-Instance vpna, Router ID 1.1.1.1:                                          
+ Total number of peers : 1                 Peers in established state : 1       
+  Peer                             V          AS  MsgRcvd  MsgSent  OutQ  Up/Down       State  
+PrefRcv                              
+  10.1.1.2                         4       65410       88       89     0 01:12:27 Established        1 
+步骤5 在PE之间建立MP-IBGP对等体关系
+# 配置PE1。
+[~PE1] bgp 100
+[~PE1-bgp] peer 2001:DB8:3::3 as-number 100
+[*PE1-bgp] peer 2001:DB8:3::3 connect-interface loopback 1
+[*PE1-bgp] ipv4-family vpnv4
+[*PE1-bgp-af-vpnv4] peer 2001:DB8:3::3 enable
+[*PE1-bgp-af-vpnv4] commit
+[~PE1-bgp-af-vpnv4] quit
+[~PE1-bgp] quit
+# 配置PE2。
+[~PE2] bgp 100
+[~PE2-bgp] peer 2001:DB8:1::1 as-number 100
+[*PE2-bgp] peer 2001:DB8:1::1 connect-interface loopback 1
+[*PE2-bgp] ipv4-family vpnv4
+[*PE2-bgp-af-vpnv4] peer 2001:DB8:1::1 enable
+[*PE2-bgp-af-vpnv4] commit
+[~PE2-bgp-af-vpnv4] quit
+[~PE2-bgp] quit
+配置完成后，在PE设备上执行display bgp vpnv4 all peer命令，可以看到PE之间的
+BGP对等体关系已建立，并达到Established状态。
+以PE1显示为例：
+[~PE1] display bgp vpnv4 all peer
+ BGP local router ID : 1.1.1.1                                                  
+ Local AS number : 100      
+ Total number of peers : 2                 Peers in established state : 2       
+  Peer                             V          AS  MsgRcvd  MsgSent  OutQ  Up/Down       State  
+PrefRcv                              
+  2001:DB8:3::3                    4         100       85       85     0 01:10:30 Established        2                              
+  Peer of IPv4-family for vpn instance :                                        
+  VPN-Instance vpna, Router ID 1.1.1.1:                                         
+  Peer                             V          AS  MsgRcvd  MsgSent  OutQ  Up/Down       State  
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+22
+
+
+--- Page 26 ---
+
+PrefRcv                              
+  10.1.1.2                         4       65410       88       89     0 01:12:58 Established        1 
+步骤6 配置SRv6 SID，同时在PE上配置VPN私网路由携带SID属性
+说明
+End.DT4 SID可以通过BGP动态分配，也可以静态配置。静态配置和动态分配的SID同时存在
+时，静态配置优先生效。如果使用segment-routing ipv6 locator locator-name命令使能BGP
+动态分配End.DT4 SID或者使用segment-routing ipv6 locator locator-name end-dt46命令使
+能BGP动态分配End.DT46 SID，则不必执行命令opcode func-opcode end-dt4 vpn-instance
+vpn-instance-name或者opcode func-opcode end-dt46 vpn-instance vpn-instance-name配
+置静态SID的Opcode。
+本例采用BGP动态分配方案。
+# 配置PE1。
+[~PE1] segment-routing ipv6
+[*PE1-segment-routing-ipv6] encapsulation source-address 2001:DB8:1::1
+[*PE1-segment-routing-ipv6] locator as1 ipv6-prefix 2001:DB8:100:: 64 static 32
+[*PE1-segment-routing-ipv6-locator] opcode ::100 end psp
+[*PE1-segment-routing-ipv6-locator] opcode ::200 end no-flavor
+[*PE1-segment-routing-ipv6-locator] quit
+[*PE1-segment-routing-ipv6] quit
+[*PE1] bgp 100
+[*PE1-bgp] ipv4-family vpnv4
+[*PE1-bgp-af-vpnv4] peer 2001:DB8:3::3 prefix-sid
+[*PE1-bgp-af-vpnv4] quit
+[*PE1-bgp] ipv4-family vpn-instance vpna
+[*PE1-bgp-vpna] segment-routing ipv6 traffic-engineer best-effort
+[*PE1-bgp-vpna] segment-routing ipv6 locator as1
+[*PE1-bgp-vpna] commit
+[~PE1-bgp-vpna] quit
+[~PE1-bgp] quit
+[~PE1] isis 1
+[~PE1-isis-1] segment-routing ipv6 locator as1 auto-sid-disable
+[*PE1-isis-1] commit
+[~PE1-isis-1] quit
+# 配置P1。
+[~P1] segment-routing ipv6
+[*P1-segment-routing-ipv6] encapsulation source-address 2001:DB8:2::2
+[*P1-segment-routing-ipv6] locator as1 ipv6-prefix 2001:DB8:200:: 64 static 32
+[*P1-segment-routing-ipv6-locator] opcode ::100 end psp
+[*P1-segment-routing-ipv6-locator] opcode ::200 end no-flavor
+[*P1-segment-routing-ipv6-locator] quit
+[*P1-segment-routing-ipv6] quit
+[*P1] isis 1
+[*P1-isis-1] segment-routing ipv6 locator as1 auto-sid-disable
+[*P1-isis-1] commit
+[~P1-isis-1] quit
+# 配置PE2。
+[~PE2] segment-routing ipv6
+[*PE2-segment-routing-ipv6] encapsulation source-address 2001:DB8:3::3
+[*PE2-segment-routing-ipv6] locator as1 ipv6-prefix 2001:DB8:300:: 64 static 32
+[*PE2-segment-routing-ipv6-locator] opcode ::100 end psp
+[*PE2-segment-routing-ipv6-locator] opcode ::200 end no-flavor
+[*PE2-segment-routing-ipv6-locator] quit
+[*PE2-segment-routing-ipv6] quit
+[*PE2] bgp 100
+[*PE2-bgp] ipv4-family vpnv4
+[*PE2-bgp-af-vpnv4] peer 2001:DB8:1::1 prefix-sid
+[*PE2-bgp-af-vpnv4] quit
+[*PE2-bgp] ipv4-family vpn-instance vpna
+[*PE2-bgp-vpna] segment-routing ipv6 traffic-engineer best-effort
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+23
+
+
+--- Page 27 ---
+
+[*PE2-bgp-vpna] segment-routing ipv6 locator as1
+[*PE2-bgp-vpna] commit
+[~PE2-bgp-vpna] quit
+[~PE2-bgp] quit
+[~PE2] isis 1
+[~PE2-isis-1] segment-routing ipv6 locator as1 auto-sid-disable
+[*PE2-isis-1] commit
+[~PE2-isis-1] quit
+# 配置P2。
+[~P2] segment-routing ipv6
+[*P2-segment-routing-ipv6] encapsulation source-address 2001:DB8:4::4
+[*P2-segment-routing-ipv6] locator as1 ipv6-prefix 2001:DB8:400:: 64 static 32
+[*P2-segment-routing-ipv6-locator] opcode ::100 end psp
+[*P2-segment-routing-ipv6-locator] opcode ::200 end no-flavor
+[*P2-segment-routing-ipv6-locator] quit
+[*P2-segment-routing-ipv6] quit
+[*P2] isis 1
+[*P2-isis-1] segment-routing ipv6 locator as1 auto-sid-disable
+[*P2-isis-1] commit
+[~P2-isis-1] quit
+执行命令display segment-routing ipv6 local-sid end forwarding查看SRv6的Local
+SID表信息。
+[~PE1] display segment-routing ipv6 local-sid end forwarding
+                    My Local-SID End Forwarding Table                        
+                    ---------------------------------                        
+SID         : 2001:DB8:100::100/128                        FuncType    : End 
+Flavor      : PSP     
+LocatorName : as1                                          LocatorID   : 1   
+ProtocolType: STATIC                                       ProcessID   : --  
+UpdateTime  : 2021-05-05 09:24:18.785                                        
+SID         : 2001:DB8:100::200/128                        FuncType    : End 
+Flavor      : NO-FLAVOR                                                      
+LocatorName : as1                                          LocatorID   : 1   
+ProtocolType: STATIC                                       ProcessID   : --  
+UpdateTime  : 2021-05-05 09:24:18.785                                        
+Total SID(s): 2  
+[~P1] display segment-routing ipv6 local-sid end forwarding
+                    My Local-SID End Forwarding Table                        
+                    ---------------------------------                        
+SID         : 2001:DB8:200::100/128                        FuncType    : End 
+Flavor      : PSP     
+LocatorName : as1                                          LocatorID   : 1   
+ProtocolType: STATIC                                       ProcessID   : --  
+UpdateTime  : 2021-05-05 09:29:22.633                                        
+SID         : 2001:DB8:200::200/128                        FuncType    : End 
+Flavor      : NO-FLAVOR                                                      
+LocatorName : as1                                          LocatorID   : 1   
+ProtocolType: STATIC                                       ProcessID   : --  
+UpdateTime  : 2021-05-05 09:29:22.633                                        
+Total SID(s): 2
+[~PE2] display segment-routing ipv6 local-sid end forwarding
+                    My Local-SID End Forwarding Table                        
+                    ---------------------------------                        
+SID         : 2001:DB8:300::100/128                        FuncType    : End 
+Flavor      : PSP     
+LocatorName : as1                                          LocatorID   : 1   
+ProtocolType: STATIC                                       ProcessID   : --  
+UpdateTime  : 2021-05-05 09:36:31.017                                        
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+24
+
+
+--- Page 28 ---
+
+SID         : 2001:DB8:300::200/128                        FuncType    : End 
+Flavor      : NO-FLAVOR                                                      
+LocatorName : as1                                          LocatorID   : 1   
+ProtocolType: STATIC                                       ProcessID   : --  
+UpdateTime  : 2021-05-05 09:36:31.017                                        
+Total SID(s): 2 
+[~P2] display segment-routing ipv6 local-sid end forwarding
+                    My Local-SID End Forwarding Table                        
+                    ---------------------------------                        
+SID         : 2001:DB8:400::100/128                        FuncType    : End 
+Flavor      : PSP     
+LocatorName : as1                                          LocatorID   : 1   
+ProtocolType: STATIC                                       ProcessID   : --  
+UpdateTime  : 2021-05-05 09:32:38.292                                        
+SID         : 2001:DB8:400::200/128                        FuncType    : End 
+Flavor      : NO-FLAVOR                                                      
+LocatorName : as1                                          LocatorID   : 1   
+ProtocolType: STATIC                                       ProcessID   : --  
+UpdateTime  : 2021-05-05 09:32:38.292                                        
+Total SID(s): 2
+步骤7 配置SRv6 TE Policy
+# 配置PE1。
+[~PE1] segment-routing ipv6 
+[~PE1-segment-routing-ipv6] segment-list list1 
+[*PE1-segment-routing-ipv6-segment-list-list1] index 5 sid ipv6 2001:DB8:200::100
+[*PE1-segment-routing-ipv6-segment-list-list1] index 10 sid ipv6 2001:DB8:300::100
+[*PE1-segment-routing-ipv6-segment-list-list1] quit
+[*PE1-segment-routing-ipv6] segment-list list2 
+[*PE1-segment-routing-ipv6-segment-list-list2] index 5 sid ipv6 2001:DB8:400::100
+[*PE1-segment-routing-ipv6-segment-list-list2] index 10 sid ipv6 2001:DB8:300::100
+[*PE1-segment-routing-ipv6-segment-list-list2] quit
+[*PE1-segment-routing-ipv6] srv6-te-policy locator as1 
+[*PE1-segment-routing-ipv6] srv6-te policy policy1 endpoint 2001:DB8:3::3 color 10
+[*PE1-segment-routing-ipv6-policy-policy1] binding-sid 2001:DB8:100::900
+[*PE1-segment-routing-ipv6-policy-policy1] candidate-path preference 100
+[*PE1-segment-routing-ipv6-policy-policy1-path] segment-list list1 
+[*PE1-segment-routing-ipv6-policy-policy1-path] quit
+[*PE1-segment-routing-ipv6-policy-policy1] quit
+[*PE1-segment-routing-ipv6] srv6-te policy policy2 endpoint 2001:DB8:3::3 color 20
+[*PE1-segment-routing-ipv6-policy-policy2] binding-sid 2001:DB8:100::901
+[*PE1-segment-routing-ipv6-policy-policy2] candidate-path preference 100
+[*PE1-segment-routing-ipv6-policy-policy2-path] segment-list list2 
+[*PE1-segment-routing-ipv6-policy-policy2-path] commit
+[~PE1-segment-routing-ipv6-policy-policy2-path] quit
+[~PE1-segment-routing-ipv6-policy-policy2] quit
+[~PE1-segment-routing-ipv6] quit
+# 配置PE2。
+[~PE2] segment-routing ipv6 
+[~PE2-segment-routing-ipv6] segment-list list1 
+[*PE2-segment-routing-ipv6-segment-list-list1] index 5 sid ipv6 2001:DB8:200::100
+[*PE2-segment-routing-ipv6-segment-list-list1] index 10 sid ipv6 2001:DB8:100::100
+[*PE2-segment-routing-ipv6-segment-list-list1] quit
+[*PE2-segment-routing-ipv6] segment-list list2 
+[*PE2-segment-routing-ipv6-segment-list-list2] index 5 sid ipv6 2001:DB8:400::100
+[*PE2-segment-routing-ipv6-segment-list-list2] index 10 sid ipv6 2001:DB8:100::100
+[*PE2-segment-routing-ipv6-segment-list-list2] quit
+[*PE2-segment-routing-ipv6] srv6-te-policy locator as1 
+[*PE2-segment-routing-ipv6] srv6-te policy policy1 endpoint 2001:DB8:1::1 color 10
+[*PE2-segment-routing-ipv6-policy-policy1] binding-sid 2001:DB8:300::900
+[*PE2-segment-routing-ipv6-policy-policy1] candidate-path preference 100
+[*PE2-segment-routing-ipv6-policy-policy1-path] segment-list list1 
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+25
+
+
+--- Page 29 ---
+
+[*PE2-segment-routing-ipv6-policy-policy1-path] quit
+[*PE2-segment-routing-ipv6-policy-policy1] quit
+[*PE2-segment-routing-ipv6] srv6-te policy policy2 endpoint 2001:DB8:1::1 color 20
+[*PE2-segment-routing-ipv6-policy-policy2] binding-sid 2001:DB8:300::901
+[*PE2-segment-routing-ipv6-policy-policy2] candidate-path preference 100
+[*PE2-segment-routing-ipv6-policy-policy2-path] segment-list list2 
+[*PE2-segment-routing-ipv6-policy-policy2-path] commit
+[~PE2-segment-routing-ipv6-policy-policy2-path] quit
+[~PE2-segment-routing-ipv6-policy-policy2] quit
+[~PE2-segment-routing-ipv6] quit
+配置完成后，执行命令display srv6-te policy 查看SRv6 TE Policy信息。
+以PE1的显示为例：
+[~PE1] display srv6-te policy 
+Policy Name : policy1  
+Color                   : 10                             Endpoint             : 2001:DB8:3::3                  
+TunnelId                : 1                                          
+TunnelType              : SRv6-TE Policy                 DelayTimerRemain     : -                                                   
+Policy State            : Up                             State Change Time    : 2021-05-05 09:24:24
+Admin State             : Up                             Traffic Statistics   : Disable  
+Backup Hot-Standby      : Disable                        BFD                  : Disable  
+Interface Index         : -                              Interface Name       : -        
+Interface State         : -                              Encapsulation Mode   : Insert
+Active Metric           : -                              Metric Source        : -
+Binding SID             : 2001:DB8:100::900(Insert, Preferred)
+BFD Slice Inherit Match : Disable
+Delete Hold             : Disable
+Candidate-path Count    : 1       
+ Candidate-path Preference : 100
+ Policy Name            : policy1
+ Candidate-path Name    : 
+ Path State             : Active                         Path Type            : Primary  
+ Protocol-Origin        : Configuration(30)              Originator           : 0, 0.0.0.0                                          
+ Discriminator          : 100                            Binding SID          : 2001:DB8:100::900  
+ GroupId                : 1                              ODN Color            : -
+ Template ID            : 0                              Path Verification    : Disable  
+ DelayTimerRemain       : -                              Network Slice ID     : -
+ Active Metric          : -
+ Metric                 : 
+  IGP Metric            : -                              TE Metric            : -
+  Delay Metric          : -                              Hop Counts           : -
+ Compute Source         : -                              CT0 Bandwidth        : -
+ Segment-List Count     : 1       
+  Segment-List          : list1   
+   Segment-List ID      : 1                              XcIndex              : 1        
+   List State           : Up                             DelayTimerRemain     : - 
+   Verification State   : -                              SuppressTimeRemain   : -        
+   PMTU                 : 9600                           Active PMTU          : 9600     
+   Weight               : 1                              BFD State            : -   
+   Loop Detection State : Up                             BFD Delay Remain     : -      
+   Network Slice ID     : -  
+   Binding SID          : -
+   Reverse Binding ID   : -
+   XSID                 : -
+   Reverse XSID         : -
+   Metric               : 
+    IGP Metric          : -                              TE Metric            : -
+    Delay Metric        : -                              Hop Counts           : -
+   SID :              
+         2001:DB8:200::100      
+         2001:DB8:300::100      
+Policy Name : policy2  
+Color                   : 20                             Endpoint             : 2001:DB8:3::3     
+TunnelId                : 2                                
+TunnelType              : SRv6-TE Policy                 DelayTimerRemain     : -        
+Policy State            : Up                             State Change Time    : 2021-05-05 09:24:24
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+26
+
+
+--- Page 30 ---
+
+Admin State             : Up                             Traffic Statistics   : Disable  
+Backup Hot-Standby      : Disable                        BFD                  : Disable  
+Interface Index         : -                              Interface Name       : -        
+Interface State         : -                              Encapsulation Mode   : Insert
+Active Metric           : -                              Metric Source        : -
+Binding SID             : 2001:DB8:100::901(Insert, Preferred)
+BFD Slice Inherit Match : Disable
+Delete Hold             : Disable
+Candidate-path Count    : 1 
+ Candidate-path Preference : 100
+ Policy Name            : policy2
+ Candidate-path Name    : 
+ Path State             : Active                         Path Type            : Primary  
+ Protocol-Origin        : Configuration(30)              Originator           : 0, 0.0.0.0                    
+ Discriminator          : 100                            Binding SID          : 2001:DB8:100::901  
+ GroupId                : 2                              ODN Color            : -
+ Template ID            : 0                              Path Verification    : Disable  
+ DelayTimerRemain       : -                              Network Slice ID     : -
+ Active Metric          : -
+ Metric                 : 
+  IGP Metric            : -                              TE Metric            : -
+  Delay Metric          : -                              Hop Counts           : -
+ Segment-List Count     : 1       
+  Segment-List          : list2   
+   Segment-List ID      : 2                              XcIndex              : 2        
+   List State           : Up                             DelayTimerRemain     : -        
+   Verification State   : -                              SuppressTimeRemain   : -        
+   PMTU                 : 9600                           Active PMTU          : 9600     
+   Weight               : 1                              BFD State            : -        
+   Loop Detection State : Up                             BFD Delay Remain     : - 
+   Network Slice ID     : -  
+   Binding SID          : -
+   Reverse Binding ID   : -
+   XSID                 : -
+   Reverse XSID         : -
+   Metric               : 
+    IGP Metric          : -                              TE Metric            : -
+    Delay Metric        : -                              Hop Counts           : -
+   SID :              
+         2001:DB8:400::100      
+         2001:DB8:300::100  
+步骤8 配置APN6实例
+# 配置PE1。
+[~PE1] apn 
+[*PE1-apn] ipv6 
+[*PE1-apn-ipv6] apn-id template tmplt1 length 64 app-group 16 
+[*PE1-apn-ipv6-template-tmplt1] app-group index 1 app-group1 length 16 
+[*PE1-apn-ipv6-template-tmplt1] quit 
+[*PE1-apn-ipv6] apn-id instance APN6-instance1 
+[*PE1-apn-ipv6-instance-APN6-instance1] template tmplt1 
+[*PE1-apn-ipv6-instance-APN6-instance1] apn-field app-group1 1 
+[*PE1-apn-ipv6-instance-APN6-instance1] commit 
+[~PE1-apn-ipv6-instance-APN6-instance1] quit 
+[~PE1-apn-ipv6] quit 
+[~PE1-apn] quit
+# 配置PE2。
+[~PE2] apn 
+[*PE2-apn] ipv6 
+[*PE2-apn-ipv6] apn-id template tmplt1 length 64 app-group 16 
+[*PE2-apn-ipv6-template-tmplt1] app-group index 1 app-group1 length 16 
+[*PE2-apn-ipv6-template-tmplt1] quit 
+[*PE2-apn-ipv6] apn-id instance APN6-instance1 
+[*PE2-apn-ipv6-instance-APN6-instance1] template tmplt1 
+[*PE2-apn-ipv6-instance-APN6-instance1] apn-field app-group1 1 
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+27
+
+
+--- Page 31 ---
+
+[*PE2-apn-ipv6-instance-APN6-instance1] commit 
+[~PE2-apn-ipv6-instance-APN6-instance1] quit 
+[~PE2-apn-ipv6] quit 
+[~PE2-apn] quit
+步骤9 配置业务流的过滤策略，符合条件的业务流按照指定的方式生成APN ID信息。
+# 配置PE1。
+[~PE1] acl number 3333
+[*PE1-acl-advance-3333] rule 5 permit ip source 11.11.11.11 0 destination 22.22.22.22 0
+[*PE1-acl-advance-3333] commit
+[~PE1-acl-advance-3333] quit
+[~PE1] traffic classifier c1
+[*PE1-classifier-c1] if-match acl 3333
+[*PE1-classifier-c1] commit
+[~PE1-classifier-c1] quit
+[~PE1] traffic behavior b1
+[*PE1-behavior-b1] remark apn-id-ipv6 instance APN6-instance1
+[*PE1-behavior-b1] commit
+[~PE1-behavior-b1] quit
+[~PE1] traffic policy p1
+[*PE1-trafficpolicy-p1] classifier c1 behavior b1
+[*PE1-trafficpolicy-p1] share-mode
+[*PE1-trafficpolicy-p1] statistics enable
+[*PE1-trafficpolicy-p1] quit
+[*PE1] interface GigabitEthernet 2/0/0
+[*PE1-GigabitEthernet2/0/0] traffic-policy p1 inbound
+[*PE1-GigabitEthernet2/0/0] commit
+[~PE1-GigabitEthernet2/0/0] quit
+# 配置PE2。
+[~PE2] acl number 3333
+[*PE2-acl-advance-3333] rule 5 permit ip source 22.22.22.22 0 destination 11.11.11.11 0
+[*PE2-acl-advance-3333] commit
+[~PE2-acl-advance-3333] quit
+[~PE2] traffic classifier c1
+[*PE2-classifier-c1] if-match acl 3333
+[*PE2-classifier-c1] commit
+[~PE2-classifier-c1] quit
+[~PE2] traffic behavior b1
+[*PE2-behavior-b1] remark apn-id-ipv6 instance APN6-instance1
+[*PE2-behavior-b1] commit
+[~PE2-behavior-b1] quit
+[~PE2] traffic policy p1
+[*PE2-trafficpolicy-p1] classifier c1 behavior b1
+[*PE2-trafficpolicy-p1] share-mode
+[*PE2-trafficpolicy-p1] statistics enable
+[*PE2-trafficpolicy-p1] quit
+[*PE2] interface GigabitEthernet 2/0/0
+[*PE2-GigabitEthernet2/0/0] traffic-policy p1 inbound
+[*PE2-GigabitEthernet2/0/0] commit
+[~PE2-GigabitEthernet2/0/0] quit
+步骤10 配置SRv6 Mapping Policy
+配置SRv6 Mapping Policy后，设备利用业务路由的Color属性去匹配相同Color的SRv6
+Mapping Policy，如果SRv6 Mapping Policy存在，则设备动态生成一个SRv6 TE Flow
+Group，供业务转发使用。该SRv6 TE Flow Group里存在多个Color属性不同，但
+EndPoint相同的SRv6 TE Policy。
+本例配置匹配APN6实例APN6-instance1的流量从policy1转发，其他流量默认从
+policy2转发。
+# 配置PE1。
+[~PE1] segment-routing ipv6 
+[~PE1-segment-routing-ipv6] mapping-policy p1 color 101  
+[*PE1-segment-routing-ipv6-mapping-policy-p1] match-type apn-id-ipv6
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+28
+
+
+--- Page 32 ---
+
+[*PE1-segment-routing-ipv6-mapping-policy-p1-apn-id-ipv6] index 10 instance APN6-instance1 match 
+srv6-te-policy color 10 
+[*PE1-segment-routing-ipv6-mapping-policy-p1-apn-id-ipv6] default match srv6-te-policy color 20
+[*PE1-segment-routing-ipv6-mapping-policy-p1-apn-id-ipv6] quit
+[*PE1-segment-routing-ipv6-mapping-policy-p1] quit
+[*PE1-segment-routing-ipv6] commit
+[~PE1-segment-routing-ipv6] quit
+# 配置PE2。
+[~PE2] segment-routing ipv6 
+[~PE2-segment-routing-ipv6] mapping-policy p1 color 101  
+[*PE2-segment-routing-ipv6-mapping-policy-p1] match-type apn-id-ipv6
+[*PE2-segment-routing-ipv6-mapping-policy-p1-apn-id-ipv6] index 10 instance APN6-instance1 match 
+srv6-te-policy color 10 
+[*PE2-segment-routing-ipv6-mapping-policy-p1-apn-id-ipv6] default match srv6-te-policy color 20
+[*PE2-segment-routing-ipv6-mapping-policy-p1-apn-id-ipv6] quit
+[*PE2-segment-routing-ipv6-mapping-policy-p1] quit
+[*PE2-segment-routing-ipv6] commit
+[~PE2-segment-routing-ipv6] quit
+步骤11 配置隧道策略，引入私网流量
+# 配置PE1。
+[~PE1] route-policy p1 permit node 10
+[*PE1-route-policy] apply extcommunity color 0:101
+[*PE1-route-policy] quit
+[*PE1] bgp 100
+[*PE1-bgp] ipv4-family vpnv4
+[*PE1-bgp-af-vpnv4] peer 2001:DB8:3::3 route-policy p1 import 
+[*PE1-bgp-af-vpnv4] quit
+[*PE1-bgp] quit
+[*PE1] tunnel-policy p1
+[*PE1-tunnel-policy-p1] tunnel select-seq ipv6 srv6-te-flow-group load-balance-number 1
+[*PE1-tunnel-policy-p1] quit
+[*PE1] ip vpn-instance vpna
+[*PE1-vpn-instance-vpna] ipv4-family
+[*PE1-vpn-instance-vpna-af-ipv4] tnl-policy p1
+[*PE1-vpn-instance-vpna-af-ipv4] commit
+[~PE1-vpn-instance-vpna-af-ipv4] quit
+[~PE1-vpn-instance-vpna] quit
+# 配置PE2。
+[~PE2] route-policy p1 permit node 10
+[*PE2-route-policy] apply extcommunity color 0:101
+[*PE2-route-policy] quit
+[*PE2] bgp 100
+[*PE2-bgp] ipv4-family vpnv4
+[*PE2-bgp-af-vpnv4] peer 2001:DB8:1::1 route-policy p1 import 
+[*PE2-bgp-af-vpnv4] quit
+[*PE2-bgp] quit
+[*PE2] tunnel-policy p1
+[*PE2-tunnel-policy-p1] tunnel select-seq ipv6 srv6-te-flow-group load-balance-number 1
+[*PE2-tunnel-policy-p1] quit
+[*PE2] ip vpn-instance vpna
+[*PE2-vpn-instance-vpna] ipv4-family
+[*PE2-vpn-instance-vpna-af-ipv4] tnl-policy p1
+[*PE2-vpn-instance-vpna-af-ipv4] commit
+[~PE2-vpn-instance-vpna-af-ipv4] quit
+[~PE2-vpn-instance-vpna] quit
+配置完成后，执行display srv6-te flow-group命令，查看动态创建的SRv6 TE Flow
+Group状态。
+以PE1的显示为例：
+[~PE1] display srv6-te flow-group                                             
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+29
+
+
+--- Page 33 ---
+
+                          SRv6-TE Flow Group Information                     
+------------------------------------------------------------------------------------  
+Group Name          :          
+Color               : 101                           Endpoint            : 2001:DB8:3::3                                       
+Group Tunnel ID     : 3                             Group Tunnel Type   : SRv6-TE Flow Group
+Group Tunnel State  : Up                            State Change Time   : 2021-05-05 09:38:19 
+Interface Index     : -                             Interface Name      : -   
+Interface State     : -
+Delay Timer Remain  : -                             UP/ALL Num          : 2/2                    
+ Index                : -
+ APN ID IPv6 Instance : Default(Configure)
+ Match Tunnel         : SRv6-TE Policy                State               : Up
+ Color                : 20                            Tunnel Id           : 1
+ Index                : 1
+ APN ID IPv6 Instance : APN6-instance1
+ Match Tunnel         : SRv6-TE Policy                State               : Up
+ Color                : 10                            Tunnel Id           : 1
+配置完成后，执行命令display ip routing-table vpn-instance vpna查看VPN实例路
+由表信息，可以看到私网路由已经成功迭代到SRv6 TE Policy。
+以PE1的显示为例：
+[~PE1] display ip routing-table vpn-instance vpna 
+Route Flags: R - relay, D - download to fib, T - to vpn-instance, B - black hole route
+------------------------------------------------------------------------------ 
+Routing Table : vpna                           
+         Destinations : 8        Routes : 8  
+Destination/Mask    Proto   Pre  Cost        Flags NextHop         Interface    
+       10.1.1.0/24  Direct  0    0             D   10.1.1.1        GigabitEthernet2/0/0  
+       10.1.1.1/32  Direct  0    0             D   127.0.0.1       GigabitEthernet2/0/0        
+     10.1.1.255/32  Direct  0    0             D   127.0.0.1       GigabitEthernet2/0/0       
+       10.2.1.0/24  IBGP    255  0             RD  2001:DB8:3::3   SRv6-TE Flow Group         
+    11.11.11.11/32  EBGP    255  0             RD  10.1.1.2        GigabitEthernet2/0/0         
+    22.22.22.22/32  IBGP    255  0             RD  2001:DB8:3::3   SRv6-TE Flow Group  
+      127.0.0.0/8   Direct  0    0             D   127.0.0.1       InLoopBack0                 
+255.255.255.255/32  Direct  0    0             D   127.0.0.1       InLoopBack0 
+[~PE1] display ip routing-table vpn-instance vpna 22.22.22.22 verbose 
+ Route Flags: R - relay, D - download to fib, T - to vpn-instance, B - black hole 
+route                                              
+------------------------------------------------------------------------------  
+Routing Table : vpna        
+Summary Count : 1           
+Destination: 22.22.22.22/32 
+     Protocol: IBGP               Process ID: 0                                 
+   Preference: 255                      Cost: 0                                 
+      NextHop: 2001:DB8:3::3       Neighbour: 2001:DB8:3::3                              
+        State: Active Adv Relied         Age: 01h04m44s                         
+          Tag: 0                    Priority: low                               
+        Label: 3                     QoSInfo: 0x0                               
+   IndirectID: 0x10000DE            Instance:                                   
+ RelayNextHop: ::                  Interface: SRv6-TE Flow Group              
+     TunnelID: 0x000000003700002001    Flags: RD 
+步骤12 检查配置结果
+同一VPN的CE能够相互Ping通，例如：
+[~CE1] ping -a 11.11.11.11 22.22.22.22
+  PING 22.22.22.22: 56  data bytes, press CTRL_C to break                       
+    Reply from 22.22.22.22: bytes=56 Sequence=1 ttl=253 time=85 ms              
+    Reply from 22.22.22.22: bytes=56 Sequence=2 ttl=253 time=33 ms              
+    Reply from 22.22.22.22: bytes=56 Sequence=3 ttl=253 time=32 ms              
+    Reply from 22.22.22.22: bytes=56 Sequence=4 ttl=253 time=30 ms              
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+30
+
+
+--- Page 34 ---
+
+    Reply from 22.22.22.22: bytes=56 Sequence=5 ttl=253 time=24 ms              
+  --- 22.22.22.22 ping statistics ---                                           
+    5 packet(s) transmitted 
+    5 packet(s) received    
+    0.00% packet loss       
+    round-trip min/avg/max = 24/40/85 ms 
+----结束
+配置文件
+●
+PE1的配置文件
+#
+sysname PE1
+#
+ip vpn-instance vpna
+ ipv4-family
+  route-distinguisher 100:1
+  apply-label per-instance
+  tnl-policy p1
+  vpn-target 111:1 export-extcommunity
+  vpn-target 111:1 import-extcommunity
+#
+apn
+ ipv6
+  apn-id template tmplt1 length 64 app-group 16
+   app-group index 1 app-group1 length 16
+  apn-id instance APN6-instance1
+   template tmplt1
+   apn-field app-group1 1
+#
+acl number 3333
+ rule 5 permit ip source 11.11.11.11 0 destination 22.22.22.22 0
+#
+traffic classifier c1
+ if-match acl 3333
+#
+traffic behavior b1
+ remark apn-id-ipv6 instance APN6-instance1
+#        
+traffic policy p1
+ share-mode
+ statistics enable
+ classifier c1 behavior b1 precedence 1
+#               
+segment-routing ipv6
+ encapsulation source-address 2001:DB8:1::1                                              
+ locator as1 ipv6-prefix 2001:DB8:100:: 64 static 32                                     
+  opcode ::100 end psp      
+  opcode ::200 end no-flavor
+ srv6-te-policy locator as1 
+ segment-list list1         
+  index 5 sid ipv6 2001:DB8:200::100  
+  index 10 sid ipv6 2001:DB8:300::100 
+ segment-list list2         
+  index 5 sid ipv6 2001:DB8:400::100  
+  index 10 sid ipv6 2001:DB8:300::100 
+ srv6-te policy policy1 endpoint 2001:DB8:3::3 color 10                                  
+  binding-sid 2001:DB8:100::900       
+  candidate-path preference 100     
+   segment-list list1       
+ srv6-te policy policy2 endpoint 2001:DB8:3::3 color 20                                  
+  binding-sid 2001:DB8:100::901       
+  candidate-path preference 100 
+   segment-list list2       
+ mapping-policy p1 color 101     
+  match-type apn-id-ipv6 
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+31
+
+
+--- Page 35 ---
+
+   index 10 instance APN6-instance1 match srv6-te-policy color 10
+   default match srv6-te-policy color 20
+#               
+isis 1          
+ is-level level-1
+ cost-style wide
+ network-entity 10.0000.0000.0001.00
+ #              
+ ipv6 enable topology ipv6
+ segment-routing ipv6 locator as1 auto-sid-disable
+ #              
+#               
+interface GigabitEthernet1/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:11::1/96
+ isis ipv6 enable 1
+#               
+interface GigabitEthernet2/0/0
+ undo shutdown  
+ ip binding vpn-instance vpna
+ ip address 10.1.1.1 255.255.255.0
+ traffic-policy p1 inbound
+#               
+interface GigabitEthernet3/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:13::1/96
+ isis ipv6 enable 1
+#               
+interface LoopBack1
+ ipv6 enable    
+ ipv6 address 2001:DB8:1::1/128
+ isis ipv6 enable 1
+#               
+bgp 100         
+ router-id 1.1.1.1
+ peer 2001:DB8:3::3 as-number 100
+ peer 2001:DB8:3::3 connect-interface LoopBack1
+ #              
+ ipv4-family unicast
+  undo synchronization
+ #              
+ ipv6-family unicast
+  undo synchronization
+ #              
+ ipv4-family vpnv4
+  policy vpn-target
+  peer 2001:DB8:3::3 enable
+  peer 2001:DB8:3::3 route-policy p1 import
+  peer 2001:DB8:3::3 prefix-sid
+ #              
+ ipv4-family vpn-instance vpna
+  import-route direct
+  segment-routing ipv6 locator as1
+  segment-routing ipv6 traffic-engineer best-effort
+  peer 10.1.1.2 as-number 65410
+#               
+route-policy p1 permit node 10
+ apply extcommunity color 0:101
+#               
+tunnel-policy p1
+ tunnel select-seq ipv6 srv6-te-flow-group load-balance-number 1
+#               
+return 
+●
+P1的配置文件
+#
+sysname P1        
+#               
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+32
+
+
+--- Page 36 ---
+
+segment-routing ipv6
+ encapsulation source-address 2001:DB8:2::2
+ locator as1 ipv6-prefix 2001:DB8:200:: 64 static 32
+  opcode ::100 end psp
+  opcode ::200 end no-flavor
+#               
+isis 1          
+ is-level level-1
+ cost-style wide
+ network-entity 10.0000.0000.0002.00
+ #              
+ ipv6 enable topology ipv6
+ segment-routing ipv6 locator as1 auto-sid-disable
+ #
+#               
+interface GigabitEthernet1/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:11::2/96
+ isis ipv6 enable 1 
+# 
+interface GigabitEthernet2/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:12::1/96
+ isis ipv6 enable 1  
+#               
+interface LoopBack1
+ ipv6 enable    
+ ipv6 address 2001:DB8:2::2/128
+ isis ipv6 enable 1
+#               
+return 
+●
+PE2的配置文件
+#
+sysname PE2
+#
+ip vpn-instance vpna
+ ipv4-family
+  route-distinguisher 200:1
+  apply-label per-instance
+  tnl-policy p1
+  vpn-target 111:1 export-extcommunity
+  vpn-target 111:1 import-extcommunity
+#
+apn
+ ipv6
+  apn-id template tmplt1 length 64 app-group 16
+   app-group index 1 app-group1 length 16
+  apn-id instance APN6-instance1
+   template tmplt1
+   apn-field app-group1 1
+#
+acl number 3333
+ rule 5 permit ip source 22.22.22.22 0 destination 11.11.11.11 0
+#
+traffic classifier c1
+ if-match acl 3333
+#
+traffic behavior b1
+ remark apn-id-ipv6 instance APN6-instance1
+#        
+traffic policy p1
+ share-mode
+ statistics enable
+ classifier c1 behavior b1 precedence 1
+#               
+segment-routing ipv6
+ encapsulation source-address 2001:DB8:3::3                                              
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+33
+
+
+--- Page 37 ---
+
+ locator as1 ipv6-prefix 2001:DB8:300:: 64 static 32                                     
+  opcode ::100 end psp          
+  opcode ::200 end no-flavor 
+ srv6-te-policy locator as1 
+ segment-list list1         
+  index 5 sid ipv6 2001:DB8:200::100  
+  index 10 sid ipv6 2001:DB8:100::100 
+ segment-list list2         
+  index 5 sid ipv6 2001:DB8:400::100  
+  index 10 sid ipv6 2001:DB8:100::100 
+ srv6-te policy policy1 endpoint 2001:DB8:1::1 color 10                                  
+  binding-sid 2001:DB8:300::900       
+  candidate-path preference 100     
+   segment-list list1       
+ srv6-te policy policy2 endpoint 2001:DB8:1::1 color 20                                  
+  binding-sid 2001:DB8:300::901       
+  candidate-path preference 100          
+   segment-list list2       
+ mapping-policy p1 color 101     
+  match-type apn-id-ipv6 
+   index 10 instance APN6-instance1 match srv6-te-policy color 10
+   default match srv6-te-policy color 20
+#               
+isis 1          
+ is-level level-1
+ cost-style wide
+ network-entity 10.0000.0000.0003.00
+ #              
+ ipv6 enable topology ipv6
+ segment-routing ipv6 locator as1 auto-sid-disable  
+#               
+interface GigabitEthernet1/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:12::2/96
+ isis ipv6 enable 1
+#               
+interface GigabitEthernet2/0/0
+ undo shutdown  
+ ip binding vpn-instance vpna
+ ip address 10.2.1.1 255.255.255.0
+ traffic-policy p1 inbound
+#               
+interface GigabitEthernet3/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:14::2/96
+ isis ipv6 enable 1
+#               
+interface LoopBack1
+ ipv6 enable    
+ ipv6 address 2001:DB8:3::3/128
+ isis ipv6 enable 1
+#               
+bgp 100         
+ router-id 2.2.2.2
+ peer 2001:DB8:1::1 as-number 100
+ peer 2001:DB8:1::1 connect-interface LoopBack1
+ #              
+ ipv4-family unicast
+  undo synchronization
+ #              
+ ipv6-family unicast
+  undo synchronization
+ #              
+ ipv4-family vpnv4
+  policy vpn-target
+  peer 2001:DB8:1::1 enable
+  peer 2001:DB8:1::1 route-policy p1 import
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+34
+
+
+--- Page 38 ---
+
+  peer 2001:DB8:1::1 prefix-sid
+ #              
+ ipv4-family vpn-instance vpna
+  import-route direct
+  segment-routing ipv6 locator as1
+  segment-routing ipv6 traffic-engineer best-effort
+  peer 10.2.1.2 as-number 65420
+#               
+route-policy p1 permit node 10
+ apply extcommunity color 0:101
+#               
+tunnel-policy p1
+ tunnel select-seq ipv6 srv6-te-flow-group load-balance-number 1
+#               
+return
+●
+P2的配置文件
+#
+sysname P2        
+#               
+segment-routing ipv6
+ encapsulation source-address 2001:DB8:4::4
+ locator as1 ipv6-prefix 2001:DB8:400:: 64 static 32
+  opcode ::100 end psp
+  opcode ::200 end no-flavor
+#               
+isis 1          
+ is-level level-1
+ cost-style wide
+ network-entity 10.0000.0000.0004.00
+ #              
+ ipv6 enable topology ipv6
+ segment-routing ipv6 locator as1 auto-sid-disable
+ #
+#               
+interface GigabitEthernet1/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:13::2/96
+ isis ipv6 enable 1 
+# 
+interface GigabitEthernet2/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:14::1/96
+ isis ipv6 enable 1  
+#               
+interface LoopBack1
+ ipv6 enable    
+ ipv6 address 2001:DB8:4::4/128
+ isis ipv6 enable 1
+#               
+return 
+●
+CE1的配置文件
+#
+sysname CE1
+#
+interface GigabitEthernet1/0/0
+ undo shutdown  
+ ip address 10.1.1.2 255.255.255.0
+#               
+interface LoopBack1
+ ip address 11.11.11.11 255.255.255.255
+#               
+bgp 65410       
+ peer 10.1.1.1 as-number 100
+ #              
+ ipv4-family unicast
+  undo synchronization
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+35
+
+
+--- Page 39 ---
+
+  network 11.11.11.11 255.255.255.255
+  peer 10.1.1.1 enable
+#               
+return 
+●
+CE2的配置文件
+#
+sysname CE2
+#
+interface GigabitEthernet1/0/0
+ undo shutdown
+ ip address 10.2.1.2 255.255.255.0
+#
+interface LoopBack1
+ ip address 22.22.22.22 255.255.255.255
+#
+bgp 65420
+ peer 10.2.1.1 as-number 100
+#
+ ipv4-family unicast
+  undo synchronization
+  network 22.22.22.22 255.255.255.255
+  peer 10.2.1.1 enable
+#
+return
+1.2.7.2 配置APN ID 隔离在EVPN L3VPNv6 over SRv6 TE Policy 场景的应用示例
+介绍APN ID隔离在EVPN L3VPNv6 over SRv6 TE Policy场景的配置过程。
+组网需求
+如图1-2所示：PE1、P和PE2属于同一自治系统，要求它们之间通过IS-IS协议达到IPv6
+网络互连的目的。在PE1和PE2之间通过建立双向SRv6 TE Policy承载EVPN L3VPNv6
+业务，要求PE收到从CE发来的业务流匹配APN隔离策略，对于符合条件的业务流进行
+隔离处理。
+图1-2 配置EVPN L3VPNv6 over SRv6 TE Policy 组网图
+说明
+本例中interface1、interface2分别代表GE1/0/0、GE2/0/0。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+36
+
+
+--- Page 40 ---
+
+配置注意事项
+1.
+配置SRv6 TE Policy需要使用End SID或End.X SID。SID可以通过手工静态配置，
+也可以由IGP动态生成。在静态配置SRv6 TE Policy场景中，如果使用动态SID，则
+SID在IGP协议重启后可能发生变化，此时静态SRv6 TE Policy也需要人工介入做相
+应的调整才能保持Up，在现网中实际无法大规模部署，基于上述原因，建议用户
+手工配置SID，禁止使用动态SID。
+2.
+APN ID引流时，业务首先根据下一跳配置的隧道策略进行迭代，如果业务的迭代
+类型是SRv6 TE Flow Group，则头节点利用业务路由的Color属性匹配SRv6
+Mapping Policy，如果SRv6 Mapping Policy存在，则头节点动态生成一个SRv6
+TE Flow Group，供业务转发使用。该SRv6 TE Flow Group里存在多个Color属性
+不同，但EndPoint相同的SRv6 TE Policy。如果根据业务的Color属性找不到对应
+的SRv6 Mapping Policy时，则不创建动态SRv6 TE Flow Group。
+配置思路
+采用如下的思路配置EVPN L3VPNv6 over SRv6 TE Policy：
+1.
+使能PE1、P和PE2各接口的IPv6转发能力，配置各接口的IPv6地址。
+2.
+在PE1、P和PE2上使能IS-IS，配置Level级别，指定网络实体。
+3.
+在PE设备上配置EVPN L3VPN实例并将EVPN L3VPN实例绑定到接入侧接口。
+4.
+在PE和CE之间建立EBGP对等体关系。
+5.
+在PE设备之间建立BGP EVPN对等体关系。
+6.
+在PE1、P和PE2上配置SRv6 SID，配置IS-IS的SRv6能力。同时在PE1和PE2上配置
+VPN私网路由携带SID属性。
+7.
+在PE1和PE2上配置SRv6 TE Policy。
+8.
+在PE1和PE2上配置业务流的过滤策略，符合条件的业务流按照指定的方式生成
+APN ID信息。
+9.
+在PE1上配置APN ID引流。
+10. 在PE1和PE2上配置并应用APN ID隔离策略。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+37
+
+
+--- Page 41 ---
+
+11. 在PE1和PE2上配置业务流的APN ID信息。
+12. 在PE1和PE2上配置隧道策略，引入私网流量。
+数据准备
+为完成此配置例，需准备如下的数据：
+●
+PE1、P和PE2各接口的IPv6地址。
+●
+PE1、P和PE2的IS-IS进程号。
+●
+PE1、P和PE2的IS-IS级别。
+●
+PE1和PE2上VPN实例名称，VPN实例的RD和RT。
+操作步骤
+步骤1 使能各接口的IPv6转发能力，配置各接口的IPv6地址
+# 配置PE1。P和PE2的配置过程与PE1类似，不再赘述，详情可参考配置文件。
+<HUAWEI> system-view
+[~HUAWEI] sysname PE1
+[*HUAWEI] commit
+[~PE1] interface gigabitethernet 1/0/0
+[~PE1-GigabitEthernet1/0/0] ipv6 enable
+[*PE1-GigabitEthernet1/0/0] ipv6 address 2001:DB8:10::1 64
+[*PE1-GigabitEthernet1/0/0] quit
+[*PE1] interface LoopBack 1
+[*PE1-LoopBack1] ipv6 enable
+[*PE1-LoopBack1] ipv6 address 2001:DB8:1::1 128
+[*PE1-LoopBack1] quit
+[*PE1] commit
+步骤2 配置IS-IS
+# 配置PE1。
+[~PE1] isis 1
+[*PE1-isis-1] is-level level-1
+[*PE1-isis-1] cost-style wide
+[*PE1-isis-1] network-entity 10.0000.0000.0001.00
+[*PE1-isis-1] ipv6 enable topology ipv6
+[*PE1-isis-1] quit
+[*PE1] interface gigabitethernet 1/0/0
+[*PE1-GigabitEthernet1/0/0] isis ipv6 enable 1
+[*PE1-GigabitEthernet1/0/0] quit
+[*PE1] interface loopback1
+[*PE1-LoopBack1] isis ipv6 enable 1
+[*PE1-LoopBack1] quit
+[*PE1] commit
+# 配置P。
+[~P] isis 1 
+[*P-isis-1] is-level level-1
+[*P-isis-1] cost-style wide
+[*P-isis-1] network-entity 10.0000.0000.0002.00
+[*P-isis-1] ipv6 enable topology ipv6
+[*P-isis-1] quit
+[*P] interface gigabitethernet 1/0/0
+[*P-GigabitEthernet1/0/0] isis ipv6 enable 1
+[*P-GigabitEthernet1/0/0] quit
+[*P] interface gigabitethernet 2/0/0
+[*P-GigabitEthernet2/0/0] isis ipv6 enable 1
+[*P-GigabitEthernet2/0/0] quit
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+38
+
+
+--- Page 42 ---
+
+[*P] interface loopback1
+[*P-LoopBack1] isis ipv6 enable 1
+[*P-LoopBack1] quit
+[*P] commit
+# 配置PE2。
+[~PE2] isis 1
+[*PE2-isis-1] is-level level-1
+[*PE2-isis-1] cost-style wide
+[*PE2-isis-1] network-entity 10.0000.0000.0003.00
+[*PE2-isis-1] ipv6 enable topology ipv6
+[*PE2-isis-1] quit
+[*PE2] interface gigabitethernet 1/0/0
+[*PE2-GigabitEthernet1/0/0] isis ipv6 enable 1
+[*PE2-GigabitEthernet1/0/0] quit
+[*PE2] interface loopback1
+[*PE2-LoopBack1] isis ipv6 enable 1
+[*PE2-LoopBack1] quit
+[*PE2] commit
+配置完成后，可按如下指导检查IS-IS是否配置成功。
+# 显示IS-IS邻居信息。以PE1为例。
+[~PE1] display isis peer
+                          Peer information for ISIS(1)
+                         
+  System Id     Interface         Circuit Id        State HoldTime Type     PRI
+--------------------------------------------------------------------------------
+0000.0000.0002* GE1/0/0           0000.0000.0002.02  Up   8s       L1       64 
+Total Peer(s): 1
+步骤3 在PE设备上配置EVPN L3VPN实例并将EVPN L3VPN实例绑定到接入侧接口
+# 配置PE1。
+[~PE1] ip vpn-instance vpna
+[*PE1-vpn-instance-vpna] ipv6-family
+[*PE1-vpn-instance-vpna-af-ipv6] route-distinguisher 100:1
+[*PE1-vpn-instance-vpna-af-ipv6] vpn-target 1:1 evpn
+[*PE1-vpn-instance-vpna-af-ipv6] quit
+[*PE1-vpn-instance-vpna] quit
+[*PE1] interface gigabitethernet2/0/0
+[*PE1-GigabitEthernet2/0/0] ip binding vpn-instance vpna
+[*PE1-GigabitEthernet2/0/0] ipv6 enable
+[*PE1-GigabitEthernet2/0/0] ipv6 address 2001:DB8:11::1 64
+[*PE1-GigabitEthernet2/0/0] quit
+[*PE1] commit
+# 配置PE2。
+[~PE2] ip vpn-instance vpna
+[*PE2-vpn-instance-vpna] ipv6-family
+[*PE2-vpn-instance-vpna-af-ipv6] route-distinguisher 200:1
+[*PE2-vpn-instance-vpna-af-ipv6] vpn-target 1:1 evpn
+[*PE2-vpn-instance-vpna-af-ipv6] quit
+[*PE2-vpn-instance-vpna] quit
+[*PE2] interface gigabitethernet2/0/0
+[*PE2-GigabitEthernet2/0/0] ip binding vpn-instance vpna
+[*PE2-GigabitEthernet2/0/0] ipv6 enable
+[*PE2-GigabitEthernet2/0/0] ipv6 address 2001:DB8:22::1 64
+[*PE2-GigabitEthernet2/0/0] quit
+[*PE2] commit
+步骤4 在PE与CE之间建立EBGP对等体关系
+# 配置CE1。
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+39
+
+
+--- Page 43 ---
+
+[~CE1] interface loopback 1
+[*CE1-LoopBack1] ipv6 enable
+[*CE1-LoopBack1] ipv6 address 2001:DB8:111::111 128
+[*CE1-LoopBack1] quit
+[*CE1] bgp 65410
+[*CE1-bgp] router-id 10.11.1.1
+[*CE1-bgp] peer 2001:DB8:11::1 as-number 100
+[*CE1-bgp] ipv6-family unicast
+[*CE1-bgp-af-ipv6] peer 2001:DB8:11::1 enable
+[*CE1-bgp-af-ipv6] import-route direct
+[*CE1-bgp-af-ipv6] quit
+[*CE1-bgp] quit
+[*CE1] commit
+# 配置PE1。
+[~PE1] bgp 100
+[*PE1-bgp] router-id 1.1.1.1
+[*PE1-bgp] ipv6-family vpn-instance vpna
+[*PE1-bgp-6-vpna] peer 2001:DB8:11::2 as-number 65410
+[*PE1-bgp-6-vpna] import-route direct
+[*PE1-bgp-6-vpna] advertise l2vpn evpn
+[*PE1-bgp-6-vpna] commit
+[~PE1-bgp-6-vpna] quit
+[~PE1-bgp] quit
+# 配置CE2。
+[~CE2] interface loopback 1
+[*CE2-LoopBack1] ipv6 enable
+[*CE2-LoopBack1] ipv6 address 2001:DB8:222::222 128
+[*CE2-LoopBack1] quit
+[*CE2] bgp 65420
+[*CE2-bgp] router-id 10.22.2.2
+[*CE2-bgp] peer 2001:DB8:22::1 as-number 100
+[*CE2-bgp] ipv6-family unicast
+[*CE2-bgp-af-ipv6] peer 2001:DB8:22::1 enable
+[*CE2-bgp-af-ipv6] import-route direct
+[*CE2-bgp-af-ipv6] quit
+[*CE2-bgp] quit
+[*CE2] commit
+# 配置PE2。
+[~PE2] bgp 100
+[*PE2-bgp] router-id 3.3.3.3
+[*PE2-bgp] ipv6-family vpn-instance vpna
+[*PE2-bgp-6-vpna] peer 2001:DB8:22::2 as-number 65420
+[*PE2-bgp-6-vpna] import-route direct
+[*PE2-bgp-6-vpna] advertise l2vpn evpn
+[*PE2-bgp-6-vpna] commit
+[~PE2-bgp-6-vpna] quit
+[~PE2-bgp] quit
+配置完成后，在PE设备上执行display bgp vpnv6 vpn-instance peer命令，可以看到
+PE与CE之间的BGP对等体关系已建立，并达到Established状态。
+以PE1与CE1的对等体关系为例：
+[~PE1] display bgp vpnv6 vpn-instance vpna peer
+ BGP local router ID : 1.1.1.1
+ Local AS number : 100
+ Total number of peers : 1                 Peers in established state : 1
+  VPN-Instance vpna, Router ID 1.1.1.1:
+  Peer            V          AS  MsgRcvd  MsgSent  OutQ  Up/Down       State  PrefRcv
+  2001:DB8:11::2  4       65410      131      132     0 01:51:37 Established       0
+步骤5 在PE设备之间建立BGP EVPN对等体关系
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+40
+
+
+--- Page 44 ---
+
+# 配置PE1。
+[~PE1] bgp 100
+[*PE1-bgp] peer 2001:DB8:3::3 as-number 100
+[*PE1-bgp] peer 2001:DB8:3::3 connect-interface loopback 1
+[*PE1-bgp] l2vpn-family evpn
+[*PE1-bgp-af-evpn] peer 2001:DB8:3::3 enable
+[*PE1-bgp-af-evpn] quit
+[*PE1-bgp] quit
+[*PE1] commit
+# 配置PE2。
+[~PE2] bgp 100
+[*PE2-bgp] peer 2001:DB8:1::1 as-number 100
+[*PE2-bgp] peer 2001:DB8:1::1 connect-interface loopback 1
+[*PE2-bgp] l2vpn-family evpn
+[*PE2-bgp-af-evpn] peer 2001:DB8:1::1 enable
+[*PE2-bgp-af-evpn] quit
+[*PE2-bgp] quit
+[*PE2] commit
+配置完成后，在PE设备上执行display bgp evpn peer命令，可以看到PE之间的BGP
+EVPN对等体关系已建立，并达到Established状态。
+以PE1的显示为例：
+[~PE1] display bgp evpn peer
+ BGP local router ID : 1.1.1.1
+ Local AS number : 100
+ Total number of peers : 1                 Peers in established state : 1
+  Peer                             V          AS  MsgRcvd  MsgSent  OutQ  Up/Down       State  PrefRcv
+  2001:DB8:3::3                    4         100       40       40     0 00:30:41 Established        0
+步骤6 配置SRv6 SID，同时在PE上配置VPN私网路由携带SID属性
+# 配置PE1。
+[~PE1] segment-routing ipv6
+[*PE1-segment-routing-ipv6] encapsulation source-address 2001:DB8:1::1
+[*PE1-segment-routing-ipv6] locator PE1 ipv6-prefix 2001:DB8:100:: 64 static 32
+[*PE1-segment-routing-ipv6-locator] opcode ::10 end psp
+[*PE1-segment-routing-ipv6-locator] quit
+[*PE1-segment-routing-ipv6] quit
+[*PE1] bgp 100
+[*PE1-bgp] l2vpn-family evpn
+[*PE1-bgp-af-evpn] peer 2001:DB8:3::3 advertise encap-type srv6
+[*PE1-bgp-af-evpn] quit
+[*PE1-bgp] ipv6-family vpn-instance vpna
+[*PE1-bgp-6-vpna] segment-routing ipv6 traffic-engineer best-effort evpn
+[*PE1-bgp-6-vpna] segment-routing ipv6 locator PE1 evpn
+[*PE1-bgp-6-vpna] commit
+[~PE1-bgp-6-vpna] quit
+[~PE1-bgp] quit
+[~PE1] isis 1
+[~PE1-isis-1] segment-routing ipv6 locator PE1 auto-sid-disable
+[*PE1-isis-1] commit
+[~PE1-isis-1] quit
+# 配置P。
+[~P] segment-routing ipv6
+[*P-segment-routing-ipv6] encapsulation source-address 2001:DB8:2::2
+[*P-segment-routing-ipv6] locator P ipv6-prefix 2001:DB8:120:: 64 static 32
+[*P-segment-routing-ipv6-locator] opcode ::20 end psp
+[*P-segment-routing-ipv6-locator] quit
+[*P-segment-routing-ipv6] quit
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+41
+
+
+--- Page 45 ---
+
+[*P] isis 1
+[*P-isis-1] segment-routing ipv6 locator P auto-sid-disable
+[*P-isis-1] commit
+[~P-isis-1] quit
+# 配置PE2。
+[~PE2] segment-routing ipv6
+[*PE2-segment-routing-ipv6] encapsulation source-address 2001:DB8:3::3
+[*PE2-segment-routing-ipv6] locator PE2 ipv6-prefix 2001:DB8:130:: 64 static 32
+[*PE2-segment-routing-ipv6-locator] opcode ::30 end psp
+[*PE2-segment-routing-ipv6-locator] quit
+[*PE2-segment-routing-ipv6] quit
+[*PE2] bgp 100
+[*PE2-bgp] l2vpn-family evpn
+[*PE2-bgp-af-evpn] peer 2001:DB8:1::1 advertise encap-type srv6
+[*PE2-bgp-af-evpn] quit
+[*PE2-bgp] ipv6-family vpn-instance vpna
+[*PE2-bgp-6-vpna] segment-routing ipv6 traffic-engineer best-effort evpn
+[*PE2-bgp-6-vpna] segment-routing ipv6 locator PE2 evpn
+[*PE2-bgp-6-vpna] commit
+[~PE2-bgp-6-vpna] quit
+[~PE2-bgp] quit
+[~PE2] isis 1
+[~PE2-isis-1] segment-routing ipv6 locator PE2 auto-sid-disable
+[*PE2-isis-1] commit
+[~PE2-isis-1] quit
+执行命令display segment-routing ipv6 local-sid end forwarding查看SRv6的Local
+SID表信息。
+[~PE1] display segment-routing ipv6 local-sid end forwarding
+                    My Local-SID End Forwarding Table
+                    ---------------------------------
+SID         : 2001:DB8:100::10/128                         FuncType : End
+Flavor      : PSP                                          SidCompress : NO                  
+LocatorName : PE1                                          LocatorID: 1
+ProtocolType: STATIC                                       ProcessID: --
+UpdateTime  : 2021-08-30 01:46:05.713
+Total SID(s): 1
+[~PE2] display segment-routing ipv6 local-sid end forwarding
+                    My Local-SID End Forwarding Table
+                    ---------------------------------
+SID         : 2001:DB8:130::30/128                         FuncType : End
+Flavor      : PSP                                          SidCompress : NO
+LocatorName : PE2                                          LocatorID: 1
+ProtocolType: STATIC                                       ProcessID: --
+UpdateTime  : 2021-08-30 01:47:26.426
+Total SID(s): 1
+[~P] display segment-routing ipv6 local-sid end forwarding
+                    My Local-SID End Forwarding Table
+                    ---------------------------------
+SID         : 2001:DB8:120::20/128                         FuncType : End
+Flavor      : PSP                                          SidCompress : NO
+LocatorName : P                                            LocatorID: 1
+ProtocolType: STATIC                                       ProcessID: --
+UpdateTime  : 2021-08-30 01:49:44.292
+Total SID(s): 1
+步骤7 配置SRv6 TE Policy
+# 配置PE1。
+[~PE1] segment-routing ipv6 
+[~PE1-segment-routing-ipv6] segment-list list1 
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+42
+
+
+--- Page 46 ---
+
+[*PE1-segment-routing-ipv6-segment-list-list1] index 5 sid ipv6 2001:DB8:120::20
+[*PE1-segment-routing-ipv6-segment-list-list1] index 10 sid ipv6 2001:DB8:130::30
+[*PE1-segment-routing-ipv6-segment-list-list1] commit
+[~PE1-segment-routing-ipv6-segment-list-list1] quit
+[~PE1-segment-routing-ipv6] srv6-te-policy locator PE1 
+[*PE1-segment-routing-ipv6] srv6-te policy policy1 endpoint 2001:DB8:3::3 color 101
+[*PE1-segment-routing-ipv6-policy-policy1] binding-sid 2001:DB8:100::450
+[*PE1-segment-routing-ipv6-policy-policy1] candidate-path preference 100
+[*PE1-segment-routing-ipv6-policy-policy1-path] segment-list list1 
+[*PE1-segment-routing-ipv6-policy-policy1-path] commit
+[~PE1-segment-routing-ipv6-policy-policy1-path] quit
+[~PE1-segment-routing-ipv6-policy-policy1] quit
+[~PE1-segment-routing-ipv6] quit
+# 配置PE2。
+[~PE2] segment-routing ipv6 
+[~PE2-segment-routing-ipv6] segment-list list1 
+[*PE2-segment-routing-ipv6-segment-list-list1] index 5 sid ipv6 2001:DB8:120::20
+[*PE2-segment-routing-ipv6-segment-list-list1] index 10 sid ipv6 2001:DB8:100::10
+[*PE2-segment-routing-ipv6-segment-list-list1] commit
+[~PE2-segment-routing-ipv6-segment-list-list1] quit
+[~PE2-segment-routing-ipv6] srv6-te-policy locator PE2 
+[*PE2-segment-routing-ipv6] srv6-te policy policy1 endpoint 2001:DB8:1::1 color 101
+[*PE2-segment-routing-ipv6-policy-policy1] binding-sid 2001:DB8:130::350
+[*PE2-segment-routing-ipv6-policy-policy1] candidate-path preference 100
+[*PE2-segment-routing-ipv6-policy-policy1-path] segment-list list1 
+[*PE2-segment-routing-ipv6-policy-policy1-path] commit
+[~PE2-segment-routing-ipv6-policy-policy1-path] quit
+[~PE2-segment-routing-ipv6-policy-policy1] quit
+[~PE2-segment-routing-ipv6] quit
+配置完成后，执行命令display srv6-te policy查看SRv6 TE Policy信息。
+以PE1的显示为例：
+[~PE1] display srv6-te policy 
+Policy Name : policy1
+Color                   : 101                            Endpoint             : 2001:DB8:3::3
+TunnelId                : 1                              
+TunnelType              : SRv6-TE Policy                 DelayTimerRemain     : -
+Policy State            : Up                             State Change Time    : 2019-03-24 19:45:30
+Admin State             : Up                             Traffic Statistics   : Disable
+Backup Hot-Standby      : Disable                        BFD                  : Disable
+Interface Index         : -                              Interface Name       : - 
+Interface State         : -                              Encapsulation Mode   : Insert
+Active Metric           : -                              Metric Source        : -
+Binding SID             : 2001:DB8:100::450(Insert, Preferred)
+BFD Slice Inherit Match : Disable
+Delete Hold             : Disable
+Candidate-path Count    : 1
+ Candidate-path Preference : 100
+ Policy Name            : policy1
+ Candidate-path Name    : 
+ Path State             : Active                         Path Type            : Primary
+ Protocol-Origin        : Configuration(30)              Originator           : 0, 0.0.0.0
+ Discriminator          : 100                            Binding SID          : 2001:DB8:100::450
+ GroupId                : 1                              ODN Color            : -
+ Template ID            : 0                              Path Verification    : Disable                   
+ DelayTimerRemain       : -                              Network Slice ID     : -
+ Active Metric          : -
+ Metric                 : 
+  IGP Metric            : -                              TE Metric            : -
+  Delay Metric          : -                              Hop Counts           : -
+ Compute Source         : -                              CT0 Bandwidth        : -
+ Segment-List Count     : 1
+  Segment-List          : list1
+   Segment-List ID      : 1                              XcIndex              : 1  
+   List State           : Up                             DelayTimerRemain     : -  
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+43
+
+
+--- Page 47 ---
+
+   Verification State   : -                              SuppressTimeRemain   : -
+   PMTU                 : 9600                           Active PMTU          : 9600
+   Weight               : 1                              BFD State            : -   
+   Loop Detection State : Up                             BFD Delay Remain     : - 
+   Network Slice ID     : -
+   Binding SID          : -
+   Reverse Binding ID   : -
+   XSID                 : -
+   Reverse XSID         : -
+   Metric               : 
+    IGP Metric          : -                              TE Metric            : -
+    Delay Metric        : -                              Hop Counts           : -
+   SID :  
+         2001:DB8:120::20
+         2001:DB8:130::30
+步骤8 配置APN6实例
+# 配置PE1。
+[~PE1] apn 
+[*PE1-apn] ipv6 
+[*PE1-apn-ipv6] apn-id template tmplt1 length 64 app-group 32 user-group 32 
+[*PE1-apn-ipv6-template-tmplt1] app-group index 1 app-group1 length 10
+[*PE1-apn-ipv6-template-tmplt1] user-group index 1 user-group1 length 8
+[*PE1-apn-ipv6-template-tmplt1] quit 
+[*PE1-apn-ipv6] apn-id instance inst1 
+[*PE1-apn-ipv6-instance-inst1] template tmplt1 
+[*PE1-apn-ipv6-instance-inst1] apn-field app-group1 301 
+[*PE1-apn-ipv6-instance-inst1] apn-field user-group1 201
+[*PE1-apn-ipv6-instance-inst1] quit 
+[*PE1-apn-ipv6] quit 
+[*PE1-apn] quit
+[*PE1] commit
+# 配置PE2。
+[~PE2] apn 
+[*PE2-apn] ipv6 
+[*PE2-apn-ipv6] apn-id template tmplt1 length 64 app-group 32 user-group 32 
+[*PE2-apn-ipv6-template-tmplt1] app-group index 1 app-group1 length 10
+[*PE2-apn-ipv6-template-tmplt1] user-group index 1 user-group1 length 8
+[*PE2-apn-ipv6-template-tmplt1] quit 
+[*PE2-apn-ipv6] apn-id instance inst1 
+[*PE2-apn-ipv6-instance-inst1] template tmplt1 
+[*PE2-apn-ipv6-instance-inst1] apn-field app-group1 301 
+[*PE2-apn-ipv6-instance-inst1] apn-field user-group1 201
+[*PE2-apn-ipv6-instance-inst1] quit 
+[*PE2-apn-ipv6] quit 
+[*PE2-apn] quit
+[*PE2] commit
+执行命令display apn-id-ipv6 instance查看APN6实例的相关信息。
+以PE1的显示为例：
+[~PE1] display apn-id-ipv6 instance name inst1
+Instance Name        : inst1
+Instance ID          : 1                    APN ID Length : 64
+APN ID               : 0x4b400000 0xc9000000
+APN Mask             : 0xffc00000 0xff000000
+步骤9 配置APN ID引流
+# 配置PE1。
+[~PE1] segment-routing ipv6
+[*PE1-segment-routing-ipv6] mapping-policy p1 color 101
+[*PE1-segment-routing-ipv6-mapping-policy-p1] match-type apn-id-ipv6
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+44
+
+
+--- Page 48 ---
+
+[*PE1-segment-routing-ipv6-mapping-policy-p1-apn-id-ipv6] index 1 instance inst1 match srv6-te-policy 
+color 101
+[*PE1-segment-routing-ipv6-mapping-policy-p1-apn-id-ipv6] quit
+[*PE1-segment-routing-ipv6-mapping-policy-p1] quit
+[*PE1-segment-routing-ipv6] quit
+[*PE1] commit
+步骤10 配置并应用APN ID隔离策略。
+# 配置PE1。
+[~PE1] apn 
+[*PE1-apn] ipv6 
+[*PE1-apn-ipv6] isolate-group name group10
+[*PE1-apn-ipv6] apn-id isolate policy policy1
+[*PE1-apn-ipv6-isolate-policy-policy1] index 1 instance inst1 isolate-group group10 behavior deny
+[*PE1-apn-ipv6-isolate-policy-policy1] quit 
+[*PE1-apn-ipv6] isolate-group mapping-vpn
+[*PE1-apn-ipv6-isolate-group-mapping-vpn] vpn-instance vpna peer-locator 2001:DB8:130:: 64 match 
+isolate-group group10
+[*PE1-apn-ipv6-isolate-group-mapping-vpn] quit 
+[*PE1-apn-ipv6] quit 
+[*PE1-apn] quit
+[*PE1] ip vpn-instance vpna
+[*PE1-vpn-instance-vpna] apn-id-ipv6 isolate-policy policy1 inbound 
+[*PE1-vpn-instance-vpna] quit 
+[*PE1] commit
+# 配置PE2。
+[~PE2] apn 
+[*PE2-apn] ipv6 
+[*PE2-apn-ipv6] isolate-group name group10
+[*PE2-apn-ipv6] apn-id isolate policy policy1
+[*PE2-apn-ipv6-isolate-policy-policy1] index 1 instance inst1 isolate-group group10 behavior deny
+[*PE2-apn-ipv6-isolate-policy-policy1] quit 
+[*PE2-apn-ipv6] isolate-group mapping-vpn
+[*PE2-apn-ipv6-isolate-group-mapping-vpn] vpn-instance vpna peer-locator 2001:DB8:100:: 64 match 
+isolate-group group10
+[*PE2-apn-ipv6-isolate-group-mapping-vpn] quit 
+[*PE2-apn-ipv6] quit 
+[*PE2-apn] quit
+[*PE2] ip vpn-instance vpna
+[*PE2-vpn-instance-vpna] apn-id-ipv6 isolate-policy policy1 inbound 
+[*PE2-vpn-instance-vpna] quit 
+[*PE2] commit
+步骤11 配置业务流的过滤策略，符合条件的业务流按照指定的方式生成APN ID信息。如果端
+侧设备已经在报文中封装了APN ID，则此步骤可以省略。
+# 配置PE1。
+[~PE1] acl ipv6 number 3333
+[*PE1-acl6-advance-3333] rule 5 permit ipv6 source 2008:db8:111::111 1 destination 2008:db8:222::222 1
+[*PE1-acl6-advance-3333] commit
+[~PE1-acl6-advance-3333] quit
+[~PE1] traffic classifier c1
+[*PE1-classifier-c1] if-match ipv6 acl 3333
+[*PE1-classifier-c1] commit
+[~PE1-classifier-c1] quit
+[~PE1] traffic behavior b1
+[*PE1-behavior-b1] remark apn-id-ipv6 instance inst1 
+[*PE1-behavior-b1] commit
+[~PE1-behavior-b1] quit
+[~PE1] traffic policy p1
+[*PE1-trafficpolicy-p1] classifier c1 behavior b1
+[*PE1-trafficpolicy-p1] share-mode
+[*PE1-trafficpolicy-p1] statistics enable
+[*PE1-trafficpolicy-p1] quit
+[*PE1] interface GigabitEthernet 2/0/0
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+45
+
+
+--- Page 49 ---
+
+[*PE1-GigabitEthernet2/0/0] traffic-policy p1 inbound
+[*PE1-GigabitEthernet2/0/0] commit
+[~PE1-GigabitEthernet2/0/0] quit
+# 配置PE2。
+[~PE2] acl ipv6 number 3333
+[*PE2-acl6-advance-3333] rule 5 permit ipv6 source 2008:db8:222::222 1 destination 2008:db8:111::111 1
+[*PE2-acl6-advance-3333] commit
+[~PE2-acl6-advance-3333] quit
+[~PE2] traffic classifier c1
+[*PE2-classifier-c1] if-match ipv6 acl 3333
+[*PE2-classifier-c1] commit
+[~PE2-classifier-c1] quit
+[~PE2] traffic behavior b1
+[*PE2-behavior-b1] remark apn-id-ipv6 instance inst1
+[*PE2-behavior-b1] commit
+[~PE2-behavior-b1] quit
+[~PE2] traffic policy p1
+[*PE2-trafficpolicy-p1] classifier c1 behavior b1
+[*PE2-trafficpolicy-p1] share-mode
+[*PE2-trafficpolicy-p1] statistics enable
+[*PE2-trafficpolicy-p1] quit
+[*PE2] interface GigabitEthernet 2/0/0
+[*PE2-GigabitEthernet2/0/0] traffic-policy p1 inbound
+[*PE2-GigabitEthernet2/0/0] commit
+[~PE2-GigabitEthernet2/0/0] quit
+步骤12 配置隧道策略，引入私网流量
+# 配置PE1。
+[~PE1] route-policy p1 permit node 10
+[*PE1-route-policy] apply extcommunity color 0:101
+[*PE1-route-policy] quit
+[*PE1] bgp 100
+[*PE1-bgp] l2vpn-family evpn
+[*PE1-bgp-af-evpn] peer 2001:DB8:3::3 route-policy p1 import 
+[*PE1-bgp-af-evpn] quit
+[*PE1-bgp] quit
+[*PE1] tunnel-policy p1
+[*PE1-tunnel-policy-p1] tunnel select-seq ipv6 srv6-te-policy load-balance-number 1
+[*PE1-tunnel-policy-p1] quit
+[*PE1] ip vpn-instance vpna
+[*PE1-vpn-instance-vpna] ipv6-family
+[*PE1-vpn-instance-vpna-af-ipv6] tnl-policy p1 evpn
+[*PE1-vpn-instance-vpna-af-ipv6] commit
+[~PE1-vpn-instance-vpna-af-ipv6] quit
+[~PE1-vpn-instance-vpna] quit
+# 配置PE2。
+[~PE2] route-policy p1 permit node 10
+[*PE2-route-policy] apply extcommunity color 0:101
+[*PE2-route-policy] quit
+[*PE2] bgp 100
+[*PE2-bgp] l2vpn-family evpn
+[*PE2-bgp-af-evpn] peer 2001:DB8:1::1 route-policy p1 import 
+[*PE2-bgp-af-evpn] quit
+[*PE2-bgp] quit
+[*PE2] tunnel-policy p1
+[*PE2-tunnel-policy-p1] tunnel select-seq ipv6 srv6-te-policy load-balance-number 1
+[*PE2-tunnel-policy-p1] quit
+[*PE2] ip vpn-instance vpna
+[*PE2-vpn-instance-vpna] ipv6-family
+[*PE2-vpn-instance-vpna-af-ipv6] tnl-policy p1 evpn
+[*PE2-vpn-instance-vpna-af-ipv6] commit
+[~PE2-vpn-instance-vpna-af-ipv6] quit
+[~PE2-vpn-instance-vpna] quit
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+46
+
+
+--- Page 50 ---
+
+配置完成后，执行命令display ipv6 routing-table vpn-instance vpna查看VPN实例
+路由表信息，可以看到私网路由已经成功迭代到SRv6 TE Policy。
+以PE1的显示为例：
+[~PE1] display ipv6 routing-table vpn-instance vpna
+Routing Table : vpna
+         Destinations : 6        Routes : 6         
+Destination  : 2001:DB8:111::111                       PrefixLength : 128
+NextHop      : 2001:DB8:11::2                          Preference   : 255
+Cost         : 0                                       Protocol     : EBGP
+RelayNextHop : 2001:DB8:11::2                          TunnelID     : 0x0
+Interface    : GigabitEthernet2/0/0                    Flags        : RD
+Destination  : 2001:DB8:222::222                       PrefixLength : 128
+NextHop      : 2001:DB8:3::3                           Preference   : 255
+Cost         : 0                                       Protocol     : IBGP
+RelayNextHop : ::                                      TunnelID     : 0x000000003400000001
+Interface    : policy1                                Flags        : RD
+Destination  : 2001:DB8:11::                           PrefixLength : 64
+NextHop      : 2001:DB8:11::1                          Preference   : 0
+Cost         : 0                                       Protocol     : Direct
+RelayNextHop : ::                                      TunnelID     : 0x0
+Interface    : GigabitEthernet2/0/0                    Flags        : D
+Destination  : 2001:DB8:11::1                          PrefixLength : 128
+NextHop      : ::1                                     Preference   : 0
+Cost         : 0                                       Protocol     : Direct
+RelayNextHop : ::                                      TunnelID     : 0x0
+Interface    : GigabitEthernet2/0/0                    Flags        : D
+Destination  : 2001:DB8:22::                           PrefixLength : 64
+NextHop      : 2001:DB8:3::3                           Preference   : 255
+Cost         : 0                                       Protocol     : IBGP
+RelayNextHop : ::                                      TunnelID     : 0x000000003400000001
+Interface    : policy1                                Flags        : RD
+Destination  : FE80::                                  PrefixLength : 10
+NextHop      : ::                                      Preference   : 0
+Cost         : 0                                       Protocol     : Direct
+RelayNextHop : ::                                      TunnelID     : 0x0
+Interface    : NULL0                                   Flags        : DB
+[~PE1] display ipv6 routing-table vpn-instance vpna 2001:DB8:222::222 verbose 
+Route Flags: R - relay, D - download to fib, T - to vpn-instance, B - black hole route
+------------------------------------------------------------------------------
+Routing Table : vpna
+Summary Count : 1
+Destination  : 2001:DB8:222::222                       PrefixLength : 128
+NextHop      : 2001:DB8:3::3                           Preference   : 255
+Neighbour    : 2001:DB8:3::3                           ProcessID    : 0
+Label        : NULL                                    Protocol     : IBGP
+State        : Active Adv Relied                       Cost         : 0
+Entry ID     : 0                                       EntryFlags   : 0x00000000
+Reference Cnt: 0                                       Tag          : 0
+Priority     : low                                     Age          : 00h31m07s
+IndirectID   : 0x10000DC                               Instance     : 
+RelayNextHop : ::                                      TunnelID     : 0x000000003400000001
+Interface    : policy1                                Flags        : RD
+步骤13 检查配置结果
+同一VPN的CE能够相互Ping通，例如：
+[~CE1] ping ipv6 -a 2001:DB8:111::111 2001:DB8:222::222
+  PING 2001:DB8:222::222 : 56  data bytes, press CTRL_C to break
+    Reply from 2001:DB8:222::222 
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+47
+
+
+--- Page 51 ---
+
+    bytes=56 Sequence=1 hop limit=62 time=148 ms
+    Reply from 2001:DB8:222::222 
+    bytes=56 Sequence=2 hop limit=62 time=31 ms
+    Reply from 2001:DB8:222::222 
+    bytes=56 Sequence=3 hop limit=62 time=46 ms
+    Reply from 2001:DB8:222::222 
+    bytes=56 Sequence=4 hop limit=62 time=28 ms
+    Reply from 2001:DB8:222::222 
+    bytes=56 Sequence=5 hop limit=62 time=26 ms
+  --- 2001:DB8:222::222 ping statistics---
+    5 packet(s) transmitted
+    5 packet(s) received
+    0.00% packet loss
+查询vpna实例引用策略policy1的流量统计信息。
+<PE1> display apn-id-ipv6 isolate-policy statistics policy policy1 vpn-instance vpna 
+Vpn-Instance           : vpna
+Isolate-Policy inbound : policy1
+Item                   Packets                    Bytes
+-------------------------------------------------------------------
+Matched                1                          1
+Last 300 seconds rate
+Item                   pps                        bps
+-------------------------------------------------------------------
+Matched                1                          1
+----结束
+配置文件
+●
+PE1的配置文件
+sysname PE1
+#
+apn
+ ipv6
+  apn-id template tmplt1 length 64 app-group 32 user-group 32
+   app-group index 1 app-group1 length 10
+   user-group index 1 user-group1 length 8
+  apn-id instance inst1
+   template tmplt1
+   apn-field app-group1 301
+   apn-field user-group1 201
+  isolate-group name group10
+  isolate-group mapping-vpn   
+   vpn-instance vpna peer-locator 2001:DB8:130:: 64 match isolate-group group10
+  apn-id isolate policy policy1
+   statistics enable
+   index 1 instance inst1 isolate-group group10 behavior deny
+#
+ acl ipv6 number 3333
+ rule 5 permit ipv6 source 2008:db8:111::111 1 destination 2008:db8:222::222 1
+#
+traffic classifier c1
+ if-match ipv6 acl 3333
+#
+traffic behavior b1
+ remark apn-id-ipv6 instance inst1
+#
+traffic policy p1
+ share-mode
+ statistics enable
+ classifier c1 behavior b1
+#
+ip vpn-instance vpna
+ ipv6-family
+  route-distinguisher 100:1
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+48
+
+
+--- Page 52 ---
+
+  apply-label per-instance
+  vpn-target 1:1 export-extcommunity evpn
+  vpn-target 1:1 import-extcommunity evpn
+  tnl-policy p1 evpn
+ apn-id-ipv6 isolate-policy policy1 inbound
+#
+segment-routing ipv6
+ encapsulation source-address 2001:DB8:1::1
+ locator PE1 ipv6-prefix 2001:DB8:100:: 64 static 32
+  opcode ::10 end psp
+ srv6-te-policy locator PE1
+ segment-list list1
+  index 5 sid ipv6 2001:DB8:120::20
+  index 10 sid ipv6 2001:DB8:130::30
+ srv6-te policy policy1 endpoint 2001:DB8:3::3 color 101
+  binding-sid 2001:DB8:100::450
+  candidate-path preference 100
+   segment-list list1
+ mapping-policy p1 color 101
+  match-type apn-id-ipv6
+   index 1 instance inst1 match srv6-te-policy color 101
+#
+isis 1
+ is-level level-1
+ cost-style wide
+ network-entity 10.0000.0000.0001.00
+ #
+ ipv6 enable topology ipv6
+ segment-routing ipv6 locator PE1 auto-sid-disable
+ #
+#
+interface GigabitEthernet1/0/0
+ undo shutdown
+ ipv6 enable
+ ipv6 address 2001:DB8:10::1/64
+ isis ipv6 enable 1
+ undo dcn
+ undo dcn mode vlan
+#
+interface GigabitEthernet2/0/0
+ undo shutdown
+ ip binding vpn-instance vpna
+ ipv6 enable
+ ipv6 address 2001:DB8:11::1/64
+ traffic-policy p1 inbound
+ undo dcn
+ undo dcn mode vlan
+#
+interface LoopBack1
+ ipv6 enable
+ ipv6 address 2001:DB8:1::1/128
+ isis ipv6 enable 1
+#
+bgp 100
+ router-id 1.1.1.1
+ private-4-byte-as enable
+ peer 2001:DB8:3::3 as-number 100
+ peer 2001:DB8:3::3 connect-interface LoopBack1
+ #
+ ipv4-family unicast
+  undo synchronization
+ #
+ ipv6-family vpn-instance vpna
+  import-route direct
+  advertise l2vpn evpn
+  segment-routing ipv6 locator PE1 evpn
+  segment-routing ipv6 traffic-engineer best-effort evpn
+  peer 2001:DB8:11::2 as-number 65410
+ #
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+49
+
+
+--- Page 53 ---
+
+ l2vpn-family evpn
+  policy vpn-target
+  peer 2001:DB8:3::3 enable
+  peer 2001:DB8:3::3 route-policy p1 import
+  peer 2001:DB8:3::3 advertise encap-type srv6
+#
+route-policy p1 permit node 10
+ apply extcommunity color 0:101
+#
+tunnel-policy p1
+ tunnel select-seq ipv6 srv6-te-policy load-balance-number 1
+#
+return
+●
+P的配置文件
+sysname P
+#               
+segment-routing ipv6
+ encapsulation source-address 2001:DB8:2::2
+ locator P ipv6-prefix 2001:DB8:120:: 64 static 32
+  opcode ::20 end psp
+#               
+isis 1          
+ is-level level-1
+ cost-style wide
+ network-entity 10.0000.0000.0002.00
+ #              
+ ipv6 enable topology ipv6
+ segment-routing ipv6 locator P auto-sid-disable
+ #              
+#               
+interface GigabitEthernet1/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:10::2/64
+ isis ipv6 enable 1
+#               
+interface GigabitEthernet2/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:20::1/64
+ isis ipv6 enable 1
+#               
+interface LoopBack1
+ ipv6 enable    
+ ipv6 address 2001:DB8:2::2/128
+ isis ipv6 enable 1
+#               
+return 
+●
+PE2的配置文件
+sysname PE2
+#
+apn
+ ipv6
+  apn-id template tmplt1 length 64 app-group 32 user-group 32
+   app-group index 1 app-group1 length 10
+   user-group index 1 user-group1 length 8
+  apn-id instance inst1
+   template tmplt1
+   apn-field app-group1 301
+   apn-field user-group1 201
+  isolate-group name group10
+  isolate-group mapping-vpn   
+   vpn-instance vpna peer-locator 2001:DB8:100:: 64 match isolate-group group10
+  apn-id isolate policy policy1
+   statistics enable
+   index 1 instance inst1 isolate-group group10 behavior deny
+#
+acl ipv6 number 3333
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+50
+
+
+--- Page 54 ---
+
+ rule 5 permit ipv6 source 2008:db8:222::222 1 destination 2008:db8:111::111 1
+#
+traffic classifier c1
+ if-match ipv6 acl 3333
+#
+traffic behavior b1
+ remark apn-id-ipv6 instance inst1
+#
+traffic policy p1
+ share-mode
+ statistics enable
+ classifier c1 behavior b1
+#
+ip vpn-instance vpna
+ ipv6-family
+  route-distinguisher 200:1
+  apply-label per-instance
+  vpn-target 1:1 export-extcommunity evpn
+  vpn-target 1:1 import-extcommunity evpn
+  tnl-policy p1 evpn
+ apn-id-ipv6 isolate-policy policy1 inbound
+#
+segment-routing ipv6
+ encapsulation source-address 2001:DB8:3::3
+ locator PE2 ipv6-prefix 2001:DB8:130:: 64 static 32
+  opcode ::30 end psp
+ srv6-te-policy locator PE2
+ segment-list list1
+  index 5 sid ipv6 2001:DB8:120::20
+  index 10 sid ipv6 2001:DB8:100::10
+ srv6-te policy policy1 endpoint 2001:DB8:1::1 color 101
+  binding-sid 2001:DB8:130::350
+  candidate-path preference 100
+   segment-list list1
+#
+isis 1
+ is-level level-1
+ cost-style wide
+ network-entity 10.0000.0000.0003.00
+ #
+ ipv6 enable topology ipv6
+ segment-routing ipv6 locator PE2 auto-sid-disable
+ #
+#
+interface GigabitEthernet1/0/0
+ undo shutdown
+ ipv6 enable
+ ipv6 address 2001:DB8:20::2/64
+ isis ipv6 enable 1
+#
+interface GigabitEthernet2/0/0
+ undo shutdown
+ ip binding vpn-instance vpna
+ ipv6 enable
+ ipv6 address 2001:DB8:22::1/64
+ traffic-policy p1 inbound
+#
+interface LoopBack1
+ ipv6 enable
+ ipv6 address 2001:DB8:3::3/128
+ isis ipv6 enable 1
+#
+bgp 100
+ router-id 3.3.3.3
+ private-4-byte-as enable
+ peer 2001:DB8:1::1 as-number 100
+ peer 2001:DB8:1::1 connect-interface LoopBack1
+ #
+ ipv4-family unicast
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+51
+
+
+--- Page 55 ---
+
+  undo synchronization
+ #
+ ipv6-family vpn-instance vpna
+  import-route direct
+  advertise l2vpn evpn
+  segment-routing ipv6 locator PE2 evpn
+  segment-routing ipv6 traffic-engineer best-effort evpn
+  peer 2001:DB8:22::2 as-number 65420
+ #
+ l2vpn-family evpn
+  policy vpn-target
+  peer 2001:DB8:1::1 enable
+  peer 2001:DB8:1::1 route-policy p1 import
+  peer 2001:DB8:1::1 advertise encap-type srv6
+#
+route-policy p1 permit node 10
+ apply extcommunity color 0:101
+#
+tunnel-policy p1
+ tunnel select-seq ipv6 srv6-te-policy load-balance-number 1
+#
+return
+●
+CE1的配置文件
+sysname CE1
+#               
+interface GigabitEthernet1/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:11::2/64             
+#               
+interface LoopBack1
+ ipv6 enable    
+ ipv6 address 2001:DB8:111::111/128
+#               
+bgp 65410       
+ router-id 10.11.1.1
+ peer 2001:DB8:11::1 as-number 100
+ #              
+ ipv4-family unicast
+  undo synchronization
+ #              
+ ipv6-family unicast
+  undo synchronization
+  import-route direct
+  peer 2001:DB8:11::1 enable
+#  
+return 
+●
+CE2的配置文件
+sysname CE2
+#               
+interface GigabitEthernet1/0/0
+ undo shutdown  
+ ipv6 enable    
+ ipv6 address 2001:DB8:22::2/64
+#               
+interface LoopBack1
+ ipv6 enable    
+ ipv6 address 2001:DB8:222::222/128
+#               
+bgp 65420       
+ router-id 10.22.2.2
+ peer 2001:DB8:22::1 as-number 100
+ #              
+ ipv4-family unicast
+  undo synchronization
+ #              
+ ipv6-family unicast
+  undo synchronization
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+52
+
+
+--- Page 56 ---
+
+  import-route direct
+  peer 2001:DB8:22::1 enable
+#
+return
+HUAWEI NetEngine40E
+配置指南
+1 应用感知
+文档版本 01 (2025-09-30)
+版权所有 © 华为技术有限公司
+53

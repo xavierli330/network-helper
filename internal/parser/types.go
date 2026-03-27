@@ -11,6 +11,12 @@ type VendorParser interface {
 	DetectPrompt(line string) (hostname string, ok bool)
 	ClassifyCommand(cmd string) model.CommandType
 	ParseOutput(cmdType model.CommandType, raw string) (model.ParseResult, error)
+	// SupportedCmdTypes returns all CommandType values this parser handles,
+	// including any dynamically registered generated types.
+	SupportedCmdTypes() []model.CommandType
+	// FieldSchema returns the field definitions for the given CommandType.
+	// Returns nil (not an error) for unknown types.
+	FieldSchema(cmdType model.CommandType) []FieldDef
 }
 
 type CommandBlock struct {

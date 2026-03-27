@@ -16,13 +16,15 @@ import (
 )
 
 var (
-	cfgFile   string
-	dbPath    string
-	cfg       *config.Config
-	db        *store.DB
-	pipeline  *parser.Pipeline
-	llmRouter *llm.Router
-	version   = "dev" // 默认版本号，可通过 SetVersion 覆盖
+	cfgFile       string
+	dbPath        string
+	cfg           *config.Config
+	db            *store.DB
+	pipeline      *parser.Pipeline
+	llmRouter     *llm.Router
+	registry      *parser.Registry
+	fieldRegistry *parser.FieldRegistry
+	version       = "dev" // 默认版本号，可通过 SetVersion 覆盖
 )
 
 // SetVersion 设置版本号，由 main 包在构建时注入
@@ -52,12 +54,13 @@ func NewRootCmd() *cobra.Command {
 				return fmt.Errorf("open database: %w", err)
 			}
 
-			registry := parser.NewRegistry()
+			registry = parser.NewRegistry()
 			registry.Register(huawei.New())
 			registry.Register(cisco.New())
 			registry.Register(h3c.New())
 			registry.Register(juniper.New())
-			pipeline = parser.NewPipeline(db, registry)
+			pipeline = parser.NewPipelineWithCollector(db, registry, parser.NewCollector(db))
+			fieldRegistry = parser.BuildFieldRegistry(registry)
 
 			// Initialize LLM router from config
 			llmRouter = llm.BuildFromConfig(cfg.LLM)
@@ -93,6 +96,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newChannelCmd())
 	root.AddCommand(newHeartbeatCmd())
 	root.AddCommand(newKnowledgeCmd())
+	root.AddCommand(newRuleCmd())
 
 	return root
 }

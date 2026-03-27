@@ -1,0 +1,1964 @@
+# Source: b-nv-cr-asr9k.pdf
+# Total pages: 46
+
+
+--- Page 1 ---
+
+nV System Command Reference for Cisco ASR 9000 Series Routers
+First Published: 2016-04-28
+Last Modified: 2017-09-01
+Americas Headquarters
+Cisco Systems, Inc.
+170 West Tasman Drive
+San Jose, CA 95134-1706
+USA
+http://www.cisco.com
+Tel: 408 526-4000
+800 553-NETS (6387)
+Fax: 408 527-0883
+
+
+--- Page 2 ---
+
+THE SPECIFICATIONS AND INFORMATION REGARDING THE PRODUCTS IN THIS MANUAL ARE SUBJECT TO CHANGE WITHOUT NOTICE. ALL STATEMENTS,
+INFORMATION, AND RECOMMENDATIONS IN THIS MANUAL ARE BELIEVED TO BE ACCURATE BUT ARE PRESENTED WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED. USERS MUST TAKE FULL RESPONSIBILITY FOR THEIR APPLICATION OF ANY PRODUCTS.
+THE SOFTWARE LICENSE AND LIMITED WARRANTY FOR THE ACCOMPANYING PRODUCT ARE SET FORTH IN THE INFORMATION PACKET THAT SHIPPED WITH
+THE PRODUCT AND ARE INCORPORATED HEREIN BY THIS REFERENCE. IF YOU ARE UNABLE TO LOCATE THE SOFTWARE LICENSE OR LIMITED WARRANTY,
+CONTACT YOUR CISCO REPRESENTATIVE FOR A COPY.
+The Cisco implementation of TCP header compression is an adaptation of a program developed by the University of California, Berkeley (UCB) as part of UCB's public domain version of
+the UNIX operating system. All rights reserved. Copyright © 1981, Regents of the University of California.
+NOTWITHSTANDING ANY OTHER WARRANTY HEREIN, ALL DOCUMENT FILES AND SOFTWARE OF THESE SUPPLIERS ARE PROVIDED “AS IS" WITH ALL FAULTS.
+CISCO AND THE ABOVE-NAMED SUPPLIERS DISCLAIM ALL WARRANTIES, EXPRESSED OR IMPLIED, INCLUDING, WITHOUT LIMITATION, THOSE OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OR ARISING FROM A COURSE OF DEALING, USAGE, OR TRADE PRACTICE.
+IN NO EVENT SHALL CISCO OR ITS SUPPLIERS BE LIABLE FOR ANY INDIRECT, SPECIAL, CONSEQUENTIAL, OR INCIDENTAL DAMAGES, INCLUDING, WITHOUT
+LIMITATION, LOST PROFITS OR LOSS OR DAMAGE TO DATA ARISING OUT OF THE USE OR INABILITY TO USE THIS MANUAL, EVEN IF CISCO OR ITS SUPPLIERS
+HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+Any Internet Protocol (IP) addresses and phone numbers used in this document are not intended to be actual addresses and phone numbers. Any examples, command display output, network
+topology diagrams, and other figures included in the document are shown for illustrative purposes only. Any use of actual IP addresses or phone numbers in illustrative content is unintentional
+and coincidental.
+All printed copies and duplicate soft copies of this document are considered uncontrolled. See the current online version for the latest version.
+Cisco has more than 200 offices worldwide. Addresses and phone numbers are listed on the Cisco website at www.cisco.com/go/offices.
+The documentation set for this product strives to use bias-free language. For purposes of this documentation set, bias-free is defined as language that does not imply discrimination based on
+age, disability, gender, racial identity, ethnic identity, sexual orientation, socioeconomic status, and intersectionality. Exceptions may be present in the documentation due to language that
+is hardcoded in the user interfaces of the product software, language used based on standards documentation, or language that is used by a referenced third-party product.
+Cisco and the Cisco logo are trademarks or registered trademarks of Cisco and/or its affiliates in the U.S. and other countries. To view a list of Cisco trademarks, go to this URL:
+https://www.cisco.com/c/en/us/about/legal/trademarks.html. Third-party trademarks mentioned are the property of their respective owners. The use of the word partner does not imply a
+partnership relationship between Cisco and any other company. (1721R)
+© 2017 Cisco Systems, Inc. All rights reserved.
+
+
+--- Page 3 ---
+
+C O N T E N T S
+Preface
+v
+P R E F A C E
+Changes to This Document
+v
+Communications, Services, and Additional Information
+v
+Satellite nV System Commands
+1
+C H A P T E R 1
+hw-module satellite reload
+2
+install nv satellite
+3
+install nv satellite reference
+5
+minimum preferred links
+6
+minimum required links
+7
+nv
+8
+nv satellite sla processing disable
+9
+satellite
+10
+satellite-fabric-link satellite
+11
+satellite type
+12
+serial-number
+13
+show nv satellite protocol control
+14
+show nv satellite crosslink
+17
+show nv satellite protocol discovery
+18
+show nv satellite redundancy
+20
+show nv satellite status
+22
+show nv satellite uptime
+25
+show nv satellite version
+26
+show nv satellite install
+28
+show nv satellite install packages
+30
+clear SyncE esmc statistics
+31
+nV System Command Reference for Cisco ASR 9000 Series Routers
+iii
+
+
+--- Page 4 ---
+
+telnet satellite
+32
+upgrade
+33
+Network Virtualization Edge System Commands
+35
+C H A P T E R 2
+nv edge control serial
+36
+nv edge interface
+37
+show nv edge control control-link-protocols
+38
+show nv edge data forwarding
+39
+nV System Command Reference for Cisco ASR 9000 Series Routers
+iv
+Contents
+
+
+--- Page 5 ---
+
+Preface
+From Release 6.1.2 onwards, Cisco introduces support for the 64-bit Linux-based IOS XR operating system.
+However, support for nV Satellite System on the Cisco IOS XR 64-bit operating system is available only
+from the Release 6.2.1. Extensive feature parity is maintained between the 32-bit and 64-bit environments.
+Unless explicitly marked otherwise, the contents of this document are applicable for both environments. For
+more details on Cisco IOS XR 64 bit, refer to the Release Notes for Cisco ASR 9000 Series Routers, Release
+6.1.2 document.
+The Preface contains the following sections:
+• Changes to This Document, on page v
+• Communications, Services, and Additional Information, on page v
+Changes to This Document
+This table lists the technical changes made to this document since it was first published.
+Table 1: Changes to this Document
+Change Summary
+Date
+Initial release of the cumulative command reference
+document that covers all updates from Cisco IOS XR
+Release 4.3.0 onwards.
+April 2016
+Republished with documentation updates for Release
+6.1.2 features.
+November 2016
+Republished with documentation updates for Release
+6.3.1 features.
+September 2017
+Communications, Services, and Additional Information
+• To receive timely, relevant information from Cisco, sign up at Cisco Profile Manager.
+• To get the business impact you’re looking for with the technologies that matter, visit Cisco Services.
+• To submit a service request, visit Cisco Support.
+nV System Command Reference for Cisco ASR 9000 Series Routers
+v
+
+
+--- Page 6 ---
+
+• To discover and browse secure, validated enterprise-class apps, products, solutions and services, visit
+Cisco Marketplace.
+• To obtain general networking, training, and certification titles, visit Cisco Press.
+• To find warranty information for a specific product or product family, access Cisco Warranty Finder.
+Cisco Bug Search Tool
+Cisco Bug Search Tool (BST) is a web-based tool that acts as a gateway to the Cisco bug tracking system
+that maintains a comprehensive list of defects and vulnerabilities in Cisco products and software. BST provides
+you with detailed defect information about your products and software.
+nV System Command Reference for Cisco ASR 9000 Series Routers
+vi
+Preface
+Preface
+
+
+--- Page 7 ---
+
+Satellite nV System Commands
+This module describes the commands used to configure Satellite nV System on Cisco ASR 9000 Series Router.
+• hw-module satellite reload, on page 2
+• install nv satellite, on page 3
+• install nv satellite reference, on page 5
+• minimum preferred links, on page 6
+• minimum required links, on page 7
+• nv, on page 8
+• nv satellite sla processing disable, on page 9
+• satellite, on page 10
+• satellite-fabric-link satellite, on page 11
+• satellite type, on page 12
+• serial-number, on page 13
+• show nv satellite protocol control, on page 14
+• show nv satellite crosslink, on page 17
+• show nv satellite protocol discovery, on page 18
+• show nv satellite redundancy , on page 20
+• show nv satellite status, on page 22
+• show nv satellite uptime, on page 25
+• show nv satellite version , on page 26
+• show nv satellite install, on page 28
+• show nv satellite install packages, on page 30
+• clear SyncE esmc statistics, on page 31
+• telnet satellite, on page 32
+• upgrade , on page 33
+nV System Command Reference for Cisco ASR 9000 Series Routers
+1
+
+
+--- Page 8 ---
+
+hw-module satellite reload
+To reload and perform a soft reset of individual slots of the satellite device, use the hw-module satellite
+reload command in the EXEC mode.
+hw-module satellite {satellite idall}reload
+Syntax Description
+Specifies the unique identifier of the satellite device on which reload has to be performed.
+satellite id
+Performs the reload operation on all the currently active satellites.
+all
+Command Default
+No default behavior or values
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows a sample output of the hw-module satellite reload command:
+RP/0/RSP0/CPU0:router # hw-module satellite 101 reload
+Reload operation completed successfully.
+RP/0/RSP0/CPU0:May 3 20:26:51.883 : invmgr[254]: %PLATFORM-INV-6-OIROUT : OIR: Node 101
+removed
+nV System Command Reference for Cisco ASR 9000 Series Routers
+2
+Satellite nV System Commands
+hw-module satellite reload
+
+
+--- Page 9 ---
+
+install nv satellite
+To download and activate the software image on the satellite, use the install nv satellite command in EXEC
+mode.
+install nv satellite {satellite idall}{transfer | activate | update{file file name | reference name of
+reference}}
+Syntax Description
+Specifies the unique identifier of the satellite on which the image must be transferred.
+satellite id
+Performs the operation on all currently active satellites that are not already at the target
+version.
+all
+Downloads the image from the host to the satellite device.
+transfer
+Performs the install operation on the satellite.
+activate
+Performs the transfer and activate of SMUs/base package on the satellite in a single
+operation on the satellite.
+update
+Performs the update operation on the specified file or list of files
+file
+Performs the update operation on the specified reference
+reference
+Specifies the file or the list of files on which the operation is to be performed.
+file name
+Specifies the name of a previously created reference on which the operation is to be
+performed.
+reference name
+Command Default
+No default behavior or values
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+The update option was introduced in this command.
+Release 6.3.1
+Usage Guidelines
+This command only works on satellites that are fully connected and authenticated.
+Note
+If the activate keyword is run directly, then the software image is transferred to the satellite and also activated.
+Note
+nV System Command Reference for Cisco ASR 9000 Series Routers
+3
+Satellite nV System Commands
+install nv satellite
+
+
+--- Page 10 ---
+
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows the sample output of the install nv satellite commands:
+RP/0/RSP0/CPU0:router # install nv satellite 100 transfer
+Install operation initiated successfully.
+RP/0/RSP0/CPU0:sat-host#RP/0/RSP0/CPU0:May 3 20:12:46.732 : icpe_gco[1146]:
+%PKT_INFRA-ICPE_GCO-6-TRANSFER_DONE : Image transfer completed on Satellite 100
+RP/0/RSP0/CPU0:router# install nv satellite 100 activate
+Install operation initiated successfully.
+LC/0/2/CPU0:May 3 20:13:50.363 : ifmgr[201]: %PKT_INFRA-LINK-3-UPDOWN : Interface
+GigabitEthernet100/0/0/28, changed state to Down
+RP/0/RSP0/CPU0:May 3 20:13:50.811 : invmgr[254]: %PLATFORM-INV-6-OIROUT : OIR: Node 100
+removed
+RP/0/RSP0/CPU0:router# install nv satellite 100 update file
+disk0:ncs5k-mpls-2.2.0.0-r631.x86_64.rpm tftp://172.27.18.8/ncs5k-mgbl-2.2.0.0-r631.x86_64.rpm
+nV System Command Reference for Cisco ASR 9000 Series Routers
+4
+Satellite nV System Commands
+install nv satellite
+
+
+--- Page 11 ---
+
+install nv satellite reference
+To create or delete a reference name given to a set of files, use the install nv satellite reference command
+in EXEC mode.
+install nv satellite reference name of reference {create | delete} {{file file1 file2 ...} | empty}
+Syntax Description
+Specifies the name that can be given to refer to a list of file
+name of reference
+Specifies the list of files for which the reference name is to be created or deleted
+file1 file2 ...
+Create the reference for the specified list of files
+create
+Deletes a previously created reference
+delete
+Performs the reference creation or deletion operation on the specified list of files
+file
+Performs the reference creation or deletion of empty references
+empty
+Command Default
+No default behavior or values
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+The reference option was introduced
+Release 6.3.1
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows the sample output of the install nv satellite reference commands:
+RP/0/RSP0/CPU0:router # install nv satellite reference MyRef create file
+tftp://172.27.18.8/ncs5k-mpls-2.2.0.0-r631.x86_64.rpm
+tftp://172.27.18.8/ncs5k-mgbl-2.2.0.0-r631.x86_64.rpm
+RP/0/RSP0/CPU0:router# install nv satellite reference AnotherRef create empty
+nV System Command Reference for Cisco ASR 9000 Series Routers
+5
+Satellite nV System Commands
+install nv satellite reference
+
+
+--- Page 12 ---
+
+minimum preferred links
+To configure the minimum number of preferred satellite fabric bundle-ether links in a dual home satellite
+network topology, use the minimum preferred links command in the satellite nV fabric link redundancy
+configuration mode.
+minimum preferred links number
+Syntax Description
+Specifies the number of minimum number of active links to the host. The range is 1 to 64.
+number
+Command Default
+If you do not enable this parameter on any host, then it is assumed as 0 by default on that host.
+Command Modes
+Satellite Fabric Link Redundancy
+Command History
+Modification
+Release
+This command was introduced.
+Release
+5.3.1
+Usage Guidelines
+In order to configure minimum preferred links, the interface must be a bundle-ether interface. If you do not
+enable this parameter on any host, then it is assumed as 0 by default on that host. Hence, the decision of
+failover is judged using that value.
+You can either go to the redundancy mode to configure minimum preferred links or you can specify
+redundancy keyword before configuring the minimum preferred links.
+Note
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to execute the minimum preferred links command:
+RP/0/RSP0/CPU0:router # configure
+RP/0/RSP0/CPU0:router(config)# interface Bundle-Ether 1
+RP/0/RSP0/CPU0:router(config-int)# nV satellite-fabric-link satelite 200
+RP/0/RSP0/CPU0:router(config-satellite-fabric-link)# redundancy minimum preferred links 2
+(OR)
+RP/0/RSP0/CPU0:router(config-satellite-fabric-link)# redundancy
+RP/0/RSP0/CPU0:router(config-nV-red)# minimum preferred links 2
+nV System Command Reference for Cisco ASR 9000 Series Routers
+6
+Satellite nV System Commands
+minimum preferred links
+
+
+--- Page 13 ---
+
+minimum required links
+To configure the minimum number of required satellite fabric bundle-ether links in a single host hub and
+spoke satellite network topology, use the minimum required links command in the nV interface
+satellite-fabric-link configuration mode.
+minimum required links number
+Syntax Description
+Specifies the number of minimum number of active links to the host. The range is 1 to 64.
+number
+Command Default
+If you do not enable this parameter on any host, then it is assumed as 0 by default on that host.
+Command Modes
+nV Interface Satellite Fabric Link
+Command History
+Modification
+Release
+This command was introduced.
+Release
+6.3.1
+Usage Guidelines
+In order to configure minimum required links, the interface must be a bundle-ether interface. If you do not
+enable this parameter on any host, then it is assumed as 0 by default on that host. Hence, the decision of
+failover is judged using that value.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to execute the minimum required links command:
+RP/0/RSP0/CPU0:router # configure
+RP/0/RSP0/CPU0:router(config)# interface Bundle-Ether 1
+RP/0/RSP0/CPU0:router(config-int)# nV satellite-fabric-link satelite 200
+RP/0/RSP0/CPU0:router(config-satellite-fabric-link)# minimum required links 2
+nV System Command Reference for Cisco ASR 9000 Series Routers
+7
+Satellite nV System Commands
+minimum required links
+
+
+--- Page 14 ---
+
+nv
+To enter the satellite network virtualization configuration mode, use the nv command in Global Configuration
+mode.
+nv
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+No default behavior or values
+Command Modes
+Global Configuration mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to enter the nv configuration mode:
+RP/0/RSP0/CPU0:router#configure
+RP/0/RSP0/CPU0:router(config)#nv
+RP/0/RSP0/CPU0:router(config-nV)#
+nV System Command Reference for Cisco ASR 9000 Series Routers
+8
+Satellite nV System Commands
+nv
+
+
+--- Page 15 ---
+
+nv satellite sla processing disable
+To disable processing of CFM Performance Monitoring (PM) frames on the satellite, use the nv satellite sla
+processing disable command in CFM configuration mode. To re-enable CFM PM frames processing on the
+satellite, use the no form of the command.
+nv satellite sla processing disable
+no nv satellite sla processing disable
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+By default, the processing of CFM PM frames on the satellite is enabled.
+Command Modes
+CFM configuration mode
+Command History
+Modification
+Release
+This command was introduced.
+Release
+5.3.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task ID
+read,
+write
+ethernet-services
+Examples
+The following example shows how to enter the CFM configuration mode.
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)#ethernet cfm
+RP/0/RSP0/CPU0:router(config-cfm)#nv satellite sla processing disable
+nV System Command Reference for Cisco ASR 9000 Series Routers
+9
+Satellite nV System Commands
+nv satellite sla processing disable
+
+
+--- Page 16 ---
+
+satellite
+To declare a new satellite that is to be attached to the host and enter the satellite configuration mode, use the
+satellite command in the Satellite nV configuration mode.
+satellite id
+Syntax Description
+The id is a number in the range of 100 to 239.
+id
+Command Default
+No default behavior or values
+Command Modes
+Satellite Network Virtualization Configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+Usage Guidelines
+Each satellite must be declared in a separate line with an unique identifier.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to declare a new satellite device using the satellite command:
+RP/0/RSP0/CPU0:router # configure
+RP/0/RSP0/CPU0:router(config)# nv
+RP/0/RSP0/CPU0:router(config-nV)# satellite 220
+nV System Command Reference for Cisco ASR 9000 Series Routers
+10
+Satellite nV System Commands
+satellite
+
+
+--- Page 17 ---
+
+satellite-fabric-link satellite
+To specify an interface as a ICPE inter-chassis link, use the satellite-fabric-link satellite command in the
+satellite nV interface configuration mode.
+satellite-fabric-link satellite id{slotslot | portsports | network}
+Syntax Description
+Specifies the satellite id. It is a number in the range 100-239.
+satellite id
+(Optional) Specifies the slot number. The slot ID consists of two slash-separated numbers,
+representing the slot and sub-slot IDs on the satellite device of the node from which to cross-link
+ports. This is not supported on single-node satellites.
+slot slot id
+Specifies the port number. The ports are specified as a range, not necessarily consecutive, of
+port IDs to crosslink to this IC Link. The range consists of one or more comma-separated
+sub-ranges. Each sub-range can either be a single number, or a hyphen separated consecutive
+range (where the left number must be smaller than the right number).
+ports ports
+(Optional) Specifies a network of satellites.
+network
+Command Default
+The slot defaults to 0/0. The ports default to all available ports.
+Command Modes
+Satellite Network Virtualization Interface Configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to execute the satellite-fabric-link satellite command:
+RP/0/RSP0/CPU0:router # configure
+RP/0/RSP0/CPU0:router(config)# interface TenGigE0/2/1/0
+RP/0/RSP0/CPU0:router(config-int)# ipv4 point-to-point
+RP/0/RSP0/CPU0:router(config-int)# interface unnumbered loopback0
+RP/0/RSP0/CPU0:router(config-int)# nV
+RP/0/RSP0/CPU0:router(config-int-nV)# satellite-fabric-link satelite 200
+nV System Command Reference for Cisco ASR 9000 Series Routers
+11
+Satellite nV System Commands
+satellite-fabric-link satellite
+
+
+--- Page 18 ---
+
+satellite type
+To define the expected type of the attached satellite device, use the satellite type command in the satellite
+nV configuration mode.
+satellite id type type name
+Syntax Description
+Specifies the type name of the attached satellite. The satellite types are asr9000v, asr9000v2,
+asr901v, and asr903v.
+type type name
+Command Default
+No default behavior or values
+Command Modes
+Satellite Network Virtualization Configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+The Cisco ASR901 and ASR903 Series Routers were
+included as satellites.
+Release 4.3.0
+The Cisco ASR9000v-V2 Series Routers were
+included as satellites.
+Release 5.2.2
+Usage Guidelines
+The type string is used to lookup satellite capabilities, allowing other configuration to be verified accurately.
+The string is user-visible, and must match the publicly known names of the Satellite devices.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows a sample output of how to use the satellite type command:
+RP/0/RSP0/CPU0:router # configure
+RP/0/RSP0/CPU0:router(config)# nv
+RP/0/RSP0/CPU0:router(config-nV)# satellite 200
+RP/0/RSP0/CPU0:router(config-nV)# satellite 200 type asr9000v
+nV System Command Reference for Cisco ASR 9000 Series Routers
+12
+Satellite nV System Commands
+satellite type
+
+
+--- Page 19 ---
+
+serial-number
+To authenticate the serial number for a defined satellite, use the serial-number command in the Satellite nV
+configuration mode.
+serial-number string
+Syntax Description
+Specifies the alphanumeric string that is assigned to a satellite.
+string
+Command Default
+No default behavior or values
+Command Modes
+Satellite Network Virtualization Configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to specify the serial number for a satellite:
+RP/0/RSP0/CPU0:router # configure
+RP/0/RSP0/CPU0:router(config)# nv
+RP/0/RSP0/CPU0:router(config-nV)# satellite 120
+RP/0/RSP0/CPU0:router(config-nV)# serial-number CAT1521B1BB
+nV System Command Reference for Cisco ASR 9000 Series Routers
+13
+Satellite nV System Commands
+serial-number
+
+
+--- Page 20 ---
+
+show nv satellite protocol control
+To display the control protocol statistics and details of the SDAC (Satellite Discovery And Control) protocol,
+use the show nv satellite protocol control in the EXEC mode mode.
+show nv satellite protocol control {brief | satellite}
+Syntax Description
+Displays a brief information of the control protocol statistics.
+brief
+Displays the control protocol information based on the specified satellite device.
+satellite
+Command Default
+No default behavior or values.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read
+ethernet-services
+Example
+This example shows a sample output of the show nv satellite protocol control command:
+RP/0/RSP0/CPU0:router show nv satellite protocol control Satellite 1000
+Satellite 1000
+--------------
+Status: Connected since 2016/10/25 15:38:05.097
+IP address: 100.1.1.1 (VRF: default)
+Channels:
+Control (0)
+-----------
+Channel status: Open
+Messages sent: 15014 (15014 control), received: 15008 (15008 control)
+Version: 0
+Interface Extension Layer 1 (1)
+-------------------------------
+Channel status: Open
+Messages sent: 23 (12 control), received: 742 (8 control)
+dropped: 15 (0 control)
+Version: 0
+Interface Extension Layer 2 (2)
+-------------------------------
+Channel status: Open
+Messages sent: 385 (12 control), received: 14259 (8 control)
+dropped: 1 (0 control)
+nV System Command Reference for Cisco ASR 9000 Series Routers
+14
+Satellite nV System Commands
+show nv satellite protocol control
+
+
+--- Page 21 ---
+
+Version: 0
+Interface Extension Cross-link (3)
+----------------------------------
+Channel status: Open
+Messages sent: 16 (12 control), received: 15 (8 control)
+dropped: 3 (0 control)
+Version: 0
+Virtual Satellite Fabric Links (4)
+----------------------------------
+Channel status: Open
+Messages sent: 45 (23 control), received: 35 (13 control)
+dropped: 10 (0 control)
+Version: 0
+Capabilities Present:
+1
+: Min-links Offload: Supported
+Device Management (5)
+---------------------
+Channel status: Open
+Messages sent: 23 (23 control), received: 13 (13 control)
+Version: 0
+Capabilities Present:
+1
+: Uptime Command: Supported
+Inventory (6)
+-------------
+Channel status: Open
+Messages sent: 44 (20 control), received: 197 (13 control)
+Version: 0
+Environment monitoring (7)
+--------------------------
+Channel status: Open
+Messages sent: 858 (20 control), received: 24910 (13 control)
+Version: 0
+Alarm (8)
+---------
+Channel status: Open
+Messages sent: 28 (20 control), received: 397 (13 control)
+Version: 0
+Password (10)
+-------------
+Channel status: Open
+Messages sent: 30 (23 control), received: 20 (13 control)
+dropped: 6 (0 control)
+Version: 0
+Topology (14)
+-------------
+Channel status: Open
+Messages sent: 94 (25 control), received: 97 (14 control)
+dropped: 193 (0 control)
+Version: 0
+SyncE Interface (16)
+--------------------
+Channel status: Open
+Messages sent: 20 (20 control), received: 13 (13 control)
+Version: 0
+nV System Command Reference for Cisco ASR 9000 Series Routers
+15
+Satellite nV System Commands
+show nv satellite protocol control
+
+
+--- Page 22 ---
+
+Multicast Offload (17)
+----------------------
+Channel status: Open
+Messages sent: 451 (32 control), received: 19 (19 control)
+dropped: 2 (0 control)
+Version: 0
+Multicast Offload Statistics (18)
+---------------------------------
+Channel status: Open
+Messages sent: 3738 (20 control), received: 6745 (13 control)
+dropped: 5 (0 control)
+Version: 0
+Fabric Layer 1 (19)
+-------------------
+Channel status: Open
+Messages sent: 31 (12 control), received: 42 (8 control)
+Version: 0
+Fabric Layer 2 (20)
+-------------------
+Channel status: Open
+Messages sent: 385 (12 control), received: 760 (8 control)
+Version: 0
+Configurable Fabric Ports (23)
+------------------------------
+Channel status: Open
+Messages sent: 21 (15 control), received: 14 (9 control)
+dropped: 3 (0 control)
+Version: 0
+Notification (24)
+-----------------
+Channel status: Open
+Messages sent: 23 (23 control), received: 34 (13 control)
+Version: 0
+Related Commands
+Description
+Command
+Displays the statistics of satellite discovery protocol.
+show nv satellite protocol discovery, on page 18
+nV System Command Reference for Cisco ASR 9000 Series Routers
+16
+Satellite nV System Commands
+show nv satellite protocol control
+
+
+--- Page 23 ---
+
+show nv satellite crosslink
+To display a summary view of which access ports on the satellite are crosslinked to which satellite fabric link,
+use the show nv satellite crosslink command in the EXEC mode.
+show nv satellite crosslink [brief] [satellite Satellite ID] [interface Interface_Name]
+Syntax Description
+(Optional) Displays brief information about all the satellite systems.
+brief
+(Optional) Displays the crosslink information based on the specified satellite
+device. The valid ID range is between 100-60000.
+satellite Satellite ID
+(Optional) Displays the crosslink information based on the specified interface.
+interface Interface_Name
+Command Default
+No default behavior or values.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 6.0.2
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read
+ethernet-services
+Example
+The examples below show the sample outputs of the show nv satellite crosslink command:
+RP/0/RSP0/CPU0:router# show nv satellite crosslink
+Access Port
+SFL Name
+Port Validity
+-----------------------------------------------
+Te100/0/0/11
+Te0/0/1/1
+Accepted
+Gi100/0/0/5
+Te0/0/1/2
+Invalid
+Te100/0/0/12
+Te0/0/1/2
+Accepted
+Te100/0/0/13
+Te0/0/1/2
+Accepted
+RP/0/RSP0/CPU0:routershow nv satellite crosslink brief
+|
+|
+# Ports
+SFL Name
+| # Sats
+| Accept
+Reject
+Invalid | Total
+-----------|---------|-------------------------|--------
+Te0/0/1/1
+|
+1 |
+2
+0
+0 |
+2
+Te0/0/1/2
+|
+1 |
+2
+0
+1 |
+3
+nV System Command Reference for Cisco ASR 9000 Series Routers
+17
+Satellite nV System Commands
+show nv satellite crosslink
+
+
+--- Page 24 ---
+
+show nv satellite protocol discovery
+To display the current FSM states and discovery protocol statistics such as packets, messages, and bytes from
+the SDAC (Satellite Discovery And Control) protocol , use the show nv satellite protocol discovery in the
+EXEC mode.
+show nv satellite protocol discovery {interfaceinterface-name | brief}
+Syntax Description
+Displays the discovery protocol information based on the interface type.
+interface interface-name
+Displays a brief discovery protocol information.
+briefid
+Command Default
+No default behavior or values.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read
+ethernet-services
+Example
+This example show how to execute the show nv satellite protocol discovery command:
+RP/0/RSP0/CPU0:router show nv satellite protocol discovery interface Bundle-Ether901
+-------------------------
+Interface TenGigE0/0/1/0: Probing for satellites
+Interface TenGigE0/1/0/4/1: Probing for satellites
+Satellite ID: 1000
+Status: Satellite ready
+Host IPv4 Address: 100.1.1.2
+Satellite IPv4 Address: 100.1.1.1
+Discovered links:
+TenGigE0/0/1/0
+--------------
+Status: Satellite ready
+Vendor: CISCO SYSTEMS, INC,
+Serial Id: FOC1930R2AL
+Remote ID: 33554472
+Remote MAC address: c472.95a6.beed
+Chassis MAC address: c472.95a6.bec5
+TenGigE0/1/0/4/1
+----------------
+Status: Satellite ready
+nV System Command Reference for Cisco ASR 9000 Series Routers
+18
+Satellite nV System Commands
+show nv satellite protocol discovery
+
+
+--- Page 25 ---
+
+Vendor: CISCO SYSTEMS, INC,
+Serial Id: FOC1930R2AL
+Remote ID: 33554471
+Remote MAC address: c472.95a6.beec
+Chassis MAC address: c472.95a6.bec5
+nV System Command Reference for Cisco ASR 9000 Series Routers
+19
+Satellite nV System Commands
+show nv satellite protocol discovery
+
+
+--- Page 26 ---
+
+show nv satellite redundancy
+To display if a host is active or standby, providing priorities for both the local and partner device, and, where
+required, describing the different sections of the priority, use the show nv satellite redundancy command in
+the EXEC mode.
+show nv satellite redundancy [brief] [satellite Satellite ID]
+Syntax Description
+Displays redundancy information
+in brief.
+brief
+Displays the redundancy
+information based on the specified
+satellite device. The valid ID range
+is between 100-60000.
+satellite Satellite ID
+Command Default
+No default behavior or values.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 6.0.2
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read
+ethernet-services
+Example
+This example shows a sample output of the show nv satellite redundancy command:
+RP/0/RSP0/CPU0:router show nv satellite redundancy
+Satellite 210:
+Local Priority:
+0x0008000000010011
+Configured priority: 0
+Number of hops: 1
+Remote Priority: 0x00088000000e0000
+Number of hops: 14
+Satellite 211:
+Local Priority:
+0x0008000000020010
+Configured priority: 0
+Number of hops: 2
+Remote Priority: 0x00088000000d0001
+Number of hops: 13
+Satellite 212:
+Local Priority:
+0x0008000000030011
+Configured priority: 0
+nV System Command Reference for Cisco ASR 9000 Series Routers
+20
+Satellite nV System Commands
+show nv satellite redundancy
+
+
+--- Page 27 ---
+
+Number of hops: 3
+Remote Priority: 0x00088000000c0000
+Number of hops: 12
+Satellite 213:
+Local Priority:
+0x0008000000040010
+Configured priority: 0
+Number of hops: 4
+Remote Priority: 0x00088000000b0001
+Number of hops: 11
+Satellite 214:
+Local Priority:
+0x0008000000050011
+Configured priority: 0
+Number of hops: 5
+Remote Priority: 0x00088000000a0000
+Number of hops: 10
+Satellite 215:
+Local Priority:
+0x0008000000060010
+Configured priority: 0
+Number of hops: 6
+Remote Priority: 0x0008800000090001
+Number of hops: 9
+This example shows a sample output of the show nv satellite redundancy command when the brief
+keyword is used:
+RP/0/RSP0/CPU0:router show nv satellite redundancy brief
+Satellite:
+| Local Priority:
+| Remote Priority:
+------------------|--------------------|--------------------
+210
+| 0x0008000000010011 | 0x00088000000e0000
+211
+| 0x0008000000020010 | 0x00088000000d0001
+212
+| 0x0008000000030011 | 0x00088000000c0000
+213
+| 0x0008000000040010 | 0x00088000000b0001
+214
+| 0x0008000000050011 | 0x00088000000a0000
+215
+| 0x0008000000060010 | 0x0008800000090001
+216
+| 0x0008000000070011 | 0x0008800000080000
+299
+| 0x0008000000080010 | 0x0008800000070001
+300
+| 0x0008000000090011 | 0x0008800000060000
+301
+|
+No remote host connected
+360
+| 0x00080000000e0011 | 0x0008800000010000
+700
+| 0x0008000000010001 | 0x0008800000010000
+702
+| 0x0008000000010001 | 0x0008800000010000
+703
+| 0x0008000000010000 | 0x0008800000010001
+704
+| 0x0008000000010001 | 0x0008800000010000
+705
+| 0x0008000000010000 | 0x0008800000010001
+706
+| 0x0008000000010001 | 0x0008800000010000
+800
+| 0x00080000000a0011 | 0x0008800000050000
+801
+| 0x00080000000b0010 | 0x0008800000040001
+802
+| 0x00080000000c0011 | 0x0008800000030000
+803
+| 0x00080000000d0010 | 0x0008800000020001
+1000
+| 0x0008000000010001 | 0x0008800000010000
+This example shows a sample output of the show nv satellite redundancy command when the
+satellite keyword is used:
+RP/0/RSP0/CPU0:router show nv satellite redundancy satellite 702
+Satellite 702:
+Local Priority:
+0x0008000000010001
+Configured priority: 0
+Number of hops: 1
+Remote Priority: 0x0008800000010000
+Number of hops: 1
+nV System Command Reference for Cisco ASR 9000 Series Routers
+21
+Satellite nV System Commands
+show nv satellite redundancy
+
+
+--- Page 28 ---
+
+show nv satellite status
+To display the status of a Satellite Network Virtualization (Satellite nV) system, use the show nv satellite
+status command in the EXEC mode. The command displays information such as the overall status of the
+satellite, its connections, and a brief summary of the status of the satellite.
+show nv satellite status [ brief [ satellite satellite-id ] | satellite satellite-id ]
+Syntax Description
+(Optional) Displays information about the satellite system specified using
+satellite-id.
+satellite-id is a number in the range of 100 to 239.
+satellite satellite-id
+(Optional) Displays brief information about all the satellite systems.
+brief
+(Optional) Displays brief information about the specified satellite system.
+brief satellite satellite-id
+Command Default
+No default behavior or values.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read
+ethernet-services
+Example
+These examples show how to display information about the satellites using the show nv satellite
+status command:
+RP/0/RSP0/CPU0:router# show nv satellite status
+Satellite 100
+-------------
+Status: Connected
+Type: asr9000v
+Description: SAT-100
+Displayed device name: Sat100
+MAC address: 8478.ac02.2994
+IPv4 address: 10.0.133.1 (auto, VRF: **nVSatellite)
+Serial Number: CAT1712U0FF
+Remote version: Compatible (older version)
+ROMMON: 128.0 (Latest)
+FPGA: 1.13 (Latest)
+IOS: 614.102 (Available: 621.4)
+Received candidate fabric ports:
+nVFabric-GigE0/0/42-43 (permanent)
+nVFabric-TenGigE0/0/44-47 (permanent)
+nV System Command Reference for Cisco ASR 9000 Series Routers
+22
+Satellite nV System Commands
+show nv satellite status
+
+
+--- Page 29 ---
+
+Configured satellite fabric links:
+Bundle-Ether13301
+-----------------
+Status: Satellite Ready
+Remote ports: GigabitEthernet0/0/3,14,35,43
+Discovered satellite fabric links:
+TenGigE1/7/0/11: Satellite Ready; No conflict
+TenGigE1/7/0/12: Satellite Ready; No conflict
+RP/0/RSP0/CPU0:routershow nv satellite status
+Satellite 1000
+--------------
+Status: Connected (Stable)
+Type: ncs5001
+Description: sat1000
+Displayed device name: Sat1000
+MAC address: c472.95a6.bec5
+IPv4 address: 100.1.1.1 (VRF: default)
+Serial Number: FOC1930R2AL
+Remote version: Compatible (latest version)
+IOFPGA: 0.17
+MB_MIFPGA: 0.17
+BIOS: 1.09
+XR: 6.2.1.16I (Latest)
+Received candidate fabric ports:
+nVFabric-TenGigE0/0/38-39 (permanent)
+nVFabric-HundredGigE0/1/0-3 (permanent)
+Configured satellite fabric links:
+Bundle-Ether901
+---------------
+Status: Satellite Ready
+Remote ports: TenGigE0/0/0-37
+Discovered satellite fabric links:
+TenGigE0/0/1/0: Satellite Ready; No conflict
+TenGigE0/1/0/4/1: Satellite Ready; No conflict
+This example shows how to display brief information about the satellites using the show nv satellite
+status brief command:
+RP/0/RSP0/CPU0:router# show nv satellite status brief
+Sat-ID
+Type
+IP Address
+MAC address
+Status
+------
+--------
+------------
+--------------
+-------------------------------
+100
+asr9000v
+10.0.133.1
+8478.ac02.2994
+Connected (In sync)
+The table below describes significant fields in the show nv satellite status display.
+Table 2: show nv satellite status Field Descriptions
+Description
+Field
+nV System Command Reference for Cisco ASR 9000 Series Routers
+23
+Satellite nV System Commands
+show nv satellite status
+
+
+--- Page 30 ---
+
+Overall status of the satellite. It consists of two parts:
+• Connection status
+• Not connected: The satellite could not be connected to because of
+insufficient connectivity information (for example, missing IP address).
+• Connecting: The satellite is being connected to but connection has not
+been fully established.
+• Authentication failed: The satellite was connected to but no session
+was established because the authentication parameters were incorrect.
+• Incorrect serial: The satellite was connected to but no session was
+established because the serial numbers did not match.
+• Incorrect version: The satellite was connected to but no session was
+established because the version was not supported.
+• Connected: The satellite has been successfully connected to and a
+session has been successfully established.
+• Chassis and application status
+• In sync: The chassis and application configuration specified by the user
+has been successfully configured on the shelf.
+• Out of sync: The chassis and application configuration specified by the
+user is being configured on the router, possibly retrying due to earlier
+failures.
+• Invalid: The chassis and application configuration specified by the user
+cannot be configured on the shelf (for example, due to invalid
+configuration for the specified shelf).
+State
+Type of the satellite.
+Type
+Description of the satellite
+Description
+IPv4 address used to connect to the satellite
+IPv4 address
+Serial number of the satellite
+Received Serial Number
+Serial number configured by the user
+Configured Serial
+Number
+Version of the software on the satellite
+Remote version
+Summary of chassis level configuration status
+Chassis Status
+Summary of each application configured on the satellite
+Configured applications
+nV System Command Reference for Cisco ASR 9000 Series Routers
+24
+Satellite nV System Commands
+show nv satellite status
+
+
+--- Page 31 ---
+
+show nv satellite uptime
+To display how long the satellite has been booted, and the reasons of the reloads, use the show nv satellite
+uptime command in the EXEC mode.
+show nv satellite uptime [satellite Satellite_ID]
+Syntax Description
+Displays the uptime information
+based on the specified satellite
+device. The valid ID range is
+between 100-60000.
+satellite Satellite ID
+Command Default
+No default behavior or values.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 6.0.2
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read
+ethernet-services
+Example
+This example shows a sample output of the show nv satellite uptime command:
+RP/0/RSP0/CPU0:router show nv satellite uptime
+x0Sun May 14 16:39:44.245 UTC
+Sat-ID
+| Last Started
+| Reload Information
+-----------|--------------------|----------------------------------------------
+100
+17:08:08 27 Apr 17
+Initial boot
+S/W
+17:08:08 27 Apr 17
+Switch to satellite mode.
+This example shows a sample output of the show nv satellite redundancy command when the
+satellite keyword is used:
+RP/0/RSP0/CPU0:router show nv satellite uptime satellite 100
+Sun May 14 16:39:48.738 UTC
+Satellite 100:
+System: Last reloaded at 17:08:08 27 Apr 17
+Initial boot
+S/W: Last reloaded at 17:08:08 27 Apr 17
+Switch to satellite mode.
+nV System Command Reference for Cisco ASR 9000 Series Routers
+25
+Satellite nV System Commands
+show nv satellite uptime
+
+
+--- Page 32 ---
+
+show nv satellite version
+To display information about the satellite software version, use the show nv satellite version command in
+the EXEC mode.
+show nv satellite version [satellite Satellite_ID] [summary]
+Syntax Description
+(Optional) Displays the version
+information of the specified
+satellite.
+satellite Satellite_ID
+(Optional) Displays an overview of
+the state of multiple satellites.
+summary
+Command Default
+No default behavior or values.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 6.0.2
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read
+ethernet-services
+Example
+This example shows a sample output of the show nv satellite version command:
+RP/0/RSP0/CPU0:router show nv satellite version
+Sun May 14 17:13:36.718 UTC
+Satellite 100
+-------------
+Remote versions:
+Active: Compatible (latest)
+IOFPGA: 0.17
+MB_MIFPGA: 0.16
+DB_MIFPGA: 0.16
+BIOS: 1.11
+XR: 6.3.1.12I (Recommended: 6.3.1.20I)
+This example shows a sample output of the show nv satellite redundancy command when the
+summary keyword is used:
+RP/0/RSP0/CPU0:router show nv satellite version summary
+Mon May 15 08:17:52.904 PDT
+|
+Number of Satellites
+Compatibility
+|
+Active
+| Transferred | Committed
+--------------------|----------|-------------|-----------
+nV System Command Reference for Cisco ASR 9000 Series Routers
+26
+Satellite nV System Commands
+show nv satellite version
+
+
+--- Page 33 ---
+
+Compatible (latest)
+5
+0
+0
+Unknown
+0
+1
+1
+--------------------|----------|-------------|-----------
+nV System Command Reference for Cisco ASR 9000 Series Routers
+27
+Satellite nV System Commands
+show nv satellite version
+
+
+--- Page 34 ---
+
+show nv satellite install
+To display the status of the install operations on a Satellite Network Virtualization (Satellite nV) system, use
+the show nv satellite install command in the EXEC mode. The command displays information such as the
+overall installation status of the satellite, packages, references, etc.
+show nv satellite install {brief | packages | references | verbose | in-progress}
+Syntax Description
+(Optional) Displays brief information about all the satellite systems.
+brief
+(Optional) Displays information about the packages on the satellite system.
+packages
+(Optional) Displays information about the references on the satellite system.
+references
+(Optional) Displays long information about the install operation
+verbose
+(Optional) Displays the install operations that are in progress
+in-progress
+Command Default
+No default behavior or values.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 5.3.2
+The packages option was introduced in this command.
+Release 6.1.2
+The references option was introduced in this
+command.
+Release 6.3.1
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+Task ID
+Operation
+Task ID
+read
+ethernet-services
+Example
+These examples show how to display information about the satellites using the show nv satellite
+install command:
+RP/0/RSP0/CPU0:router# show nv satellite install references
+Reference: MyRef, file count: 2
+ncs5k-iosxr-fwding-4.0.0.1-r631.CSCvc49848.x86_64.rpm
+ncs5k-iosxr-fwding-4.0.0.1-r631.CSCvc49321.x86_64.rpm
+Reference: AnotherRef, file count: 0
+Empty
+nV System Command Reference for Cisco ASR 9000 Series Routers
+28
+Satellite nV System Commands
+show nv satellite install
+
+
+--- Page 35 ---
+
+RP/0/RSP0/CPU0:routershow nv satellite install packages
+Active Packages: 2
+ncs5k-xr-6.2.1.22I version=6.2.1.22I [Boot image]
+ncs5k-sysadmin-6.2.1.22I version=6.2.1.22I [Boot image]
+Inactive Packages: 1
+ncs5k-sysadmin-6.2.1.22I.CSCuv34432.rpm
+Committed Packages: 2
+ncs5k-xr-6.2.1.22I version=6.2.1.22I [Boot image]
+ncs5k-sysadmin-6.2.1.22I version=6.2.1.22I [Boot image]
+nV System Command Reference for Cisco ASR 9000 Series Routers
+29
+Satellite nV System Commands
+show nv satellite install
+
+
+--- Page 36 ---
+
+show nv satellite install packages
+To display the status of the install packages operations on a Satellite Network Virtualization (Satellite nV)
+system, the version information about each package, and an indication of whether each is a base image or not,
+use the show nv satellite install packages command in the EXEC mode.
+show nv satellite install packages {active
+| inactive
+| committed} [satellite Satellite_ID]
+Syntax Description
+• active—the set of packages currently active on the satellites
+• inactive—the set of packages present but not running on the satellite
+• committed—the set of packages that would run on next reboot of the
+satellite
+active|satellite|committed
+(Optional) Displays the install packages information on the specified satellite.
+satellite Satellite_ID
+Command Default
+No default behavior or values.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 6.0.2
+Usage Guidelines
+To display the package information, the satellite have to be able to send the information. So the Control session
+must have come up before using the show nv satellite install packages command.
+Task ID
+Operation
+Task ID
+read
+ethernet-services
+nV System Command Reference for Cisco ASR 9000 Series Routers
+30
+Satellite nV System Commands
+show nv satellite install packages
+
+
+--- Page 37 ---
+
+clear SyncE esmc statistics
+To clear the Ethernet Synchronization Messaging Channel (ESMC) statistics, use the clear SyncE esmc
+statistics command in EXEC mode.
+clear SyncE esmc statistics interface
+{ interface | all | summary
+location
+{ node-id | all } }
+Syntax Description
+The command can be restricted to clear the ESMC statistics for a particular interface by specifying
+the interface.
+interface
+The output can be restricted to clear the ESMC statistics for a particular node by specifying the
+location. The node-id argument is entered in the rack/slot/module notation.
+node-id
+Command Default
+No default behavior or values
+Command Modes
+EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release
+6.1.2
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+Task ID
+Operations
+Task ID
+execute
+ethernet-services
+Examples
+The following example shows how to clear the ESMC statistics:
+RP/0/0RP0/CPU0:router:hostname# clear SyncE esmc statistics interface gigabitethenet 0/1/0/1
+nV System Command Reference for Cisco ASR 9000 Series Routers
+31
+Satellite nV System Commands
+clear SyncE esmc statistics
+
+
+--- Page 38 ---
+
+telnet satellite
+To telnet to a satellite using the satellite ID (if the satellite is connected) or the VRF and the IP address of the
+satellite (if the satellite is not connected), use the telnet satellite command in EXEC mode.
+telnet satellite {satellite-id | vrf vrf ip-address}
+Syntax Description
+Specifies the satellite ID. Satellite ID is a number in the range of 100 to 60000.
+satellite-id
+Specifies the configured VRF name of the satellite.
+The VRF must always be specified by the user. If the user has configured any IP
+address configuration, then the VRF is either default or the configured VRF name.
+Else, the VRF is the hidden satellite VRF name (**nVSatellite).
+Note
+vrf vrf
+Specifies the IP-address of the satellite in the format: a.b.c.d
+ip-address
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release
+5.3.2
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to telnet to a satellite using the satellite ID:
+RP/0/RSP0/CPU0:router # telnet satellite 100
+This example shows how to telnet to a satellite using the VRF and IP-address of the satellite:
+RP/0/RSP0/CPU0:router # telnet satellite vrf default 10.51.76.163
+nV System Command Reference for Cisco ASR 9000 Series Routers
+32
+Satellite nV System Commands
+telnet satellite
+
+
+--- Page 39 ---
+
+upgrade
+To configure automated upgrade of the satellite image, use the upgrade command in nV Satellite configuration
+mode.
+upgrade {on-connect | on-first-connect} <reference ref_name>
+Syntax Description
+Automatic upgrade takes place when the satellite connects.
+on-connect
+Automatic upgrade takes place only the first-time satellite connects.
+on-first-connect
+Command Default
+Auto upgrade is disabled by default.
+Command Modes
+Satellite Network Virtualization Configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release
+5.3.2
+The option on-first-connect was introduced.
+Release
+6.3.1
+The option <reference ref_name> was introduced.
+Release
+6.6.1
+Usage Guidelines
+For dual-head satellite systems, the auto upgrade configuration must only be applied on one host, that is, the
+host that the satellite will install from. There is currently no checking for this, and if the user applies the
+configuration on both hosts and the hosts have different satellite versions installed, then the satellite may go
+into a loop of installing, until either:
+• the configuration is removed from one host OR
+• the satellite version activated on both hosts is the same
+Starting with Cisco IOS XR Software Release 6.6.1, for the Cisco NCS 5000 Series Satellite, auto upgrade
+to a reference list of software packages is possible with an optional reference keyword and reference name
+along with upgrade [on-connect | on-first-connect] configuration. On Cisco ASR 9000 Series Router
+host running IOS XR 64 Bit operating system, auto upgrade for the Cisco NCS 5000 Series satellite is only
+possible with the reference list due to restrictions in supporting the satellite nV pie.
+Note
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+nV System Command Reference for Cisco ASR 9000 Series Routers
+33
+Satellite nV System Commands
+upgrade
+
+
+--- Page 40 ---
+
+Example
+This example shows how to configure nV satellite auto image upgrade on a satellite:
+RP/0/RSP0/CPU0:router # configure
+RP/0/RSP0/CPU0:router(config)# nv
+RP/0/RSP0/CPU0:router(config-nv)# satellite 200 upgrade on-connect
+RP/0/RSP0/CPU0:router # configure
+RP/0/RSP0/CPU0:router(config)# nv
+RP/0/RSP0/CPU0:router(config-nv)# satellite 200 upgrade on-first-connect
+nV System Command Reference for Cisco ASR 9000 Series Routers
+34
+Satellite nV System Commands
+upgrade
+
+
+--- Page 41 ---
+
+Network Virtualization Edge System Commands
+This module describes the commands used to configure the nV Edge system on the Cisco ASR 9000 Series
+Router.
+This feature is not supported on Cisco ASR 9000 Series Router from Release 6.0.1 onwards.
+• nv edge control serial, on page 36
+• nv edge interface, on page 37
+• show nv edge control control-link-protocols, on page 38
+• show nv edge data forwarding, on page 39
+nV System Command Reference for Cisco ASR 9000 Series Routers
+35
+
+
+--- Page 42 ---
+
+nv edge control serial
+To enable nV Edge system on the router, use the nv edge control serial command in Admin Configuration
+mode.
+nv edge control serial serial-number rack-number
+Syntax Description
+The serial numbers of the devices in the nV Edge system.
+serial-number
+Rack number. The chassis that you enter this command becomes Rack 0 and the other chassis
+in the nV Edge system becomes Rack 1.
+rack-number
+Command Default
+No default behavior or values
+Command Modes
+Admin Configuration mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+nV Edge System is no longer supported on ASR 9000
+Series Routers.
+Release 6.0.1
+Usage Guidelines
+Choose any one of the chassis as Rack 0 and enter the nv edge control serial serial-number rack-number
+command in admin configuration mode. The other chassis becomes Rack 1.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to enter admin configuration mode and enable nV Edge system on the
+router using the nv edge control serial serial-number rack-number command:
+RP/0/RSP0/CPU0:router # admin
+RP/0/RSP0/CPU0:router(admin)# configure
+RP/0/RSP0/CPU0:router(admin-config)#nv edge control serial 123456ABCDE rack 0
+RP/0/RSP0/CPU0:router(admin-config)#nv edge control serial 789012ABCDE rack 1
+RP/0/RSP0/CPU0:router(admin-config)#commit
+nV System Command Reference for Cisco ASR 9000 Series Routers
+36
+Network Virtualization Edge System Commands
+nv edge control serial
+
+
+--- Page 43 ---
+
+nv edge interface
+To enable interchassis data link, use the nv edge interface command in interface configuration mode.
+nv edge interface
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+No default behavior or values
+Command Modes
+Interface Configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+nV Edge System is no longer supported on ASR 9000
+Series Routers.
+Release 6.0.1
+Usage Guidelines
+Connect the Interchassis Data links to the 10 Gigabit Ethernet ports before issuing the nv edge interface
+command. You can only use 10 Gigabit Ethernet interfaces for interchassis data links. Use this command on
+both sides of the interchassis data link.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to enter interface configuration mode and enable Interchassis Data links
+using the nv edge interface command:
+RP/0/RSP0/CPU0:router # configure
+RP/0/RSP0/CPU0:router(config)#interface TenGigE 0/0/0/0
+RP/0/RSP0/CPU0:router(config-if)#nv edge interface
+RP/0/RSP0/CPU0:router(config-if)#commit
+nV System Command Reference for Cisco ASR 9000 Series Routers
+37
+Network Virtualization Edge System Commands
+nv edge interface
+
+
+--- Page 44 ---
+
+show nv edge control control-link-protocols
+To display the status of interchassis control links, use the show nv edge control control-link-protocols
+command in Admin EXEC mode.
+show nv edge control control-link-protocols location node-id
+Syntax Description
+(Optional) Specifies the location of the interface.
+location
+(Optional) Node-id entered in the rack/slot/module notation.
+node-id
+Command Default
+No default behavior or values
+Command Modes
+Admin EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+nV Edge System is no longer supported on ASR 9000
+Series Routers.
+Release 6.0.1
+Usage Guidelines
+Connect the Interchassis Data links to the 10 Gigabit Ethernet ports before issuing the nv edge interface
+command. You can only use 10 Gigabit Ethernet interfaces for interchassis data links. Use this command on
+both sides of the interchassis data link.
+After connecting the inter chassis control links, you need not configure them as it is on by default. Use the
+show nv edge control control-link-protocols location node-id command in EXEC mode to display the
+status of the interchassis control links.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to view the status of the interchassis control links using the show nv edge
+control control-link-protocols location node-id command:
+RP/0/RSP0/CPU0:router#show nv edge control control-link-protocols location 0/RSP0/CPU0
+Priority lPort Remote_lPort UDLD STP
+======== ===== ============ ==== ========
+0 0/RSP0/CPU0/12 1/RSP0/CPU0/12 UP Forwarding
+1 0/RSP0/CPU0/13 1/RSP1/CPU0/13 UP Blocking
+2 0/RSP1/CPU0/12 1/RSP1/CPU0/12 UP On Partner RSP
+3 0/RSP1/CPU0/13 1/RSP0/CPU0/13 UP On Partner RSP
+nV System Command Reference for Cisco ASR 9000 Series Routers
+38
+Network Virtualization Edge System Commands
+show nv edge control control-link-protocols
+
+
+--- Page 45 ---
+
+show nv edge data forwarding
+To display the status of interchassis data links, use the show nv edge data forwarding command in Admin
+EXEC mode.
+show nv edge data forwarding
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+No default behavior or values
+Command Modes
+Admin EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 4.2.1
+nV Edge System is no longer supported on ASR 9000
+Series Routers.
+Release 6.0.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operation
+Task ID
+read,
+write
+ethernet-services
+Example
+This example shows how to view the status of the interchassis control links using the show nv edge
+control control-link-protocols location node-id command:
+RP/0/RSP0/CPU0:router#show nv edge control control-link-protocols location 0/RSP0/CPU0
+Priority lPort Remote_lPort UDLD STP
+======== ===== ============ ==== ========
+0 0/RSP0/CPU0/12 1/RSP0/CPU0/12 UP Forwarding
+1 0/RSP0/CPU0/13 1/RSP1/CPU0/13 UP Blocking
+2 0/RSP1/CPU0/12 1/RSP1/CPU0/12 UP On Partner RSP
+3 0/RSP1/CPU0/13 1/RSP0/CPU0/13 UP On Partner RSP
+nV System Command Reference for Cisco ASR 9000 Series Routers
+39
+Network Virtualization Edge System Commands
+show nv edge data forwarding
+
+
+--- Page 46 ---
+
+nV System Command Reference for Cisco ASR 9000 Series Routers
+40
+Network Virtualization Edge System Commands
+show nv edge data forwarding

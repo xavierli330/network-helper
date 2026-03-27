@@ -1,0 +1,4686 @@
+# Source: b-netflow-cr-asr9k.pdf
+# Total pages: 102
+
+
+--- Page 1 ---
+
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+First Published: 2019-01-31
+Last Modified: 2025-03-28
+Americas Headquarters
+Cisco Systems, Inc.
+170 West Tasman Drive
+San Jose, CA 95134-1706
+USA
+http://www.cisco.com
+Tel: 408 526-4000
+800 553-NETS (6387)
+Fax: 408 527-0883
+
+
+--- Page 2 ---
+
+THE SPECIFICATIONS AND INFORMATION REGARDING THE PRODUCTS IN THIS MANUAL ARE SUBJECT TO CHANGE WITHOUT NOTICE. ALL STATEMENTS,
+INFORMATION, AND RECOMMENDATIONS IN THIS MANUAL ARE BELIEVED TO BE ACCURATE BUT ARE PRESENTED WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED. USERS MUST TAKE FULL RESPONSIBILITY FOR THEIR APPLICATION OF ANY PRODUCTS.
+THE SOFTWARE LICENSE AND LIMITED WARRANTY FOR THE ACCOMPANYING PRODUCT ARE SET FORTH IN THE INFORMATION PACKET THAT SHIPPED WITH
+THE PRODUCT AND ARE INCORPORATED HEREIN BY THIS REFERENCE. IF YOU ARE UNABLE TO LOCATE THE SOFTWARE LICENSE OR LIMITED WARRANTY,
+CONTACT YOUR CISCO REPRESENTATIVE FOR A COPY.
+The Cisco implementation of TCP header compression is an adaptation of a program developed by the University of California, Berkeley (UCB) as part of UCB's public domain version of
+the UNIX operating system. All rights reserved. Copyright © 1981, Regents of the University of California.
+NOTWITHSTANDING ANY OTHER WARRANTY HEREIN, ALL DOCUMENT FILES AND SOFTWARE OF THESE SUPPLIERS ARE PROVIDED “AS IS" WITH ALL FAULTS.
+CISCO AND THE ABOVE-NAMED SUPPLIERS DISCLAIM ALL WARRANTIES, EXPRESSED OR IMPLIED, INCLUDING, WITHOUT LIMITATION, THOSE OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OR ARISING FROM A COURSE OF DEALING, USAGE, OR TRADE PRACTICE.
+IN NO EVENT SHALL CISCO OR ITS SUPPLIERS BE LIABLE FOR ANY INDIRECT, SPECIAL, CONSEQUENTIAL, OR INCIDENTAL DAMAGES, INCLUDING, WITHOUT
+LIMITATION, LOST PROFITS OR LOSS OR DAMAGE TO DATA ARISING OUT OF THE USE OR INABILITY TO USE THIS MANUAL, EVEN IF CISCO OR ITS SUPPLIERS
+HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+Any Internet Protocol (IP) addresses and phone numbers used in this document are not intended to be actual addresses and phone numbers. Any examples, command display output, network
+topology diagrams, and other figures included in the document are shown for illustrative purposes only. Any use of actual IP addresses or phone numbers in illustrative content is unintentional
+and coincidental.
+All printed copies and duplicate soft copies of this document are considered uncontrolled. See the current online version for the latest version.
+Cisco has more than 200 offices worldwide. Addresses and phone numbers are listed on the Cisco website at www.cisco.com/go/offices.
+Cisco and the Cisco logo are trademarks or registered trademarks of Cisco and/or its affiliates in the U.S. and other countries. To view a list of Cisco trademarks, go to this URL:
+https://www.cisco.com/c/en/us/about/legal/trademarks.html. Third-party trademarks mentioned are the property of their respective owners. The use of the word partner does not imply a
+partnership relationship between Cisco and any other company. (1721R)
+© 2017–2025 Cisco Systems, Inc. All rights reserved.
+
+
+--- Page 3 ---
+
+C O N T E N T S
+Preface
+v
+P R E F A C E
+Changes to This Document
+v
+Communications, Services, and Additional Information
+vi
+NetFlow Commands
+1
+C H A P T E R 1
+cache entries
+3
+cache permanent
+4
+cache immediate
+5
+cache timeout
+6
+clear flow exporter
+7
+clear flow monitor
+8
+clear flow platform producer statistics location
+9
+destination
+10
+dscp
+11
+exporter
+12
+flow
+13
+flow datalinkframesection monitor
+15
+flow exporter-map
+16
+flow monitor-map
+18
+options
+20
+option filtered
+23
+random 1 out-of
+24
+record ipv4
+25
+record ipv6
+28
+record mpls
+30
+record datalinksection
+32
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+iii
+
+
+--- Page 4 ---
+
+sampler-map
+33
+show flow exporter
+35
+show flow exporter-map
+37
+show flow monitor
+41
+show flow monitor-map
+63
+show flow platform producer statistics location
+66
+show flow platform nfea sampler
+68
+show flow platform nfea interface
+69
+show flow platform nfea sp location
+70
+show flow platform nfea policer np
+71
+show flow platform nfea bundle
+72
+show flow platform nfea chkp
+73
+show flow platform pal-cpp chkpt object
+74
+show flow platform pal-cpp object
+75
+show controllers pse qfp feature fnf datapath
+76
+show flow trace platform producer location
+78
+show flow trace ea location
+79
+source (NetFlow)
+80
+template (NetFlow)
+82
+transport udp
+84
+version v9
+85
+version ipfix
+87
+sFlow Commands
+89
+C H A P T E R 2
+hw-module profile netflow sflow-enable
+90
+record sflow
+91
+sflow options
+92
+version sflow v5
+94
+router-id
+95
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+iv
+Contents
+
+
+--- Page 5 ---
+
+Preface
+This guide consists of information regarding the commands for NetFlow in Cisco IOS XR Software. For more
+information about the NetFlow over BVI feature, see the Configuring NetFlow module in the Netflow
+Configuration Guide for Cisco ASR 9000 Series Routers.
+The preface consists of these sections:
+• Changes to This Document, on page v
+• Communications, Services, and Additional Information, on page vi
+Changes to This Document
+This table lists the changes made to this document since it was first printed.
+Table 1: Changes to This Document
+Change Summary
+Date
+Initial release of this document.
+November 2013
+Republished for Release 6.1.2.
+November 2016
+Republished for Release 6.2.2.
+July 2017
+Republished for Release 6.4.1.
+March 2018
+Republished for Release 6.5.1.
+July 2018
+Republished for Release 6.6.2
+April 2019
+Republished for Release 7.4.1.
+July 2021
+Republished for Release 7.5.1.
+November 2021
+Republished for Release 25.1.1.
+March 2025
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+v
+
+
+--- Page 6 ---
+
+Communications, Services, and Additional Information
+• To receive timely, relevant information from Cisco, sign up at Cisco Profile Manager.
+• To get the business results you’re looking for with the technologies that matter, visit Cisco Services.
+• To submit a service request, visit Cisco Support.
+• To discover and browse secure, validated enterprise-class apps, products, solutions and services, visit
+Cisco DevNet.
+• To obtain general networking, training, and certification titles, visit Cisco Press.
+• To find warranty information for a specific product or product family, access Cisco Warranty Finder.
+Cisco Bug Search Tool
+Cisco Bug Search Tool (BST) is a web-based tool that acts as a gateway to the Cisco bug tracking system
+that maintains a comprehensive list of defects and vulnerabilities in Cisco products and software. BST provides
+you with detailed defect information about your products and software.
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+vi
+Preface
+Communications, Services, and Additional Information
+
+
+--- Page 7 ---
+
+NetFlow Commands
+To use commands of this module, you must be in a user group associated with a task group that includes
+appropriate task IDs. If the user group assignment is preventing you from using any command, contact your
+AAA administrator for assistance.
+This module provides command line interface (CLI) commands for configuring NetFlow on the Cisco ASR 9000
+Series Router.
+• cache entries, on page 3
+• cache permanent, on page 4
+• cache immediate, on page 5
+• cache timeout, on page 6
+• clear flow exporter, on page 7
+• clear flow monitor, on page 8
+• clear flow platform producer statistics location, on page 9
+• destination, on page 10
+• dscp, on page 11
+• exporter, on page 12
+• flow, on page 13
+• flow datalinkframesection monitor, on page 15
+• flow exporter-map, on page 16
+• flow monitor-map, on page 18
+• options, on page 20
+• option filtered, on page 23
+• random 1 out-of, on page 24
+• record ipv4, on page 25
+• record ipv6, on page 28
+• record mpls, on page 30
+• record datalinksection, on page 32
+• sampler-map, on page 33
+• show flow exporter, on page 35
+• show flow exporter-map, on page 37
+• show flow monitor, on page 41
+• show flow monitor-map, on page 63
+• show flow platform producer statistics location, on page 66
+• show flow platform nfea sampler, on page 68
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+1
+
+
+--- Page 8 ---
+
+• show flow platform nfea interface, on page 69
+• show flow platform nfea sp location, on page 70
+• show flow platform nfea policer np, on page 71
+• show flow platform nfea bundle, on page 72
+• show flow platform nfea chkp, on page 73
+• show flow platform pal-cpp chkpt object, on page 74
+• show flow platform pal-cpp object, on page 75
+• show controllers pse qfp feature fnf datapath, on page 76
+• show flow trace platform producer location, on page 78
+• show flow trace ea location, on page 79
+• source (NetFlow), on page 80
+• template (NetFlow), on page 82
+• transport udp, on page 84
+• version v9, on page 85
+• version ipfix, on page 87
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+2
+NetFlow Commands
+
+
+--- Page 9 ---
+
+cache entries
+To configure the number of entries in the monitor map flow cache, enter the cache entries command in flow
+monitor map configuration mode. To remove a configured number of entries and return the cache to the default
+configuration, use the no form of this command.
+cache entries number
+Syntax Description
+Number of entries in the flow cache. Replace the number argument with the number of flow
+entries allowed in the flow cache. Range is from 4096 through 1000000.
+number
+Command Default
+number : 65535
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to configure the number of entries in the monitor map flow cache to be
+10000:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)# cache entries 10000
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+3
+NetFlow Commands
+cache entries
+
+
+--- Page 10 ---
+
+cache permanent
+To disable the removal of entries from the monitor map flow cache, enter the cache permanent command
+in flow monitor map configuration mode. To re-enable the removal of entries from the flow cache, use the
+no form of this command.
+cache permanent
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+The removal of entries from the monitor map flow cache is enabled.
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to disable the removal of entries from the monitor map flow cache:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)#flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)# cache permanent
+This example shows how to re-enable the removal of entries from the monitor map flow cache:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)# no cache permanent
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+4
+NetFlow Commands
+cache permanent
+
+
+--- Page 11 ---
+
+cache immediate
+To enable immediate aging cache type, use the cache immediate command in flow monitor map configuration
+mode. To disable, use no form of the command.
+cache immediate
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+None
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+6.5.1
+Usage Guidelines
+Immediate Aging is a special cache type that ensures that the flows are exported as soon as they are added to
+the cache.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+This example shows how to enable immediate aging cache type:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)#flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)# cache immediate
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+5
+NetFlow Commands
+cache immediate
+
+
+--- Page 12 ---
+
+cache timeout
+To configure the active, inactive, and update flow cache timeout, enter the cache timeout command in flow
+monitor map configuration mode. To remove the configured timeout value and return the cache to its default
+timeout value, use the no form of this command.
+cache timeout
+{active | inactive | update} timeout_value
+Syntax Description
+Specifies the active flow timeout.
+active
+Specifies the inactive flow timeout.
+inactive
+Specifies the update timeout.
+update
+Timeout value for the specified keyword ( active , inactive , or update ), in seconds.
+Range is from 1 through 604800.
+timeout_value
+Command Default
+For active timeout, the default value is 1800 seconds.
+For inactive timeout, the default value is 15 seconds.
+For update timeout, the default value is 1800 seconds.
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+The inactive timeout value should be smaller than the active timeout value. The update keyword is used
+for permanent caches only. It specifies the timeout value that is used to export entries from permanent caches.
+In this case, the entries are exported but remain the cache.
+Note
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to set the active timeout for the monitor map cache to 200,000 seconds:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)# cache timeout active 200000
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+6
+NetFlow Commands
+cache timeout
+
+
+--- Page 13 ---
+
+clear flow exporter
+To export flow exporter templates to the collector or restart the flow exporter statistics collector, enter the
+clear flow exporter command in EXEC mode.
+clear flow exporter [fem-name]
+{restart | statistics} location node-id
+Syntax Description
+(Optional) Flow exporter name.
+fem-name
+Exports all of the current templates to the collector.
+restart
+Clears the exporter statistics.
+statistics
+Identifies the node whose flow exporter statistics you want to clear, or whose flow exporter
+statistics collector you want to restart. The node-id argument is expressed in the
+rack/slot/module notation.
+location node-id
+Command Default
+No default behavior or values
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task ID
+read,
+write
+basic-services
+read,
+write
+netflow
+Examples
+This example exports all templates to the collector:
+RP/0/RSP0/CPU0:router# clear flow exporter restart location 0/0/SP
+Restart exporter all locations. Continue? [confirm]
+This example shows how to clear flow exporter statistics on a specific node:
+RP/0/RSP0/CPU0:router# clear flow exporter statistics location 0/0/CPU0
+Clear statistics for all exporters on the location. Continue? [confirm]
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+7
+NetFlow Commands
+clear flow exporter
+
+
+--- Page 14 ---
+
+clear flow monitor
+To clear the flow monitor data, enter the clear flow monitor command in EXEC mode.
+clear flow monitor [name] cache [force-export | statistics] location node-id
+Syntax Description
+(Optional) Identifies a specific cache you want to clear.
+name
+Clears all cache related information.
+cache
+(Optional) Forces the export of flow records on flushing the cache on the specified node.
+force-export
+(Optional) Clears cache statistics on a specific node.
+statistics
+Node whose flow monitor you want to clear. The node-id argument is expressed in the
+rack/slot/module notation.
+location node-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to clear the cache-related flow records on a specific node:
+RP/0/RSP0/CPU0:router# clear flow monitor cache force-export location 0/0/CPU0
+Clear cache entries for this monitor on this location. Continue? [confirm]
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+8
+NetFlow Commands
+clear flow monitor
+
+
+--- Page 15 ---
+
+clear flow platform producer statistics location
+To clear statistics collected by the NetFlow producer, use the clear flow platform producer statistics location
+command in EXEC mode.
+clear flow platform producer statistics location node-id
+Syntax Description
+Node on which to clear statistics collected by the NetFlow producer. The node-id is expressed
+in the rack/slot/module notation.
+Note
+Enter the show platform command to see the location of all nodes installed in the router.
+node-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to clear statistics collected by the NetFlow producer:
+RP/0/RSP0/CPU0:router# clear flow platform producer statistics location 0/0/CPU0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+9
+NetFlow Commands
+clear flow platform producer statistics location
+
+
+--- Page 16 ---
+
+destination
+To configure the collector export destination, enter the destination command in flow exporter map
+configuration mode. To remove a configured export destination, use the no form of this command.
+destination hostname_or_IP_address [vrf vrf_name]
+Syntax Description
+Specify the export destination for the current flow exporter map. Enter the hostname
+or destination IP address in the A.B.C.D format.
+hostname_or_IP_address
+(Optional) Specify the name of the VRF that is used to reach export destination.
+This is an optional keyword. If the vrf keyword is specified, then the destination
+is searched in the VRF that is specified (vrf_name). If the vrf keyword is not
+specified then, the destination is searched in the default routing table.
+vrf vrf_name
+Command Default
+None
+Command Modes
+Flow exporter map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to configure the flow exporter map export destination to be a specific IP
+address:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow exporter-map map1
+RP/0/RSP0/CPU0:router(config-fem)# destination 172.18.189.38
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+10
+NetFlow Commands
+destination
+
+
+--- Page 17 ---
+
+dscp
+To configure the differentiated services codepoint (DSCP) value for export packets, enter the dscp command
+in flow exporter map configuration mode. To remove a configured DSCP value, use the no form of this
+command.
+dscp dscp_value
+Syntax Description
+Specifies the DSCP value for export packets. Replace dscp_value with a number. Range is
+from 0 through 63.
+dscp_value
+Command Default
+None
+Command Modes
+Flow exporter map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to configure the DSCP value for export packets to be 30:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow exporter-map map1
+RP/0/RSP0/CPU0:router(config-fem)# dscp 30
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+11
+NetFlow Commands
+dscp
+
+
+--- Page 18 ---
+
+exporter
+To associate a flow exporter map with the current flow monitor map, enter the exporter command in flow
+monitor map configuration mode. To remove an associated flow exporter map from a flow monitor map, use
+the no form of this command.
+exporter map_name
+Syntax Description
+Name of the flow exporter map you want to associate with the current flow monitor map. The
+exporter map name can be a maximum of 32 characters.
+Note
+A single flow monitor map supports up to 8 exporters. Only the first five will be used.
+map_name
+Command Default
+None
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to associate a flow exporter map called “fem_1” with the current flow
+monitor map:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)# exporter fem_1
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+12
+NetFlow Commands
+exporter
+
+
+--- Page 19 ---
+
+flow
+To specify a flow monitor map and a sampler map for the packets on an interface, use the flow command
+in interface configuration mode. To remove a configured flow monitor map, use the no form of this command.
+flow [ipv4 | ipv6 | mpls] monitor name sampler name
+{egress | ingress}
+Syntax Description
+Enables IPV4 NetFlow on the specified interface.
+ipv4
+Enables IPV6 NetFlow on the specified interface.
+ipv6
+Enables Multiprotocol Label Switching (MPLS)-aware NetFlow on the specified interface.
+mpls
+Specifies the name of the flow monitor map you want to specify for IPv4, IPv6, or MPLS
+packets.
+monitor name
+Name of the sampler map you want to apply to the flow monitor map.
+sampler name
+Applies the flow monitor map on outgoing packets.
+egress
+Applies the flow monitor map on incoming packets.
+ingress
+Command Default
+None
+Command Modes
+Interface configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+The support for NetFlow over Bridge-group Virtual Interface was introduced.
+Release 4.3.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to enable IPV4 NetFlow on a GigabitEthernet interface, and then apply
+the flow monitor map, named "map1," on outgoing IPv4 packets:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# interface GigabitEthernet 0/4/0/0
+RP/0/RSP0/CPU0:router(config-if)# flow ipv4 monitor map1 sampler smap1 ingress
+RP/0/RSP0/CPU0:router(config-if)# flow ipv4 monitor NMS sampler NMS egress
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+13
+NetFlow Commands
+flow
+
+
+--- Page 20 ---
+
+This example shows how to enable MPLS NetFlow on a GigabitEthernet interface, and apply the
+flow monitor map, named "map_mpls1," on outgoing MPLS packets:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# interface gigabit Ethernet 0/0/0/0
+RP/0/RSP0/CPU0:router(config-if)# flow mpls monitor map_mpls1 sampler smap1 egress
+This example shows how to enable IPv4 NetFlow on a Bridge-group virtual interface, and then apply
+the flow monitor map on incoming and outgoing IPv4 packets:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# interface BVI 1
+RP/0/RSP0/CPU0:router(config-if)# flow ipv4 monitor NMS sampler NMS ingress
+RP/0/RSP0/CPU0:router(config-if)# flow ipv4 monitor NMS sampler NMS egress
+This example shows how to enable IPv6 NetFlow on a Bridge-group virtual interface, and then apply
+the flow monitor map on incoming and outgoing IPv6packets:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# interface BVI 1
+RP/0/RSP0/CPU0:router(config-if)# flow ipv6 monitor NMS sampler NMS ingress
+RP/0/RSP0/CPU0:router(config-if)# flow ipv6 monitor NMS sampler NMS egress
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+14
+NetFlow Commands
+flow
+
+
+--- Page 21 ---
+
+flow datalinkframesection monitor
+To monitor and capture information element that carries n octets from the data link frame (IPFIX 315) of a
+selected frame in the ingress direction of an interface, useflow datalinkframesection monitor command in
+interface configuration mode.
+flow datalinkframesection monitor monitor-map sampler sampler-map ingress
+Syntax Description
+Specify flow monitor map name.
+monitor monitor-map
+Specify flow sampler map name.
+sampler sampler-map
+Specify ingress direction. The IPFIX 315 info is captured from incoming traffic on
+specified interface.
+ingress
+Command Default
+None.
+Command Modes
+Interface configuration mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+6.5.1
+Usage Guidelines
+When datalinkframesection flow type is enabled on an interface, other flows like IPv4, IPv6 and MPLS are
+not allowed. The option field in the frame indicates the IPFIX 315 info.
+Task ID
+Operation
+Task
+ID
+read,
+write
+netflow
+This sample shows how to enable flow datalinkframesection monitor on hundredGigE interface:
+RP/0/RSP0/CPU0:router(config)#interface hundredGigE 0/0/0/18
+RP/0/RSP0/CPU0:router(config-if)#flow datalinkframesection monitor ipfix-mon sampler ipfix-sam
+ingress
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+15
+NetFlow Commands
+flow datalinkframesection monitor
+
+
+--- Page 22 ---
+
+flow exporter-map
+To create a flow exporter map and enter flow exporter map configuration mode, use the flow exporter-map
+command in Global Configuration mode. To remove a configured flow exporter map, use the no form of
+this command.
+flow exporter-map fem-name
+Syntax Description
+Creates a new exporter map name, or specifies the name of an existing exporter map.
+fem-name
+Command Default
+None
+Command Modes
+Global Configuration mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+When you issue the flow exporter-map fem-name command in global configuration mode, the CLI prompt
+changes to “config-fem,” indicating that you have entered the flow exporter map configuration submode.
+In this sample output, the question mark ( ? ) online help function displays all the commands available under
+flow exporter map configuration submode:
+RP/0/RSP0/CPU0:router(config)# flow exporter-map map1
+RP/0/RSP0/CPU0:router(config-fem)# ?
+RP/0/RSP0/CPU0:routerconfig-fem)#?
+clear
+Clear the uncommitted configuration
+commit
+Commit the configuration changes to running
+describe
+Describe a command without taking real actions
+destination
+Export destination configuration
+do
+Run an exec command
+dscp
+Specify DSCP value for export packets
+exit
+Exit from this submode
+no
+Negate a command or set its defaults
+pwd
+Commands used to reach current submode
+root
+Exit to the global configuration mode
+show
+Show contents of configuration
+source
+Source interface
+transport
+Specify the transport protocol for export packets
+version
+Specify export version parameters
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to create a flow exporter map called “map1,” and then enter the flow
+exporter map configuration submode for that map:
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+16
+NetFlow Commands
+flow exporter-map
+
+
+--- Page 23 ---
+
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow exporter-map map1
+RP/0/RSP0/CPU0:router(config-fem)#
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+17
+NetFlow Commands
+flow exporter-map
+
+
+--- Page 24 ---
+
+flow monitor-map
+To create and configure a flow monitor map and enter flow monitor map configuration submode, use the
+flow monitor-map command in Global Configuration mode. To remove a configured flow monitor map,
+use the no form of this command:
+flow monitor-map map_name
+Syntax Description
+New monitor map name, or specifies the name of an existing monitor map. The monitor map
+name can be a maximum 32 characters.
+map_name
+Command Default
+None
+Command Modes
+Global Configuration mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+When you issue the flow monitor-map map_name command in Global Configuration mode, the CLI prompt
+changes to “config-fmm,” indicating that you have entered the flow monitor map configuration submode. In
+the following sample output, the question mark ( ? ) online help function displays all the commands available
+under flow monitor map configuration submode:
+RP/0/RSP0/CPU0:router(config)# flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)#?
+cache
+Specify flow cache attributes
+clear
+Clear the uncommitted configuration
+commit
+Commit the configuration changes to running
+describe
+Describe a command without taking real actions
+do
+Run an exec command
+exit
+Exit from this submode
+exporter
+Specify flow exporter map name
+no
+Negate a command or set its defaults
+pwd
+Commands used to reach current submode
+record
+Specify a flow record map name
+record ipv4
+Encapsulates PE L2-L3 record for ipv4
+record ipv6
+Encapsulates PE L2-L3 record foripv6
+root
+Exit to the global configuration mode
+show
+Show contents of configuration
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to enter flow monitor map configuration mode for a monitor map called
+“map1:”
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+18
+NetFlow Commands
+flow monitor-map
+
+
+--- Page 25 ---
+
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)#
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+19
+NetFlow Commands
+flow monitor-map
+
+
+--- Page 26 ---
+
+options
+To export the tables in the options template and specify export timeout values, enter the options command
+in flow exporter map version configuration mode. To return the options template to its default configuration
+values, use the no form of this command.
+options
+{interface-table | sampler-table | vrf-table} [timeout seconds]
+Syntax Description
+Export the interface table.
+interface-table
+Exports the sampler table.
+Use options sampler-table timeout command to send IE 305. This command configures
+the timeout value for the sampler table. This timeout value can be in the range 1–604800
+seconds and the default value is 1800 seconds.
+You can also use options sampler-table command to export the following IEs:
+• IE 302—to export selector ID.
+• IE 304—to export sampling algorithm.
+• IE 309—to export sampling size.
+• IE 310—to export sampling population.
+• IE 84—to export sampler name.
+• IE 335—to export selector name.
+IE 309, IE 310, and IE 335 are supported starting from Release 7.8.2
+sampler-table
+Exports the VRF to VRF-Name table.
+vrf-table
+Specifies the export timeout value. Replace seconds with the export timeout value.
+Range is from 1 through 604800 seconds.
+timeout seconds
+Command Default
+Without options command, the default value for timeout is 0 seconds, which means that the template options
+are not exported by default. Where as when options command is used without mentioning any timeout, default
+timeout is 1800 seconds.
+Command Modes
+Flow exporter map version configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+The keyword vrf-table was introduced.
+Release 5.2.0
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+20
+NetFlow Commands
+options
+
+
+--- Page 27 ---
+
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to export the timeout in the interface table to the options template.
+RP/0/RSP0/CPU0:router(config)# flow exporter-map f1
+RP/0/RSP0/CPU0:router(config-fem)# version v9
+RP/0/RSP0/CPU0:router(config-fem)# options interface-table timeout 45
+Examples
+This is the sample output after setting to export the interface table and configure the export timeout
+value:
+RP/0/RSP0/CPU0:router(config-fem-ver)# show running-config flow exporter-map f1
+flow exporter-map f1
+version v9
+options vrf-table 50
+!
+transport udp 9321
+source HundredGigE 0/4/3/0
+destination 10.64.81.237
+!
+RP/0/RSP0/CPU0:router(config-fem-ver)# do show flow exporter-map f1
+Flow Exporter Map : f1
+-------------------------------------------------
+Id
+: 21
+DestinationIpAddr
+: 10.64.81.237
+SourceIfName
+: HundredGigE 0/4/3/0
+SourceIpAddr
+: 0.0.0.0
+DSCP
+: 0
+TransportProtocol
+: UDP
+TransportDestPort
+: 9321
+Export Version: 9
+Common Template Timeout : 1800 seconds
+Options Template Timeout : 1800 seconds
+Data Template Timeout : 1800 seconds
+Interface-Table Export Timeout : 0 seconds
+Sampler-Table Export Timeout : 0 seconds
+VRF-Table Export Timeout : 50 seconds
+RP/0/RSP0/CPU0:router(config-fem-ver)# do show running-config flow exporter-map f1
+flow exporter-map f1
+version v9
+options interface-table
+options sampler-table
+options vrf-table
+!
+transport udp 9321
+source HundredGigE 0/4/3/0
+destination 10.64.81.237
+!
+RP/0/RSP0/CPU0:router(config-fem-ver)# show flow exporter-map f1
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+21
+NetFlow Commands
+options
+
+
+--- Page 28 ---
+
+Flow Exporter Map : f1
+-------------------------------------------------
+Id
+: 21
+DestinationIpAddr
+: 10.64.81.237
+SourceIfName
+: HundredGigE 0/4/3/0
+SourceIpAddr
+: 0.0.0.0
+DSCP
+: 0
+TransportProtocol
+: UDP
+TransportDestPort
+: 9321
+Export Version: 9
+Common Template Timeout : 1800 seconds
+Options Template Timeout : 1800 seconds
+Data Template Timeout : 1800 seconds
+Interface-Table Export Timeout : 1800 seconds
+Sampler-Table Export Timeout : 1800 seconds
+VRF-Table Export Timeout : 1800 seconds
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+22
+NetFlow Commands
+options
+
+
+--- Page 29 ---
+
+option filtered
+To enable filtering of the Netflow records, use option filtered command in flow monitor map configuration
+mode.
+option
+filtered
+Syntax Description
+Enables filtering of records
+filtered
+Command Default
+Flow filtering is disabled.
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release
+6.0.1
+Usage Guidelines
+MPLS netflow filtering is not supported.
+Since the filtering of packets is based on the ACL, you must define ACL configuration before using option
+filtered command. Use the capture keyword while defining ACL. For example:
+ipv4 access-list nf_ex
+10 permit ipv4 10.1.1.1/24 any capture
+Task ID
+Operation
+Task
+ID
+read,
+write
+netflow
+This example shows how to create flow monitor map that filters Netflow records with cache entries
+upto 10000:
+RP/0/RSP0/CPU0:router# config
+RP/0/RSP0/CPU0:router(config)# flow monitor-map fmm1
+RP/0/RSP0/CPU0:router(config-fmm)# record ipv4
+RP/0/RSP0/CPU0:router(config-fmm)# option filtered
+RP/0/RSP0/CPU0:router(config-fmm)# exporter fem1
+RP/0/RSP0/CPU0:router(config-fmm)# cache entries 10000
+RP/0/RSP0/CPU0:router(config-fmm)# cache timeout active 1800
+RP/0/RSP0/CPU0:router(config-fmm)# cache timeout inactive 15
+RP/0/RSP0/CPU0:router(config-fmm)# exit
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+23
+NetFlow Commands
+option filtered
+
+
+--- Page 30 ---
+
+random 1 out-of
+To configure the packet sampling interval for a sampler map, use the random 1 out-of command in sampler
+map configuration submode. To remove a configured sampling interval and return to the default sampling
+interval, use the no form of this command. The limit of sampling rate values per line card per direction is 4,
+and limit of total samplers per line card per direction is 16.
+random 1 out-of number_of_packets
+Syntax Description
+Sampling interval in units of packets. Replace the number_of_packets argument with
+a number. Range is from 1 through 65535 units.
+number_of_packets
+Command Default
+There is no default value to number_of_packets . However, for optimal performance, the recommended value
+for number_of_packets is 10000.
+Command Modes
+Sampler map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+On Cisco ASR 9000 High Density 100GE Ethernet line cards, when the configured sampling rate is one of
+the following values, the sampling behavior is random with a deviation of more than 10 percent:
+• 2048
+• 4096
+• 8192
+• 16384
+• 32768
+• 65535
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to configure the sampler map to randomly sample 1 out of every 10 packets:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# sampler map1
+RP/0/RSP0/CPU0:router(config-sm)# random 1 out-of 10
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+24
+NetFlow Commands
+random 1 out-of
+
+
+--- Page 31 ---
+
+record ipv4
+To activate an IPv4 flow record, use the record ipv4 command in flow monitor map configuration mode.
+To deactivate the flow record, use the no form of this command.
+record
+ipv4
+[ peer-as | | destination-tos | | [srv6][l2-l3] ]
+Syntax Description
+(Optional) Records peer AS.
+Note
+The Border Gateway Protocol (BGP) AS is not collected unless the bgp attribute
+download command is configured.
+peer-as
+(Optional) Records IPv4 destination based NetFlow accounting.
+destination-tos
+Records SRv6 based NetFlow data.
+srv6
+Records L2 and L3 specific NetFlow data.
+l2-l3
+Command Default
+The default is that no IPv4 flow record is enabled.
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+The destination-tos keyword was added to support destination-based Netflow accounting.
+Release 4.2.0
+This command was modified and the following optional keywords were introduced for the
+record ipv4 option:
+• srv6
+• l2-l3
+This keywords are supported on 4th generation and later ASR 9000 line cards.
+Release
+7.10.1
+Usage Guidelines
+• The BGP AS is not collected unless the bgp attribute download command is configured.
+• The record ipv4 command exports the BGP AS information in the following format:
+bgpSourceAsNumber
+bgpDestinationAsNumber
+• The record ipv4 peer-as command exports the adjacent BGP AS information in the following format:
+bgpPrevAdjacentAsNumber
+bgpNextAdjacentAsNumber
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+25
+NetFlow Commands
+record ipv4
+
+
+--- Page 32 ---
+
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to configure an IPv4 flow record:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)# record ipv4
+This example shows how to configure an IPv4 flow record for destination-based NetFlow accounting:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)# record ipv4 destination-tos
+RP/0/RSP0/CPU0:router(config-fmm)# exit
+RP/0/RSP0/CPU0:router(config)# interface Gigabit Ethernet 0/0/0/0
+RP/0/RSP0/CPU0:router(config-if)# flow ipv4 monitor monitor1 ingress
+RP/0/RSP0/CPU0:router(config-if)# end
+This example shows how to configure the srv6 flow record map name for the record ipv4
+option:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config-fem)# flow monitor-map MON-MAP-v6
+RP/0/RSP0/CPU0:router(config-fmm)# record ipv6 srv6
+RP/0/RSP0/CPU0:router(config-fmm)# exporter EXP
+RP/0/RSP0/CPU0:router(config-fmm)# cache timeout inactive 5
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router(config-fmm)# sampler-map SAMP
+RP/0/RSP0/CPU0:router(config-fmm)# random 1 out-of 1000
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router(config-fmm)# interface GigabitEthernet0/1/0/0
+RP/0/RSP0/CPU0:router(config-fmm)# ipv4 address 1.1.1.1 255.255.255.0
+RP/0/RSP0/CPU0:router(config-fmm)# flow ipv6 monitor M1 sampler SAMP ingres
+This example shows how to configure the l2-l3 flow record map name for the record ipv4
+option:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config-fem)# flow monitor-map M-IPv4
+RP/0/RSP0/CPU0:router(config-fmm)# record ipv4 l2-l3
+RP/0/RSP0/CPU0:router(config-fmm)# exporter EXP-ipfix
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router(config-fmm)# flow monitor-map M-IPv6
+RP/0/RSP0/CPU0:router(config-fmm)# record ipv6 l2-l3
+RP/0/RSP0/CPU0:router(config-fmm)# exporter EXP-ipfix
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router(config-fmm)# sampler-map SAMP
+RP/0/RSP0/CPU0:router(config-fmm)# random 1 out-of 1000
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router(config-fmm)# interface GigabitEthernet0/1/0/0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+26
+NetFlow Commands
+record ipv4
+
+
+--- Page 33 ---
+
+RP/0/RSP0/CPU0:router(config-fmm)# description CE-PE Interface
+RP/0/RSP0/CPU0:router(config-fmm)# ipv4 address<>
+RP/0/RSP0/CPU0:router(config-fmm)# ipv6 address<>
+RP/0/RSP0/CPU0:router(config-fmm)# flow ipv4 monitor M-IPv4 sampler SAMP ingres
+RP/0/RSP0/CPU0:router(config-fmm)# flow ipv6 monitor M-IPv6 sampler SAMP ingress
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+27
+NetFlow Commands
+record ipv4
+
+
+--- Page 34 ---
+
+record ipv6
+To configure the flow record map name for IPv6, use the record ipv6 command in flow monitor map
+configuration mode. To remove the configured name from a flow record, use the no form of this command.
+record
+ipv6
+{ | [srv6][l2-l3] }
+Syntax Description
+Records peer AS.
+peer-as
+Records SRv6 based NetFlow data.
+srv6
+Records L2 and L3 specific NetFlow data.
+l2-l3
+Command Default
+The default is that originating AS numbers are recorded.
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+This command was modified and the following optional keywords were introduced for the
+record ipv6 option:
+• srv6
+• l2-l3
+This keywords are supported on 4th generation and later ASR 9000 line cards.
+Release
+7.10.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to configure the flow record map name for IPv6:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)# record ipv6
+This example shows how to configure the srv6 flow record map name for the record ipv6
+option:
+RP/0/RSP0/CPU0:router# configure
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+28
+NetFlow Commands
+record ipv6
+
+
+--- Page 35 ---
+
+RP/0/RSP0/CPU0:router(config-fem)# flow monitor-map MON-MAP-v6
+RP/0/RSP0/CPU0:router(config-fmm)# record ipv6 srv6
+RP/0/RSP0/CPU0:router(config-fmm)# exporter EXP
+RP/0/RSP0/CPU0:router(config-fmm)# cache timeout inactive 5
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router(config-fmm)# sampler-map SAMP
+RP/0/RSP0/CPU0:router(config-fmm)# random 1 out-of 1000
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router(config-fmm)# interface GigabitEthernet0/1/0/0
+RP/0/RSP0/CPU0:router(config-fmm)# ipv6 address 2001:DB8:c18:1::/64
+RP/0/RSP0/CPU0:router(config-fmm)# flow ipv6 monitor M1 sampler SAMP ingres
+This example shows how to configure the l2-l3 flow record map name for the record ipv6
+option:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config-fem)# flow monitor-map M-IPv4
+RP/0/RSP0/CPU0:router(config-fmm)# record ipv4 l2-l3
+RP/0/RSP0/CPU0:router(config-fmm)# exporter EXP-ipfix
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router(config-fmm)# flow monitor-map M-IPv6
+RP/0/RSP0/CPU0:router(config-fmm)# record ipv6 l2-l3
+RP/0/RSP0/CPU0:router(config-fmm)# exporter EXP-ipfix
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router(config-fmm)# sampler-map SAMP
+RP/0/RSP0/CPU0:router(config-fmm)# random 1 out-of 1000
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router(config-fmm)# interface GigabitEthernet0/1/0/0
+RP/0/RSP0/CPU0:router(config-fmm)# description CE-PE Interface
+RP/0/RSP0/CPU0:router(config-fmm)# ipv4 address<>
+RP/0/RSP0/CPU0:router(config-fmm)# ipv6 address<>
+RP/0/RSP0/CPU0:router(config-fmm)# flow ipv4 monitor M-IPv4 sampler SAMP ingres
+RP/0/RSP0/CPU0:router(config-fmm)# flow ipv6 monitor M-IPv6 sampler SAMP ingress
+RP/0/RSP0/CPU0:router(config-fmm)# !
+RP/0/RSP0/CPU0:router
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+29
+NetFlow Commands
+record ipv6
+
+
+--- Page 36 ---
+
+record mpls
+To configure the flow record map name for MPLS, use the record mpls command in flow monitor map
+configuration mode. To remove the configured name from a flow record, use the no form of this command.
+record mpls [ipv4-fields] [ipv6-fields] [ipv4-ipv6-fields] [labels number]
+Syntax Description
+(Optional) Collects IPv4 fields in the MPLS-aware Netflow when the payload of the
+MPLS packet has IPv4 fields. It also collects MPLS traffic with no IPv4 payload, but the
+IPv4 fields are set to zero.
+ipv4-fields
+(Optional) Collects IPv6 fields in the MPLS-aware Netflow when the payload of the
+MPLS packet has IPv6 fields. It also collects MPLS traffic with no IPv6 payload, but the
+IPv6 fields are set to zero.
+ipv6-fields
+(Optional) Collects IPv4 and IPv6 fields in the MPLS-aware Netflow when the payload
+of the MPLS packet has either IPv4 fields or IPv6 fields. It also collects MPLS traffic
+with no IPv4 or IPv6 payload, but those fields are set to zero.
+ipv4-ipv6-fields
+(Optional) Configures the number of labels that are used in hashing. The number argument
+is the number of labels that are used in hashing. The range is from 1 to 6.
+labels number
+Command Default
+The default is no IPV4 fields and six labels.
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+In Cisco IOS XR software, you can have only one MPLS flow monitor running on an interface at a time. If
+you apply an additional MPLS flow monitor to the interface, the new flow monitor overwrites the existing
+one.
+You can configure the MPLS flow monitor to collect IPv4 fields, IPv6 fields, or both types of fields.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This configuration allows you to collect only MPLS fields. No payload information is collected.
+RP/0/RSP0/CPU0:router(config)# flow monitor-map MPLS-fmm
+RP/0/RSP0/CPU0:router(config-fmm)# record mpls labels 3
+RP/0/RSP0/CPU0:router(config-fmm)# cache permanent
+RP/0/RSP0/CPU0:router(config)# exit
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+30
+NetFlow Commands
+record mpls
+
+
+--- Page 37 ---
+
+RP/0/RSP0/CPU0:router(config)# interface Gigabit Ethernet 0/0/0/0
+RP/0/RSP0/CPU0:router(config-if)# flow mpls monitor MPLS-fmm sampler fsm ingress
+This configuration allows you to collect MPLS traffic with IPv4 fields. It also collects MPLS traffic
+with no IPv4 payload, but the IPv4 fields are set to zero.
+RP/0/RSP0/CPU0:router(config)# flow monitor-map MPLS-IPv4-fmm
+RP/0/RSP0/CPU0:router(config-fmm)# record mpls IPv4-fields labels 3
+RP/0/RSP0/CPU0:router(config-fmm)# cache permanent
+RP/0/RSP0/CPU0:router(config-fmm)# exit
+RP/0/RSP0/CPU0:router(config)# interface gigabitEthernet 0/0/0/0
+RP/0/RSP0/CPU0:router(config-if)# flow mpls monitor MPLS-IPv4-fmm sampler fsm ingress
+This configuration allows you to collect MPLS traffic with IPv6 fields. It also collects MPLS traffic
+with no IPv6 payload, but the IPv6 fields are set to zero.
+RP/0/RSP0/CPU0:router(config)# flow monitor-map MPLS-IPv6-fmm
+RP/0/RSP0/CPU0:router(config-fmm)# record mpls IPv6-fields labels 3
+RP/0/RSP0/CPU0:router(config-fmm)# cache permanent
+RP/0/RSP0/CPU0:router(config-fmm)# exit
+RP/0/RSP0/CPU0:router(config)# interface gigabitEthernet 0/0/0/0
+RP/0/RSP0/CPU0:router(config-if)# flow mpls monitor MPLS-IPv6-fmm sampler fsm ingress
+This configuration allows you to collect MPLS traffic with both IPv6 and IPv4 fields. It also collects
+MPLS traffic with no IPv4 or IPv6 payload, but those fields are set to zero.
+RP/0/RSP0/CPU0:router(config)# flow monitor-map MPLS-IPv4-IPv6-fmm
+RP/0/RSP0/CPU0:router(config-fmm)# record mpls IPv4-IPv6-fields labels 3
+RP/0/RSP0/CPU0:router(config-fmm)# cache permanent
+RP/0/RSP0/CPU0:router(config-fmm)# exit
+RP/0/RSP0/CPU0:router(config)# interface gigabitEthernet 0/0/0/0
+RP/0/RSP0/CPU0:router(config-if)# flow mpls monitor MPLS-IPv4-IPv6-fmm sampler fsm ingress
+This example shows how to configure three labels for hashing:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow monitor-map map1
+RP/0/RSP0/CPU0:router(config-fmm)# record mpls labels 3
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+31
+NetFlow Commands
+record mpls
+
+
+--- Page 38 ---
+
+record datalinksection
+To record the information element that carries n octets from the data link frame (IPFIX 315), use the record
+datalinksection command in flow monitor map configuration mode. To disable recording, use the no form
+of this command.
+record datalinksection
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+None
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+6.5.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This configuration allows you to collect IPFIX 315 element information:
+RP/0/RSP0/CPU0:router(config)# flow monitor-map ipfix-mon
+RP/0/RSP0/CPU0:router(config-fmm)# record datalinkframesection
+RP/0/RSP0/CPU0:router(config-fmm)# cache immediate
+RP/0/RSP0/CPU0:router(config)# exit
+RP/0/RSP0/CPU0:router(config)# interface Gigabit Ethernet 0/0/0/1
+RP/0/RSP0/CPU0:router(config-if)# flow datalinkframesection monitor ipfix-mon sampler
+ipfix-sm ingress
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+32
+NetFlow Commands
+record datalinksection
+
+
+--- Page 39 ---
+
+sampler-map
+To enter sampler map configuration submode for a specific monitor map, use the sampler-map command
+in Global Configuration mode. To remove a configured sampler map, use the no form of this command.
+sampler-map map_name
+Syntax Description
+Name of the sampler map you want to configure. The sampler map name can be a maximum
+32 characters.
+map_name
+Command Default
+None
+Command Modes
+Global Configuration mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+When you issue the sampler-map map_name command in Global Configuration mode, the CLI prompt
+changes to “config-sm,” indicating that you have entered the sampler map configuration submode. In this
+sample output, the question mark ( ? ) online help function displays all the commands available under sampler
+map configuration submode:
+RP/0/RSP0/CPU0:router(config)# sampler-map test
+RP/0/RSP0/CPU0:router(config-sm)# ?
+clear
+Clear the uncommitted configuration
+commit
+Commit the configuration changes to running
+describe
+Describe a command without taking real actions
+do
+Run an exec command
+exit
+Exit from this submode
+no
+Negate a command or set its defaults
+pwd
+Commands used to reach current submode
+random
+Use random mode for sampling packets
+root
+Exit to the global configuration mode
+show
+Show contents of configuration
+These restrictions prevent the NetFlow processes from using up all of the available CPU:
+• NetFlow supports a policer rate of 35,000 packets per second per direction for each individual line card.
+• NetFlow supports a policer rate of 50,000 packets per second per direction for each individual line card
+if Sampled NetFlow (SNF) is enabled in one direction (ingress or egress). Note that this limit does not
+apply if SNF is enabled in both directions. If SNF is enabled in both directions, then NetFlow supports
+25,000 packets per second per direction for each individual line card.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+33
+NetFlow Commands
+sampler-map
+
+
+--- Page 40 ---
+
+Examples
+This example shows how to use the sampler-map command to enter sampler map configuration
+submode for the monitor map called “map1:”
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# sampler-map map1
+RP/0/RSP0/CPU0:router(config-sm)#
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+34
+NetFlow Commands
+sampler-map
+
+
+--- Page 41 ---
+
+show flow exporter
+To display flow exporter data, enter the show flow exporter command in EXEC mode.
+show flow exporter [exporter_name] location node-id
+Syntax Description
+Identifies the flow exporter whose data you want to display.
+exporter_name
+Location where the cache resides. The node-id argument is expressed in the
+rack/slot/module notation.
+Note
+Enter the show platform command to see the location of all nodes installed in the
+router.
+location node-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+This example shows how to display flow exporter map data:
+RP/0/RSP0/CPU0:router# show flow exporter fem1 location 0/0/CPU0
+Flow Exporter: NFC
+Used by flow monitors: fmm4
+Status: Normal
+Transport
+UDP
+Destination 12.24.39.0
+(50001)
+Source
+12.25.54.3
+(5956)
+Flows exported:
+0 (0 bytes)
+Flows dropped:
+0 (0 bytes)
+Templates exported:
+1 (88 bytes)
+Templates dropped:
+0 (0 bytes)
+Option data exported:
+0 (0 bytes)
+Option data dropped:
+0 (0 bytes)
+Option templates exported:
+2 (56 bytes)
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+35
+NetFlow Commands
+show flow exporter
+
+
+--- Page 42 ---
+
+Option templates dropped:
+0 (0 bytes)
+Packets exported:
+3 (144 bytes)
+Packets dropped:
+0 (0 bytes)
+Total export over last interval of:
+1 hour:
+0 pkts
+0 bytes
+0 flows
+1 minute:
+3 pkts
+144 bytes
+0 flows
+1 second:
+0 pkts
+0 bytes
+0 flows
+Table 2: show flow exporter Field Descriptions
+Description
+Field
+Identifies the flow exporter map.
+Id
+Name of the flow monitors associated with the specified flow
+exporter map.
+Used by flow monitors
+Status of the exporter.
+• Normal—Exporter is active and can export packets.
+• Disabled—Exporter cannot send out packets because the
+collector is unreachable or the configuration is incomplete.
+Status
+Export destination address the current flow exporter map.
+Destination
+Flows exported, in bytes.
+Flows exported
+Flows dropped, in bytes.
+Flows dropped
+Templates exported, in bytes.
+Templates exported
+Templates dropped, in bytes.
+Templates dropped
+Option data exported, in bytes.
+Option data exported
+Option data dropped, in bytes.
+Option data dropped
+Option templates exported, in bytes.
+Option templates exported
+Option templates dropped, in bytes.
+Option templates dropped
+Packets exported, in bytes.
+Packets exported:
+Packets dropped, in bytes.
+Packets dropped
+Average export rate, in bytes/pkts. Information is displayed for
+intervals of the last hour, minute, and second.
+Average export rate over interval of last:
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+36
+NetFlow Commands
+show flow exporter
+
+
+--- Page 43 ---
+
+show flow exporter-map
+To display flow exporter map information for a specific node, enter the show flow exporter-map command
+in EXEC mode.
+show flow exporter-map [name]
+Syntax Description
+Name of the exporter map whose information you want to display.
+name
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+This command was updated to display exporter version type IPFIX
+information.
+Release 6.0.1
+The show command output was updated to display router-id
+information.
+Release 7.10.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+This example shows how to configure IPFIX as an exporter verison in the exporter-map fem_ipfix:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow exporter-map fem_ipfix
+RP/0/RSP0/CPU0:router(config-fem)# destination 10.17.7.24
+RP/0/RSP0/CPU0:router(config-fem)# transport udp 1025
+RP/0/RSP0/CPU0:router(config-fem)# version ipfix
+RP/0/RSP0/CPU0:router(config-fem-ver)# options sampler-table timeout 1800
+RP/0/RSP0/CPU0:router(config-fem-ver)# exit
+RP/0/RSP0/CPU0:router(config-fem)# exit
+RP/0/RSP0/CPU0:router(config)# exit
+The show flow exporter-map command output shows IPFIX as an exporter version that we configured
+earlier in flow exporter map fem_ipfix:
+RP/0/RSP0/CPU0:router# show flow exporter-map fem_ipfix
+Flow Exporter Map : fem_ipfix
+-------------------------------------------------
+Id
+: 2
+DestinationIpAddr
+: 10.17.7.24
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+37
+NetFlow Commands
+show flow exporter-map
+
+
+--- Page 44 ---
+
+VRFName
+: default
+SourceIfName
+:
+SourceIpAddr
+:
+DSCP
+: 0
+TransportProtocol
+: UDP
+TransportDestPort
+: 1025
+Export Version: IPFIX
+Common Template Timeout : 1800 seconds
+Options Template Timeout : 1800 seconds
+Data Template Timeout : 1800 seconds
+Interface-Table Export Timeout : 0 seconds
+Sampler-Table Export Timeout : 1800 seconds
+VRF-Table Export Timeout : 0 seconds
+This example shows how to display flow exporter map information:
+RP/0/RSP0/CPU0:router# show flow exporter-map map1
+Flow Exporter Map : map1
+-------------------------------------------------
+Id
+: 2
+DestinationIpAddr
+: 10.1.1.1
+SourceIfName
+: Loopback0
+SourceIpAddr
+: 10.1.1.1
+DSCP
+: 10
+TransportProtocol
+: UDP
+TransportDestPort
+: 1024
+Export Version: 9
+Common Template Timeout : 1800 seconds
+Options Template Timeout : 1800 seconds
+Data Template Timeout : 600 seconds
+Interface-Table Export Timeout : 1800 seconds
+Sampler-Table Export Timeout : 0 seconds
+This example shows how to display flow exporter map with router-id information:
+Router# show flow exporter-map E
+Fri Mar 24 13:28:13.617 IST
+Flow Exporter Map
+: E
+-------------------------------------------------
+Id
+: 6
+Packet-Length
+: 1468
+DestinationIpAddr
+:
+VRFName
+:
+SourceIfName
+:
+SourceIpAddr
+: Unsupported family type (0)
+DSCP
+: 0
+TransportProtocol
+:
+TransportDestPort
+:
+TransportSourcePortSelectionMethod
+:
+Do Not Fragment
+: Not Enabled
+Router-Id
+: 209.165.201.1
+Export Version: 9
+Common Template Timeout : 1800 seconds
+Options Template Timeout : 1800 seconds
+Data Template Timeout : 1800 seconds
+Interface-Table Export Timeout : 0 seconds
+Sampler-Table Export Timeout : 0 seconds
+VRF-Table Export Timeout : 0 seconds
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+38
+NetFlow Commands
+show flow exporter-map
+
+
+--- Page 45 ---
+
+This table describes the significant fields shown in the display.
+Table 3: show flow exporter-map Field Descriptions
+Description
+Field
+Identifies the flow exporter map.
+Id
+Exports destination configuration.
+DestinationIpAddr
+Source interface for this exporter map. You can specify the source interface
+with the flow exporter-map command.
+SourceIfName
+IP address of the source interface (SourceIfName).
+SourceIpAddr
+Differentiated services codepoint (DSCP) value for export packets.
+Note
+You can specify the DSCP with the flow exporter-map command.
+DSCP
+Displays the configured transport protocol.
+Note
+Cisco IOS XR software supports the UDP transport protocol only.
+Note
+You can specify the transport protocol with the flow exporter-map
+command.
+TransportProtocol
+Displays the configured destination port for UDP packets.
+TransportDestPort
+Displays the configured router-id or agent-id.
+Router-Id
+Displays the configured export format.
+Note
+Cisco IOS XR software supports export format version 9 only.
+Export Version
+Displays the configured common template timeout.
+Common Template Timeout
+Displays the configured options template timeout.
+Note
+You can specify the options template timeout with the flow exporter-map
+command.
+Options Template Timeout
+Displays the configured data template timeout.
+Note
+You can specify the data template timeout with the flow exporter-map
+command.
+Data Template Timeout
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+39
+NetFlow Commands
+show flow exporter-map
+
+
+--- Page 46 ---
+
+Description
+Field
+Displays the export timeout value for the interface table.
+Note
+You can specify the export timeout for the interface table with the flow
+exporter-map command.
+Interface-Table Export Timeout
+Displays the export timeout value for the sampler table.
+Note
+You can specify the export timeout for the sampler table with the flow
+exporter-map command.
+Sampler-Table Export Timeout
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+40
+NetFlow Commands
+show flow exporter-map
+
+
+--- Page 47 ---
+
+show flow monitor
+To display flow monitor cache data in various formats, enter the show flow monitor command in EXEC
+mode.
+To match on Access Control Lists (ACLs) and one or more fields:
+show flow monitor monitor-name cache match
+{ipv4
+{acl name | source-address match-options
+| destination-address match-options | protocol match-options | tos match-options} | ipv6
+{acl name |
+source-address match-options | destination-address match-options | protocol match-options | tc
+match-options} | layer4
+{source-port-overloaded match-options | destination-port-overloaded
+match-options | tcp-flags match-flags-options} | bgp
+{source-as match-options | destination-as
+match-options} | interface
+{ingress match-if-options | egress match-if-options} | timestamp
+{first
+match-options | last match-options} | counters
+{byte match-options | packets match-options} | misc
+{forwarding-status match-options | direction match-dir-options}}
+To sort flow record information according to a particular field:
+show flow monitor monitor-name cache sort
+{ipv4
+{source-address | destination-address | tos |
+protocol} | ipv4
+{source-address | destination-address | tc | protocol} | mpls
+{label-2 | label-3 | label-4
+| label-5 | label-6 | label-type | prefix | top-label} | layer4
+{source-port-overloaded |
+destination-port-overloaded} | bgp
+{source-as | destination-as} | timestamp
+{first | last} | counters
+{bytes | packets} | misc
+{forwarding-status | direction}
+{top | bottom} [entries]}
+To include or exclude one or more fields in the show flow monitor command output:
+show flow monitor monitor-name cache
+{include | exclude}
+{ipv4
+{source-address |
+destination-address | tos | protocol} | ipv6
+{source-address | destination-address | tc | flow-label |
+option-headers | protocol} | mpls
+{label-2 | label-3 | label-4 | label-5 | label-6 | top-label} | layer4
+{source-port-overloaded | destination-port-overloaded} | bgp {source-as | destination-as} | timestamp
+{first | last} | counters
+{bytes | packets} | misc
+{forwarding-status match-options | direction
+match-dir-options}}
+To display summarized flow record statistics:
+show flow monitor monitor-name cache summary location node-id
+To display only key field, packet, and byte information for the flow records:
+show flow monitor monitor-name cache brief location node-id
+To display flow record information for a particular node only:
+show flow monitor monitor-name cache location node-id
+Syntax Description
+If you specified the show flow monitor monitor-name cache match command to match on ACL and one
+or more fields:
+Flow monitor map whose details you want to display.
+monitor-name
+Displays details about the flow monitor cache.
+cache
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+41
+NetFlow Commands
+show flow monitor
+
+
+--- Page 48 ---
+
+Specifies match criteria for the display.
+Enter the match keyword followed by the ?
+command to see a complete list of possible match
+criteria.
+match
+Specifies IPv4 fields.
+ipv4
+Specifies IPv6 fields.
+ipv6
+Specifies an access list. Replace name with the name
+of the access whose information you want to display.
+acl name
+Specifies source IP address match options. Possible
+match options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the source-address keyword followed by the
+? command to see a complete list of possible match
+criteria.
+source-address match-options
+Specifies IPV4 or IPv6 destination address match
+options. Possible match options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the destination-address keyword followed by
+the ? command to see a complete list of possible
+match criteria.
+destination-address
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+42
+NetFlow Commands
+show flow monitor
+
+
+--- Page 49 ---
+
+Compares fields and matches them based on the type
+of service value. Range is from 0 through 255. Possible
+match options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the tos keyword followed by the ? command
+to see a complete list of possible match criteria.
+tos match-options
+Compares fields and matches them based on the
+protocol value. Possible match options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the protocol keyword followed by the ?
+command to see a complete list of possible match
+criteria.
+protocol match-options
+Compares Layer 4 fields and matches them based on
+specific criteria. You can specify match criteria for any
+of the following Layer 4 fields:
+• destination-port-overloaded
+• source-port-overloaded
+• tcp-flags
+Note
+Enter the layer4 keyword followed by the ?
+command to see a complete list of possible Layer 4
+fields to compare and match.
+layer4
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+43
+NetFlow Commands
+show flow monitor
+
+
+--- Page 50 ---
+
+Compares fields and matches them based on the
+destination-port-overloaded value. The destination
+port is matched if the protocol specified for that port
+is TCP or UDP.
+Possible match options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the destination-port-overloaded keyword
+followed by the ? command to see a complete list of
+possible match criteria.
+destination-port-overloaded
+Compares fields and matches them based on the
+source-port-overloaded value.
+The source port is matched if the protocol specified for
+that port is one of the following:
+• TCP—Range is from 0 through 65535.
+• UDP—Range is from 0 through 65535.
+• ICMP—Type or code is in range from 0 through
+255.
+• IGMP—Type is in range from 0 through 255.
+Possible match options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+NoteEnter the source-port-overloaded keyword
+followed by the ? command to see a complete list of
+possible match criteria.
+source-port-overloaded
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+44
+NetFlow Commands
+show flow monitor
+
+
+--- Page 51 ---
+
+Specifies TCP flags, as follows:
+• all —Match all of the fields
+• any —Match any of the fields
+• none —Match none of the fields.
+Note
+Enter the tcp-flags keyword followed by the ?
+command to see a complete list of possible match
+criteria.
+tcp-flags match-flags-options
+Compares BGP fields and matches them based on
+specific criteria. You can specify match criteria for any
+of the following BGP fields:
+• destination-as —Destination as.
+• source-as —Source as.
+bgp
+Compares and matches the BGP autonomous system
+number of the destination address.
+Possible match options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the source-as keyword followed by the ?
+command to see a complete list of possible match
+criteria.
+source-as match-options
+Compares and matches the BGP autonomous system
+number of the source address. Possible match options
+are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the destination-as keyword followed by the
+? command to see a complete list of possible match
+criteria.
+destination-as match-options
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+45
+NetFlow Commands
+show flow monitor
+
+
+--- Page 52 ---
+
+Specifies the time stamp for which to compare and
+match the specified criteria. Enter the first keyword
+or the last keyword to specify the time stamp whose
+criteria you want to compare.
+timestamp
+Compares fields from the first time stamp and matches
+them based on the match-options value. Possible match
+options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the first keyword followed by the ? command
+to see a complete list of possible match criteria.
+first match-options
+Compares fields from the last time stamp and matches
+them based on the match-if-options value. Possible
+match options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the last keyword followed by the ? command
+to see a complete list of possible match criteria.
+last match-options
+Specifies the counters for which to compare and match
+the specified criteria. Enter the byte keyword or the
+packets keyword to specify the counters whose criteria
+you want to compare.
+counters
+Compares bytes counter fields and matches them based
+on the match-options value. Possible match options
+are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the byte keyword followed by the ? command
+to see a complete list of possible match criteria.
+byte match-options
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+46
+NetFlow Commands
+show flow monitor
+
+
+--- Page 53 ---
+
+Compares packets counter fields and matches them
+based on the match-options value. Possible match
+options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Note
+Enter the byte keyword followed by the ? command
+to see a complete list of possible match criteria.
+packets match-options
+Specifies miscellaneous fields for which to compare
+and match the specified criteria. Enter the
+forwarding-status keyword or the direction
+keyword to specify the field whose criteria you want
+to compare.
+misc
+Compares forwarding status fields and matches them
+based on the match-options value. Possible match
+options are:
+• eq —Match if equal to field value.
+• gt —Match if greater than field value.
+• lt —Match if less than field value.
+• neq —Match if not equal to field value.
+• range —Match if within the range of field values.
+Enter the forwarding-status keyword followed by
+the ? command to see a complete list of possible
+match criteria.
+forwarding-status match-options
+Compares information about the direction of the flow
+and matches it based on the match-options value.
+Possible match options are:
+• eq —Match if equal to field value.
+• neq —Match if not equal to field value.
+Note
+Enter the direction keyword followed by the ?
+command to see a complete list of possible match
+criteria.
+direction match-dir-options
+To sort flow record information according to a particular field:
+Flow monitor map whose details you want to display.
+monitor-name
+Displays details about the flow monitor cache.
+cache
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+47
+NetFlow Commands
+show flow monitor
+
+
+--- Page 54 ---
+
+Determines sorting criteria for the show flow monitor
+command display.
+sort
+Specifies sorting criteria for one of the following IPv4
+fields:
+• destination-address
+• source-address
+• protocol
+• tos
+Note
+Enter the ipv4 keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+ipv4
+Specifies sorting criteria for one of the following IPv6
+fields:
+• destination-address
+• source-address
+• protocol
+• tos
+Note
+Enter the ipv6 keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+ipv6
+Displays IPv4 or IPv6 information for the source
+address according to the specified sorting criteria.
+Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the source-address keyword followed by the
+? command to see a complete list of possible sorting
+criteria.
+source-address
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+48
+NetFlow Commands
+show flow monitor
+
+
+--- Page 55 ---
+
+Displays IPv4 or IPv6 information for the destination
+address according to the specified sorting criteria.
+Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the destination-address keyword followed by
+the ? command to see a complete list of possible
+sorting criteria.
+destination-address
+Displays IPv4 type of service information according
+to the specified sorting criteria. Possible sorting options
+are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the tos keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+tos
+Displays IPv6 traffic class information according to
+the specified sorting criteria. Possible sorting options
+are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the tc keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+tc
+Displays IPv4 or IPv6 protocol information according
+to the specified sorting criteria. Possible sorting options
+are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the tos keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+protocol
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+49
+NetFlow Commands
+show flow monitor
+
+
+--- Page 56 ---
+
+Specifies sorting criteria for one of the following MPLS
+fields:
+• label-2
+• label-3
+• label-4
+• label-5
+• label-6
+• label-type
+• prefix
+• top-label
+Note
+Enter the mpls keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+mpls
+Displays MPLS information for the second label in the
+MPLS label stack. Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+label-2
+Displays MPLS information for the third label in the
+MPLS label stack. Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+label-3
+Displays MPLS information for the fourth label in the
+MPLS label stack. Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+label-4
+Displays MPLS information for the fifth label in the
+MPLS label stack. Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+label-5
+Displays MPLS information for the sixth label in the
+MPLS label stack. Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+label-6
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+50
+NetFlow Commands
+show flow monitor
+
+
+--- Page 57 ---
+
+Displays MPLS information for the specified type of
+label in the MPLS label stack. Possible sorting options
+are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+label-type
+Displays MPLS information for the destination address.
+Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+prefix
+Displays MPLS information for the top label in the
+MPLS label stack. Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+top-label
+Specifies sorting criteria for one of the following Layer
+4 fields:
+• source-port-overloaded
+• destination-port-overloaded
+Note
+Enter the layer4 keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+layer4
+Displays source port overload information according
+to the specified sorting criteria. Possible sorting options
+are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the source-port-overloaded keyword followed
+by the ? command to see a complete list of possible
+sorting criteria.
+source-port-overloaded
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+51
+NetFlow Commands
+show flow monitor
+
+
+--- Page 58 ---
+
+Displays destination port overload information
+according to the specified sorting criteria. Possible
+sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the destination-port-overloaded keyword
+followed by the ? command to see a complete list of
+possible sorting criteria.
+destination-port-overloaded
+Specifies sorting criteria for one of the following BGP
+fields:
+• source-as
+• destination-as
+Note
+Enter the layer4 keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+bgp
+Displays information about the BGP source address
+autonomous system number according to the specified
+sorting criteria. Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the source-as keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+source-as
+Displays information about the BGP destination address
+autonomous system number according to the specified
+sorting criteria. Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the destination-as keyword followed by the
+? command to see a complete list of possible sorting
+criteria.
+destination-as
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+52
+NetFlow Commands
+show flow monitor
+
+
+--- Page 59 ---
+
+Specifies sorting criteria for the first or last time stamp.
+Enter the first keyword or the last keyword to
+specify the time stamp whose criteria you want to
+specify.
+Note
+Enter the timestamp keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+timestamp
+Displays information for the first time stamp according
+to the specified sorting criteria. Possible sorting options
+are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the first keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+first
+Displays information for the last time stamp according
+to the specified sorting criteria. Possible sorting options
+are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the last keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+last
+Specifies sorting criteria for the bytes or packets
+counters. Follow the counters keyword with the byte
+keyword or the packets keyword to specify the
+counters whose criteria you want to compare.
+counters
+Displays bytes counter information according to the
+specified sorting criteria. Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the bytes keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+bytes
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+53
+NetFlow Commands
+show flow monitor
+
+
+--- Page 60 ---
+
+Displays packets counter information according to the
+specified sorting criteria. Possible sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the packets keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+packets
+Specifies sorting criteria for miscellaneous fields.
+Follow the misc keyword with the forwarding-status
+keyword or the direction keyword to specify the
+counters whose criteria you want to compare.
+misc
+Displays forwarding status information according to
+the specified sorting criteria. Possible sorting options
+are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the forwarding-status keyword followed by
+the ? command to see a complete list of possible
+sorting criteria.
+forwarding-status
+Displays information about the direction of the flow
+according to the specified sorting criteria. Possible
+sorting options are:
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+Note
+Enter the direction keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+direction
+Displays top cache entries. Replace records with the
+number of records you want to display.
+Note
+You can follow the top keyword with the optional
+entries argument to specify the number of records to
+display.
+top
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+54
+NetFlow Commands
+show flow monitor
+
+
+--- Page 61 ---
+
+Displays bottom cache entries. Replace records with
+the number of records you want to display.
+Note
+You can follow the bottom keyword with the
+optional entries argument to specify the number of
+records to display.
+bottom
+Number of records to display. Range is from 1 through
+1000.
+entries
+To include or exclude one or more fields in the show flow monitor command output:
+Flow monitor map whose details you want to display.
+monitor-name
+Displays details about the flow monitor cache.
+cache
+Includes the specified fields in the display output. Enter
+the include keyword, followed by the keyword or
+keywords that specify the fields to include.
+Note
+To see a list of fields that can be included, enter the
+include keyword, followed by the ? command.
+include
+Excludes the specified fields in the display output.
+Enter the exclude keyword, followed by the keyword
+or keywords that specify the fields to exclude.
+Note
+To see a list of fields that can be excluded, enter the
+exclude keyword, followed by the ? command.
+exclude
+Includes or excludes one of the following IPv4 fields
+in the command output:
+• destination-address
+• source-address
+• protocol
+• tos
+Note
+Enter the ipv4 keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+ipv4
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+55
+NetFlow Commands
+show flow monitor
+
+
+--- Page 62 ---
+
+Includes or excludes one of the following IPv6 fields
+in the command output:
+• destination-address
+• flow-label
+• option-headers
+• source-address
+• protocol
+• tos
+Note
+Enter the ipv6 keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+ipv6
+Includes or excludes IPV4 or IPV6 information for the
+source address in the command output.
+source-address
+Includes or excludes IPV4 or IPV6 information for the
+destination address in the command output.
+destination-address
+Includes or excludes information about the IPv6 flow
+label in the command output. The flow label is the
+20-bit flow label id present in every IPv6 packet header.
+flow-label
+Includes or excludes IPV6 information for the option
+headers in the command output. The option header is
+a bit mask that indicates which options headers are
+present in the IPv6 header.
+option-headers
+Includes or excludes IPV4 type of service information
+in the command output.
+tos
+Includes or excludes IPV6 traffic class information in
+the command output.
+tc
+Includes or excludes IPV4 or IPV6 protocol
+information in the command output.
+protocol
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+56
+NetFlow Commands
+show flow monitor
+
+
+--- Page 63 ---
+
+Includes or excludes one of the following MPLS fields
+in the command output:
+• label-2
+• label-3
+• label-4
+• label-5
+• label-6
+• top-label
+Note
+Enter the mpls keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+mpls
+Includes or excludes MPLS information for the second
+label in the MPLS label stack.
+label-2
+Includes or excludes MPLS information for the third
+label in the MPLS label stack.
+label-3
+Includes or excludes MPLS information for the fourth
+label in the MPLS label stack.
+label-4
+Includes or excludes MPLS information for the fifth
+label in the MPLS label stack.
+label-5
+Includes or excludes MPLS information for the sixth
+label in the MPLS label stack.
+label-6
+Includes or excludes MPLS information for the top
+label in the MPLS label stack.
+top-label
+Includes or excludes one of the following the following
+Layer 4 fields in the command output:
+• source-port-overloaded
+• destination-port-overloaded
+Note
+Enter the layer4 keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+layer4
+Includes or excludes source port overload information
+in the command output.
+source-port-overloaded
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+57
+NetFlow Commands
+show flow monitor
+
+
+--- Page 64 ---
+
+Includes or excludes destination port overload
+information in the command output.
+• top —Displays top cache entries.
+• bottom —Displays bottom cache entries.
+destination-port-overloaded
+Includes or excludes the following BGP fields in the
+command output:
+• source-as
+• destination-as
+Note
+Enter the bgp keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+bgp
+Includes or excludes information about the BGP source
+address autonomous system number in the command
+output.
+source-as
+Includes or excludes information about the BGP
+destination address autonomous system number in the
+command output.
+destination-as
+Includes or excludes information from the first or last
+time stamp in the command output. Enter the first
+keyword or the last keyword to include or exclude
+information about a specific time stamp.
+Note
+Enter the timestamp keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+timestamp
+Includes or excludes information for the first time
+stamp in the command output.
+first
+Includes or excludes information for the first time
+stamp in the command output.
+last
+Includes or excludes bytes or packets counters in the
+command output. Follow the counters keyword with
+the byte keyword or the packets keyword to include
+or exclude particular counters.
+Note
+Enter the counters keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+counters
+Includes or excludes bytes counter information in the
+command output.
+bytes
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+58
+NetFlow Commands
+show flow monitor
+
+
+--- Page 65 ---
+
+Includes or excludes packets counter information in
+the command output.
+packets
+Includes or excludes information for miscellaneous
+fields in the command output. Follow the misc
+keyword with the forwarding-status keyword or the
+direction keyword to specify the field you want to
+include or exclude.
+Note
+Enter the misc keyword followed by the ? command
+to see a complete list of possible sorting criteria.
+misc
+Includes or excludes forwarding status information in
+the command output.
+forwarding-status
+Includes or excludes information about the direction
+of the flow in the command output.
+direction
+Includes or excludes top cache entries in the command
+output. Replace records with the number of records
+you want to display.
+top
+Includes or excludes bottom cache entries. Replace
+records with the number of records you want to
+display
+bottom
+Number of records to display. Range is from 1 through
+1000.
+entries
+To display summarized flow record statistics:
+Flow monitor map whose details you want to display.
+monitor-name
+Displays details about the flow monitor cache.
+cache
+Displays summarized flow monitor information only.
+summary
+Flow monitor map whose details you want to display.
+monitor-name
+Displays details about the flow monitor cache.
+cache
+Abbreviates the show flow monitor command output.
+brief
+To display flow record information for a particular node only:
+Flow monitor map whose details you want to display.
+monitor-name
+Displays details about the flow monitor cache.
+cache
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+59
+NetFlow Commands
+show flow monitor
+
+
+--- Page 66 ---
+
+Identifies the node whose flow exporter statistics you
+want to clear, or whose flow exporter statistics collector
+you want to restart. The node-id argument is expressed
+in the rack/slot/module notation.
+Note
+Enter the location keyword followed by the ?
+command to see a complete list of possible sorting
+criteria.
+location node-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+The interface keyword options were removed.
+Release 4.0.0
+Usage Guidelines
+To collect source and destination AS information, you must enable BGP on the relevant BGP AFI/SAFI.
+Unless this is done, all AS numbers in the flow records are displayed as 0.
+Note
+Keep these information in mind when using the show flow monitor command:
+• The show flow monitor command can include combinations of these options:
+• format
+• match
+• include
+• exclude
+• sort
+• summary
+• location
+• We do not recommend including the summary option with the sort and format options.
+• The mutually exclusive options are summary, brief, include, and exclude.
+• To see a list of fields that can be included after a keyword, enter the ? command, as shown in this
+example:
+RP/0/RSP0/CPU0:router# show flow monitor map1 cache summary ?
+brief
+Show just the key fields
+exclude
+Exclude field
+format
+Display format
+include
+Include field
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+60
+NetFlow Commands
+show flow monitor
+
+
+--- Page 67 ---
+
+location
+Specify a location
+match
+Match criteria
+sort
+Sorting criteria
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+This example shows how to display flow monitor data for a specific monitor map cache in the location
+0/0/CPU0 :
+RP/0/RSP0/CPU0:router# show flow monitor fmm2 cache loc 0/0/CPU0
+Cache summary for Flow Monitor fmm2:
+Cache size:
+65535
+Current entries:
+4
+High Watermark:
+62258
+Flows added:
+4
+Flows not added:
+0
+Ager Polls:
+60
+- Active timeout
+0
+- Inactive timeout
+0
+- TCP FIN flag
+0
+- Watermark aged
+0
+- Emergency aged
+0
+- Counter wrap aged
+0
+- Total
+0
+Periodic export:
+- Counter wrap
+0
+- TCP FIN flag
+0
+Flows exported
+0
+Matching entries:
+4
+IPV4SrcAddr
+IPV4DstAddr
+L4SrcPort
+L4DestPort BGPDstOrigAS BGPSrcOrigAS
+IPV4DstPrfxLen
+IPV4SrcPrfxLen
+IPV4Prot IPV4TOS
+InputInterface
+OutputInterface L4TCPFlags
+ForwardStatus
+ForwardReason FirstSwitched
+LastSwitched
+ByteCount
+PacketCount
+Dir Sampler ID
+17.17.17.2
+18.18.18.2
+0
+0
+0
+0
+24
+24
+$
+61
+normal
+HundredGigE /0/0/8
+HundredGigE 0/0/0/12
+0
+Fwd
+0
+00
+00:02:43:800 00 00:02:49:980 37200
+620
+In 0
+18.18.18.2
+17.17.17.2
+0
+0
+0
+0
+24
+24
+$
+61
+normal
+HundredGigE 0/0/0/12
+HundredGigE 0/0/0/8
+0
+Fwd
+0
+00
+00:02:43:791 00 00:02:49:980 37200
+620
+In 0
+17.17.17.2
+18.18.18.2
+0
+0
+0
+0
+24
+0
+$
+61
+normal
+HundredGigE 0/0/0/8
+HundredGigE 0/0/0/12
+0
+Fwd
+0
+00
+00:02:43:798 00 00:02:49:980 34720
+620
+Out 0
+18.18.18.2
+17.17.17.2
+0
+0
+0
+0
+24
+0
+$
+61
+normal
+HundredGigE 0/0/0/12
+HundredGigE 0/0/0/8
+0
+Fwd
+0
+00
+00:02:43:797 00 00:02:49:980 34720
+620
+Out 0
+L4SrcPort
+L4DestPort BGPDstOrigAS BGPSrcOrigAS IPV4DstPrfxLen
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+61
+NetFlow Commands
+show flow monitor
+
+
+--- Page 68 ---
+
+This table describes the significant fields shown in the display.
+Table 4: show flow monitor Field Descriptions
+Description
+Field
+Displays general cache information for the specified flow monitor. The
+following information is displayed
+• Cache size for the specified flow monitor map
+• Current number of entries in the cache
+• High watermark for this cache
+• Number of flows added to the cache
+• Number of flows not added to the cache
+Cache summary for Flow
+Monitor fmm2
+Displays the following ager statistics:
+• Active timeout
+• Inactive timeout
+• TCP FIN flag
+• Watermark aged
+• Emergency aged
+• Counter wrap aged
+• Total
+Ager Polls
+• Counter wrap
+• TCP FIN flag
+Periodic export
+Displays general cache information for the specified flow monitor. The
+following information is displayed
+• Cache size for the specified flow monitor map
+• Current number of entries in the cache
+• High watermark for this cache
+• Number of flows added to the cache
+• Number of flows not added to the cache
+Cache summary for Flow
+Monitor fmm2
+Displays the system uptime at which the first packet of this flow was switched.
+The display format is days hours:minutes:seconds:milliseconds
+FirstSwitched
+Displays the system uptime at which the last packet of this flow was switched.
+The display format is days hours:minutes:seconds:milliseconds
+LastSwitched
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+62
+NetFlow Commands
+show flow monitor
+
+
+--- Page 69 ---
+
+show flow monitor-map
+To display flow monitor map data, enter the show flow monitor-map command in EXEC mode.
+show flow monitor-map map-name Optional: [srv6]
+Syntax Description
+Name of the monitor map whose data you want to display.
+map-name
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+The show flow monitor-map command output was modified to display the monitor-map data
+for ipv6 srv6 subtypes.
+Release 7.8.1
+This command was introduced.
+Release 3.9.1
+The ipv4-raw record map name was replaced with ipv4.
+Release 3.4.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+This example shows how to display IPv4 monitor-map data for a specific flow:
+RP/0/RSP0/CPU0:router# show flow monitor-map map1
+Flow Monitor Map : map1
+-------------------------------------------------
+Id:
+1
+RecordMapName:
+ipv4
+ExportMapName:
+NFC
+CacheAgingMode:
+Permanent
+CacheMaxEntries:
+10000
+CacheActiveTout:
+N/A
+CacheInactiveTout: N/A
+CacheUpdateTout:
+60 seconds
+This example shows how to display SRv6 monitor-map data for a specific flow:
+RP/0/RSP0/CPU0:router# show flow monitor-map MON-MAP-1
+Flow Monitor Map : MON
+-------------------------------------------------
+Id:
+1
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+63
+NetFlow Commands
+show flow monitor-map
+
+
+--- Page 70 ---
+
+RecordMapName:
+srv6
+ExportMapName:
+EXP
+CacheAgingMode:
+Normal
+CacheMaxEntries:
+65535
+CacheActiveTout:
+101 seconds
+CacheInactiveTout: 15 seconds
+CacheUpdateTout:
+N/A
+CacheRateLimit:
+2000
+HwCacheExists:
+False
+HwCacheInactTout:
+50
+This table describes the significant fields shown in the display.
+Table 5: show flow monitor-map Field Descriptions
+Description
+Field
+Name of the flow monitor map whose information is display in the show flow
+monitor-map command output.
+Flow Monitor Map
+Number that identifies the flow monitor map.
+Id
+Name of the flow record map that is associated with this monitor map. The
+RecordMapName indicates the type of packets NetFlow captures as they leave the router.
+RecordMapName
+Name of the export map that is associated with this monitor map.
+ExportMapName
+Current aging mode configured on this cache.“Permanent” indicates that the removal of
+entries from the monitor map flow cache is disabled.
+Note
+To configure the number of entries allowed in the monitor map flow cache, enter the
+cache entries command in flow monitor map configuration mode. To disable the
+removal of entries from the monitor map flow cache, enter the cache permanent
+command in flow monitor map configuration mode.
+CacheAgingMode
+Number of flow entries currently allowed in the flow cache before the oldest entry is
+removed.
+Note
+To modify the number of entries in the monitor map flow cache, enter the cache entries
+command in flow monitor map configuration mode
+CacheMaxEntries
+Active flow timeout configured for this cache, in seconds.
+Note
+To modify the configured active flow timeout, use the cache timeout command in
+flow monitor map configuration mode.
+CacheActiveTout
+Inactive flow timeout configured for this cache, in seconds.
+Note
+To modify the configured inactive flow timeout, use the cache timeout
+command
+in flow monitor map configuration mode.
+CacheInactiveTout
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+64
+NetFlow Commands
+show flow monitor-map
+
+
+--- Page 71 ---
+
+Description
+Field
+Update timeout configured for this cache, in seconds.
+Note
+To modify the configured update timeout, use the cache timeout
+command in flow
+monitor map configuration mode.
+CacheUpdateTout
+This example shows how to display monitor-map data for a specific IPv6 flow:
+RP/0/RSP0/CPU0:router# show flow monitor-map map2
+Tue Jan 22 00:15:53.424 PST
+Flow Monitor Map : map2
+-------------------------------------------------
+Id: 1
+RecordMapName: ipv6-destination
+CacheAgingMode: Normal
+CacheMaxEntries: 65535
+CacheActiveTout: 1800 seconds
+CacheInactiveTout: 15 seconds
+CacheUpdateTout: N/A
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+65
+NetFlow Commands
+show flow monitor-map
+
+
+--- Page 72 ---
+
+show flow platform producer statistics location
+To display statistics collected by the NetFlow producer, use the show flow platform producer statistics
+location command in EXEC mode.
+show flow platform producer statistics location node-id
+Syntax Description
+Location of the node whose NetFlow producer statistics you want to display. The node-id is
+expressed in the rack/slot/module notation.
+Note
+Enter the show platform command to see the location of all nodes installed in the router.
+node-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+This example shows how to display statistics collected by the NetFlow producer for the CPU card
+in slot 0:
+# show flow platform producer statistics location 0/0/CPU0
+Thu Oct 29 09:49:35.771 UTC
+Netflow Platform Producer Counters:
+IPv4 Ingress Packets:
+41447246
+IPv4 Egress Packets:
+41447242
+IPv6 Ingress Packets:
+0
+IPv6 Egress Packets:
+0
+MPLS Ingress Packets:
+0
+MPLS Egress Packets:
+0
+Drops (no space):
+0
+Drops (other):
+0
+Unknown Ingress Packets:
+0
+Unknown Egress Packets:
+0
+Worker waiting:
+4677
+SPP Packets:
+2032602
+Flow Packets:
+82894488
+Flow Packets per SPP Frame:
+40
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+66
+NetFlow Commands
+show flow platform producer statistics location
+
+
+--- Page 73 ---
+
+This table describes the significant fields shown in the display.
+Table 6: show flow platform producer statistics Field Descriptions
+Description
+Field
+Number of IPV4 packets that were received from the remote end.
+IPv4 Ingress Packets
+Number of transmitted IPV4 packets.
+IPv4 Egress Packets
+Number of MPLS packets that were received from the remote end.
+MPLS Ingress Packets
+Number of transmitted MPLS packets.
+MPLS Egress Packets
+Number of packets that the producer could not enqueue to the NetFlow server
+because the server input ring was full.
+Drops (no space)
+Number of packets that the producer could not enqueue to the NetFlow server
+due to errors other than the server input ring being full.
+Drops (other)
+Number of unrecognized packets received from the remote end that were
+dropped.
+Unknown Ingress Packets
+Number of packets transmitted to the remote end that were dropped because
+they were not recognized by the remote end.
+Unknown Egress Packets
+Number of times that the producer needed to use the server.
+Note
+This field is strictly informational and does not indicate any error.
+Worker waiting
+Number of sequenced packet protocol (SPP) packets transmitted to the remote
+end.
+SPP Packets
+Number of flow packets transmitted to the remote end.
+Flow Packets
+Number of flow packets per SPP frame transmitted to the remote end.
+Flow Packets per SPP Frame
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+67
+NetFlow Commands
+show flow platform producer statistics location
+
+
+--- Page 74 ---
+
+show flow platform nfea sampler
+To display sampler map information, enter the show sampler-map command in EXEC mode.
+show flow platform nfea sampler [detaillocation]
+Syntax Description
+Displays flow platform nfea sampler detail information
+detail
+Displays the node number
+location
+Command Default
+None
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display flow platform nfea samp detail :
+RP/0/RSP0/CPU0:router# show flow platform nfea samp
+RP/0/RSP0/CPU0:router#show flow pla nfea
+samp detail loc 0/1/cpu0
+Fri Sep 18 16:30:08.435 UTC
+Sampler Name:
+nf_samp
+id: 1,
+sp_id: 0,
+interval: 1, ref_count: 2
+Attached Interface List Info
+Interface Name: GigabitEthernet0/1/0/1,
+Direction:
+Ingress,
+NP ID: 3
+Flow Type(s) Configured: IPv4,
+Checkpoint Record ID: 12184
+Interface Name: GigabitEthernet0/1/0/31,
+Direction:
+Ingress,
+NP ID: 0
+Flow Type(s) Configured: IPv4,
+Checkpoint Record ID: 12088
+Sampler Name:
+nf_samp1
+id: 2,
+sp_id: 1,
+interval: 2, ref_count: 1
+Attached Interface List Info
+Interface Name: GigabitEthernet0/1/0/1,
+Direction:
+Egress,
+NP ID: 3
+Flow Type(s) Configured: IPv4,
+Checkpoint Record ID: 12248
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+68
+NetFlow Commands
+show flow platform nfea sampler
+
+
+--- Page 75 ---
+
+show flow platform nfea interface
+To display flow map platfrom information, enter the show flow platform nfea interface command in EXEC
+mode.
+show flow platform nfea interface type interface-path-id
+{ingressegress} location location node
+id
+Syntax Description
+Physical interface or virtual interface.
+interface-path-id
+Egress direction
+egress
+Ingress direction
+ingress
+Specifies the location
+location
+Command Default
+None
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display flow map platfrom information:
+RP/0/RSP0/CPU0:router# show flow platform nfea interface bundle-ether1 ingress location
+0/1/CPU0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+69
+NetFlow Commands
+show flow platform nfea interface
+
+
+--- Page 76 ---
+
+show flow platform nfea sp location
+To display sampling profile information, enter the show flow platform nfea sp location command in EXEC
+mode.
+show flow platform nfea sp location node-id
+Syntax Description
+Specifies the location node number. The node-id argument is expressed in the
+rack/slot/module notation.
+location node-id
+Command Default
+Default value for the output when monitor is not configured is all zeros.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display sampling profile information:
+RP/0/RSP0/CPU0:router# show flow platform nfea sp location 0/1/CPU0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+70
+NetFlow Commands
+show flow platform nfea sp location
+
+
+--- Page 77 ---
+
+show flow platform nfea policer np
+To display policer rate information, enter the show flow platform nfea policer np command in EXEC mode.
+show flow platfrom nfea polcer np node-id
+Syntax Description
+Identifies the location node number.
+node-id
+Command Default
+The Default values depends on how many NPs are programmed with the netflow, for example, if the interface
+is configured on only one NP with netflow, the output will be 100,000; if more NPs are configured, the output
+will be divided by the number of NPs; if no netflow is configured on a particular NP, the output is 0
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 3.9.1
+Usage Guidelines
+When Netflow is applied on PWHE interfaces, the ing_lnks and egr_lnks fields in the show flow platform
+nfea policer np command are not updated.
+This issue is observed in the third and fourth generation of ASR 9000 Enhanced Ethernet line cards.
+The ing_lnks field indicates that the Netflow is configured in ingress direction for a particular interface
+corresponding to the NP. Similarly, eng_lnks indicates that the Netflow is configured in egress direction.
+Note
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display sampler map information for a router:
+RP/0/RSP0/CPU0:router# show flow platform nfea policer np 3 location 0/0/CPU0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+71
+NetFlow Commands
+show flow platform nfea policer np
+
+
+--- Page 78 ---
+
+show flow platform nfea bundle
+To display bundle ether interface location information, enter the show flow platform nfea bundle command
+in EXEC mode.
+show flow platform nfea bundle bundle-ether 100 location node-id
+Syntax Description
+The node-id is expressed in the rack/slot/module notation.
+location node-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display bundle ether interface location information:
+RP/0/RSP0/CPU0:router# show flow platform nfea bundle bundle-ether 100 location 0/$
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+72
+NetFlow Commands
+show flow platform nfea bundle
+
+
+--- Page 79 ---
+
+show flow platform nfea chkp
+To display checkpoint information, enter the show flow platform nfea chkp command in EXEC mode.
+show flow platform nfea chkp [checkpoint table numberintfpolicersp] [checkpoint record numberall]
+location node-id
+Syntax Description
+Displays checkpoint table number.
+<0-2>
+Displays interface checkpoint table.
+intf
+Displays policer checkpoint table.
+policer
+Displays sp checkpoint table.
+sp
+Displays the checkpoint record number.
+<1-4294967295>
+Command Default
+Default values should be all zeros, when no interface is configured with monitor in the location.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display checkpoint information:
+RP/0/RSP0/CPU0:router# show flow platform nfea chkpt policer all location 0/0/CPU0
+RP/0/RSP0/CPU0:router# show flow platform nfea chkpt intf all location 0/0/CPU0
+RP/0/RSP0/CPU0:router# show flow platform nfea chkpt sp all location 0/0/CPU0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+73
+NetFlow Commands
+show flow platform nfea chkp
+
+
+--- Page 80 ---
+
+show flow platform pal-cpp chkpt object
+To display Netflow CPP platform checkpoint information, use the show flow platform pal-cpp chkpt object
+command in EXEC mode.
+show flow platform pal-cpp chkpt object [number] location node-id
+Syntax Description
+Displays checkpoint record number. Range is 1-4294967295.
+number
+Specifies the location node number. The node-id argument is expressed in the
+rack/slot/module notation
+location node-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 4.0.0
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display the checkpoint information for 0/1/CPU0:
+RP/0/RSP0/CPU0:router# show flow platform pal-cpp chkpt object location 0/1/CPU0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+74
+NetFlow Commands
+show flow platform pal-cpp chkpt object
+
+
+--- Page 81 ---
+
+show flow platform pal-cpp object
+To display Netflow CPP platform layer object information, use the show flow platform pal-cpp object
+command in EXEC mode.
+show flow platform pal-cpp object
+{all | fmm name | fem name | fsm name} location node-id
+Syntax Description
+Displays all flow object information.
+all
+Displays flow monitor information.
+fmm
+Displays flow exporter information.
+fem
+Displays flow sampler information.
+fsm
+Flow name.
+name
+Specifies the location node number. The node-id argument is expressed in the
+rack/slot/module notation
+location node-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 4.0.0
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display all flow object information for location 0/1/CPU0:
+RP/0/RSP0/CPU0:router# show flow platform pal-cpp object all location 0/1/CPU0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+75
+NetFlow Commands
+show flow platform pal-cpp object
+
+
+--- Page 82 ---
+
+show controllers pse qfp feature fnf datapath
+To display QFP Netflow Datapath information on interfaces, use the show controllers pse qfp feature fnf
+datapath command in EXEC mode.
+show controllers pse qfp feature fnf datapath {all | all-detail | builder-program | cache | cache-state
+| exporter | monitor | monitor-state | sampler | sampler-state} type interface-path-id
+Syntax Description
+Displays netflow information.
+all
+Displays detailed netflow information.
+all-detail
+Displays builder program.
+builder-program
+Displays cache structure.
+cache
+Displays cache_state structure.
+cache-state
+Displays exporter.
+exporter
+Displays monitor structure.
+monitor
+Displays monitor_state structure
+monitor-state
+Displays sampler structure.
+sampler
+Displays sampler_state structure.
+sampler-state
+Interface type. For more information, use the question mark ( ? ) online help function.
+type
+Physical interface or virtual interface.
+Note
+Use the show interfaces command to see a list of all interfaces currently configured
+on the router.
+For more information about the syntax for the router, use the question mark ( ? ) online
+help function.
+interface-path-id
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 4.0.0
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+76
+NetFlow Commands
+show controllers pse qfp feature fnf datapath
+
+
+--- Page 83 ---
+
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display datapath information for all interfaces:
+RP/0/RSP0/CPU0:router# show controllers pse qfp feature fnf datapath all ?
+ATM
+ATM Network Interface(s)
+Bundle-Ether
+Aggregated Ethernet interface(s)
+Bundle-POS
+Aggregated POS interface(s)
+GigabitEthernet
+GigabitEthernet/IEEE 802.3 interface(s)
+Loopback
+Loopback interface(s)
+MgmtEth
+Ethernet/IEEE 802.3 interface(s)
+Multilink
+Multilink network interface(s)
+Null
+Null interface
+POS
+Packet over SONET/SDH network interface(s)
+Serial
+Serial network interface(s)
+TenGigE
+TenGigabitEthernet/IEEE 802.3 interface(s)
+WORD
+Other interface
+tunnel-gte
+MPLS Traffic Engineering GMPLS Tunnel interface
+tunnel-ip
+GRE/IPinIP Tunnel Interface(s)
+tunnel-ipsec
+IPSec Tunnel interface(s)
+tunnel-mte
+MPLS Traffic Engineering P2MP Tunnel interface(s)
+tunnel-te
+MPLS Traffic Engineering Tunnel interface(s)
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+77
+NetFlow Commands
+show controllers pse qfp feature fnf datapath
+
+
+--- Page 84 ---
+
+show flow trace platform producer location
+To trace the information for all or specified netflow processes on all or specified location.
+show flow trace platform producer location-id
+Syntax Description
+Displays the
+location
+location-id
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display sampler map information for a router:
+RP/0/RSP0/CPU0:router# show flow trace platform producer location 0/0/CPU0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+78
+NetFlow Commands
+show flow trace platform producer location
+
+
+--- Page 85 ---
+
+show flow trace ea location
+show flow trace platform producer location node-id
+Syntax Description
+The node-id is expressed in the rack/slot/module notation.
+node-id
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read
+netflow
+Examples
+The following example shows how to display sampler map information for a router:
+RP/0/RSP0/CPU0:router# show flow trace ea location 0/0/CPU0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+79
+NetFlow Commands
+show flow trace ea location
+
+
+--- Page 86 ---
+
+source (NetFlow)
+To configure a source interface for the current collector, use the source command in flow exporter map
+configuration mode. To remove a configured source interface, use the no form of this command.
+source type interface-path-id
+Syntax Description
+Interface type. For more information, use the question mark ( ? ) online help function.
+type
+Physical interface or virtual interface.
+Note
+Use the show interfaces command to see a list of all interfaces currently configured
+on the router.
+For more information about the syntax for the router, use the question mark ( ? ) online
+help function.
+interface-path-id
+Command Default
+None
+Command Modes
+Flow exporter map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+For the interface-path-id argument,
+use the following guidelines:
+• If specifying T1/E1/DS0 physical interfaces, the naming notation is rack/slot/module/port/t1-num:
+• channel-group-number. If specifying other physical interface types, the naming notation is
+rack/slot/module/port. The slash between values is required as part of the notation. An explanation of
+each component of the naming notation is as follows:
+• rack: Chassis number of the rack.
+• slot: Physical slot number of the modular services card or line card.
+• module: Module number. A physical layer interface module (PLIM) is always 0. Shared port adapters
+(SPAs) are referenced by their subslot number.
+• port: Physical port number of the T3 controller.
+• t1-num : T1 or E1 channel number. T1 channels range from 1 to 24; E1 channels range from 1 to
+31.
+• channel-group-number : Time slot number. T1 time slots range from 1 to 24; E1 time slots range
+from 1 to 31. The channel-group-number is preceded by a colon and not a slash.
+• If specifying a virtual interface, the number range varies, depending on interface type.
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+80
+NetFlow Commands
+source (NetFlow)
+
+
+--- Page 87 ---
+
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to configure a physical interface as a source for the current collector:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow exporter-map map1
+RP/0/RSP0/CPU0:router(config-fem)# source GigabitEthernet 0/1/0/0
+This example shows how to configure a virtual interface as a source for the current collector. In this
+example, the source is an Ethernet bundle:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow exporter-map map1
+RP/0/RSP0/CPU0:router(config-fem)# source Bundle-Ether 1
+Related Commands
+Description
+Command
+Creates a flow exporter map
+flow exporter-map, on page 16
+Creates and configures a flow monitor map
+flow monitor-map, on page 18
+Displays flow exporter data
+show flow exporter, on page 35
+Displays flow exporter map information for a specific
+node.
+show flow exporter-map, on page 37
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+81
+NetFlow Commands
+source (NetFlow)
+
+
+--- Page 88 ---
+
+template (NetFlow)
+To configure the export timeout value for the data and options templates, enter the template command in
+flow exporter map version configuration mode. To remove a configured template export timeout value, use
+the no form of this command.
+template [data | options] timeout seconds
+Syntax Description
+(Optional) Specifies the data template.
+data
+(Optional) Specifies the options template.
+options
+Configures the timeout value for the specified template, or for both the data and options
+templates. Replace seconds with the export timeout value. Range is from 1 through
+604800 seconds.
+timeout seconds
+Command Default
+Default timeout value for data and options template is 1800 seconds.
+Command Modes
+Flow exporter map version configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to configure the export timeout value for the data template to be 300
+seconds:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow exporter-map fem1
+RP/0/RSP0/CPU0:router(config-fem)# version v9
+RP/0/RSP0/CPU0:router(config-fem-ver)# template data timeout 300
+Related Commands
+Description
+Command
+Creates a flow exporter map
+flow exporter-map, on page 16
+Creates and configures a flow monitor map
+flow monitor-map, on page 18
+Displays flow exporter data
+show flow exporter, on page 35
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+82
+NetFlow Commands
+template (NetFlow)
+
+
+--- Page 89 ---
+
+Description
+Command
+Displays flow exporter map information for a specific
+node.
+show flow exporter-map, on page 37
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+83
+NetFlow Commands
+template (NetFlow)
+
+
+--- Page 90 ---
+
+transport udp
+To configure the destination port for User Datagram Protocol (UDP) packets, enter the transport udp
+command in flow exporter map configuration mode. To remove a configured destination port, use the no
+form of this command.
+transport udp port_value
+Syntax Description
+Destination port for UDP packets. Replace port with the destination port value. Range is from
+1024 through 65535.
+port_value
+Command Default
+None
+Command Modes
+Flow exporter map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to configure the destination port for UDP packets:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow exporter-map map1
+RP/0/RSP0/CPU0:router(config-fem)# transport udp 1030
+Related Commands
+Description
+Command
+Creates a flow exporter map
+flow exporter-map, on page 16
+Creates and configures a flow monitor map
+flow monitor-map, on page 18
+Displays flow exporter data
+show flow exporter, on page 35
+Displays flow exporter map information for a specific
+node.
+show flow exporter-map, on page 37
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+84
+NetFlow Commands
+transport udp
+
+
+--- Page 91 ---
+
+version v9
+To enter flow exporter map version configuration submode so that you can configure export version parameters,
+enter the version v9 command in flow exporter map configuration mode. To remove the current export
+version configuration and return to the default configuration, use the no form of this command.
+version v9
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+None
+Command Modes
+Flow exporter map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.9.1
+Usage Guidelines
+When you issue the version v9 command, the CLI prompt changes to “config-fem-ver,” indicating that you
+have entered flow exporter map version configuration submode. In this sample output, the question mark ( ?
+) online help function displays all the commands available under flow exporter map version configuration
+submode:
+RP/0/RSP0/CPU0:router(config-fem)# version v9
+RP/0/RSP0/CPU0:router(config-fem-ver)#?
+clear
+Clear the uncommitted configuration
+commit
+Commit the configuration changes to running
+describe
+Describe a command without taking real actions
+do
+Run an exec command
+exit
+Exit from this submode
+no
+Negate a command or set its defaults
+options
+Specify export of options template
+pwd
+Commands used to reach current submode
+root
+Exit to the global configuration mode
+show
+Show contents of configuration
+template
+Specify template export parameters
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to enter flow exporter map version configuration submode:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow exporter-map map1
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+85
+NetFlow Commands
+version v9
+
+
+--- Page 92 ---
+
+RP/0/RSP0/CPU0:router(config-fem)# version v9
+RP/0/RSP0/CPU0:router(config-fem-ver)#
+Related Commands
+Description
+Command
+Creates a flow exporter map
+flow exporter-map, on page 16
+Creates and configures a flow monitor map
+flow monitor-map, on page 18
+Displays flow exporter data
+show flow exporter, on page 35
+Displays flow exporter map information for a specific
+node.
+show flow exporter-map, on page 37
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+86
+NetFlow Commands
+version v9
+
+
+--- Page 93 ---
+
+version ipfix
+To configure Internet Protocol Flow Information Export (IPFIX) as an export version and configure export
+version parameters, enter the version ipfix command in flow exporter map configuration mode. To remove
+the current export version configuration and return to the default configuration, use the no form of this
+command.
+version ipfix [options {interface-table | sampler-table | vrf-table} timeout timeout-value | template
+{data | options } timeout timeout-value]
+Syntax Description
+(Optional) Specifies export of options template. Options template provide extra
+information about the flow records. The options template include these options:
+• interface-table
+• sampler-table
+• vrf-table
+For each options template specify timeout value (in seconds) during which the
+exporter has to retransmit each active options template.
+options
+(Optional) Specifies template export parameters such as data template and options
+template timeout configurations.
+template
+Specifies custom timeout value (in seconds) during which the exporter has to
+retransmit each active template. The range of timeout-value is 1 to 604800 seconds.
+timeout
+timeoutout-value
+Command Default
+None
+Command Modes
+Flow exporter map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release
+6.0.1
+Usage Guidelines
+When you issue the version ipfix command, the CLI prompt changes to “config-fem-ver,” indicating that
+you have entered flow exporter map version configuration submode. In this sample output, the question mark
+( ? ) online help function displays all the commands available under flow exporter map version configuration
+submode:
+RP/0/RSP0/CPU0:router(config-fem)# version ipfix
+RP/0/RSP0/CPU0:router(config-fem-ver)#?
+clear
+Clear the uncommitted configuration
+commit
+Commit the configuration changes to running
+describe
+Describe a command without taking real actions
+do
+Run an exec command
+exit
+Exit from this submode
+no
+Negate a command or set its defaults
+options
+Specify export of options template
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+87
+NetFlow Commands
+version ipfix
+
+
+--- Page 94 ---
+
+pwd
+Commands used to reach current submode
+root
+Exit to the global configuration mode
+show
+Show contents of configuration
+template
+Specify template export parameters
+Task ID
+Operations
+Task
+ID
+read,
+write
+netflow
+Examples
+This example shows how to configure IPFIX as an exporter in an flow exporter map configuration
+submode:
+RP/0/RSP0/CPU0:router# configure
+RP/0/RSP0/CPU0:router(config)# flow exporter-map map1
+RP/0/RSP0/CPU0:router(config-fem)# version ipfix
+RP/0/RSP0/CPU0:router(config-fem-ver)#
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+88
+NetFlow Commands
+version ipfix
+
+
+--- Page 95 ---
+
+sFlow Commands
+This module provides command line interface (CLI) commands for configuring sFlow on the Cisco 8000
+Series Routers.
+To use commands of this module, you must be in a user group associated with a task group that includes
+appropriate task IDs. If the user group assignment is preventing you from using any command, contact your
+AAA administrator for assistance.
+• hw-module profile netflow sflow-enable , on page 90
+• record sflow, on page 91
+• sflow options , on page 92
+• version sflow v5, on page 94
+• router-id, on page 95
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+89
+
+
+--- Page 96 ---
+
+hw-module profile netflow sflow-enable
+To enable sFlow on a specified node location, use the hw-module profile netflow sflow enable command
+in the configuration mode.
+hw-module
+profile
+netflow
+sflow
+enable location
+node-id
+Syntax Description
+The node-id argument is entered in the rack/slot/module notation.
+node-id
+Command Default
+sFlow is disabled
+Command Modes
+Configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release
+7.2.12
+Usage Guidelines
+The Netflow, IPFIX315 and sFlow features are mutually exclusive. Therefore, Netflow, IPFIX315 and sFlow
+should not be configured on the same node. However, some nodes can have Netflow, IPFIX315 and other
+nodes can have sFlow configurations.
+You must reload the router for the configurations to take effect.
+Example
+This example shows how to enable sFlow on the node location 0/0/CPU0:
+Router(config)# hw-module profile netflow sflow-enable location 0/0/CPU0
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+90
+sFlow Commands
+hw-module profile netflow sflow-enable
+
+
+--- Page 97 ---
+
+record sflow
+To activate an sFlow flow record, use the record sflow command in flow monitor map configuration mode.
+To deactivate the flow record, use the no form of this command.
+record
+sflow
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+None
+Command Modes
+Flow monitor map configuration
+Command History
+Modification
+Release
+This command was introduced.
+Release
+7.2.12
+Usage Guidelines
+No specific guidelines impact the use of this command.
+This example shows how to configure an sFlow flow record:
+Router# configure
+Router(config)# flow monitor-map SAMPLE-MON-1
+Router(config-fmm)# record sflow
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+91
+sFlow Commands
+record sflow
+
+
+--- Page 98 ---
+
+sflow options
+To configure sFlow related options, use the sflow options command in flow monitor map configuration
+mode.
+sflow
+options
+[ extended-gateway | extended-router | if-counters polling-interval <time-in-seconds> | input ifindex
+physical | Output ifindex physical | sample-header size <bytes> ]
+Syntax Description
+(Optional) Enables extended-gateway flow data type. When enabled, the
+following information is exported to the sFlow agent:
+• Next-hop IP
+• Autonomous system number of router, source and source peer
+• Autonomous system path to the destination
+• Communities
+extended-gateway
+(Optional) Enables extended-router flow data type. When enabled the following
+information is exported to the sFlow agent:
+• Next-hop IP
+• Source and destination mask lengths
+extended-router
+(Optional) Specifies polling interval for polling interface counters. The range
+is from 15-120 seconds.
+When enabled, the sFlow agent collects the interface statistics from interface
+counters.
+if-counters polling-interval
+<time-in-seconds>
+(Optional) Specifies ifindex-related options. When enabled the input (physical)
+interface SNMP ifindex on which the packet arrived is exported to the external
+collector.
+input ifindex physical
+(Optional) Specifies ifindex-related options. When enabled the output (physical)
+interface SNMP ifindex on which the packet departed is exported to the external
+collector.
+output ifindex physical
+(Optional) Specifies maximum sample-header size to be exported.
+The size is expressed in bytes. The default size is 128 bytes. The sampler
+header size can be up to 200 bytes.
+sample-header size <bytes>
+Command Default
+None
+Command Modes
+Flow monitor map configuration
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+92
+sFlow Commands
+sflow options
+
+
+--- Page 99 ---
+
+Command History
+Modification
+Release
+This command was introduced.
+Release
+7.2.12
+Usage Guidelines
+No specific guidelines impact the use of this command.
+Example
+This example shows how to configure various sFlow options:
+Router(config)#flow monitor-map SAM-MON-1
+Router(config-fmm)#sflow options
+Router(config-fmm-sflow)#extended-gateway
+Router(config-fmm-sflow)#extended-router
+Router(config-fmm-sflow)#sample-header size 164
+Router(config-fmm-sflow)#if-counters polling-interval 30
+Router(config-fmm-sflow)#input ifindex physical
+Router(config-fmm-sflow)#commit
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+93
+sFlow Commands
+sflow options
+
+
+--- Page 100 ---
+
+version sflow v5
+To configure version 5 as an export version for sFlow, use the version sflow v5 command in flow exporter
+map configuration mode. To remove the current export version configuration and return to the default
+configuration, use the no form of this command.
+version
+sflow
+v5 [ options
+{interface-table |
+sampler-table |
+vrf-table}
+timeout
+timeout-value
+| template
+{data |
+options }
+timeout
+timeout-value ]
+Syntax Description
+(Optional) Specifies export of options template. Options template provides extra
+information about the flow records. The options template include these options:
+• interface-table
+• sampler-table
+• vrf-table
+For each options template, specify timeout value (in seconds) during which the
+exporter has to retransmit each active options template.
+options
+(Optional) Specifies export parameters of the template such as data template and
+options template timeout configurations.
+template
+Specifies custom timeout value (in seconds) during which the exporter has to
+retransmit each active template. The range of timeout-value is 1 to 604800 seconds.
+timeout
+timeout-value
+Command Default
+None
+Command Modes
+Flow exporter map configuration
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.2.12
+Usage Guidelines
+When you issue the version sflow v5 command, the CLI prompt changes to config-fem-ver, indicating
+that you have entered the version submode of the flow exporter map configuration mode.
+Examples
+This example shows how to configure sFlow v5 as an exporter in a flow exporter map configuration
+submode:
+Router# configure
+Router(config)# flow exporter-map SAMPLE-1
+Router(config-fem)# version sflow v5
+Router(config-fem-ver)#
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+94
+sFlow Commands
+version sflow v5
+
+
+--- Page 101 ---
+
+router-id
+To configure the sFlow agent ID with a specific IPv4 or IPv6 address, use the router-id command in flow
+exporter map configuration mode.
+router-id address { ipv4 | ipv6 }
+Syntax Description
+Specifies the router id in IPv4 or IPv6 address
+format.
+address ipv4| ipv6
+Command Default
+None
+Command Modes
+Flow exporter map configuration
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.10.1
+Examples
+This example shows how to configure sFlow agent ID for an IPv4 address in flow exporter map
+configuration submode:
+Router#configure
+Router(config)#flow exporter-map E
+Router(config-fem)#router-id address 209.165.201.1
+Router(config-fem)#commit
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+95
+sFlow Commands
+router-id
+
+
+--- Page 102 ---
+
+Netflow Command Reference for Cisco ASR 9000 Series Routers
+96
+sFlow Commands
+router-id

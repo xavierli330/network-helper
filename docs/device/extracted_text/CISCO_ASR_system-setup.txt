@@ -1,0 +1,5150 @@
+# Source: b-system-setup-cr-asr9000.pdf
+# Total pages: 100
+
+
+--- Page 1 ---
+
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+First Published: 2024-01-30
+Last Modified: 2025-12-17
+Americas Headquarters
+Cisco Systems, Inc.
+170 West Tasman Drive
+San Jose, CA 95134-1706
+USA
+http://www.cisco.com
+Tel: 408 526-4000
+800 553-NETS (6387)
+Fax: 408 527-0883
+
+
+--- Page 2 ---
+
+© 2024–2025 Cisco Systems, Inc. All rights reserved.
+
+
+--- Page 3 ---
+
+C O N T E N T S
+Preface
+v
+P R E F A C E
+Preface
+v
+Communications, Services, and Additional Information
+v
+Action Commands
+1
+C H A P T E R 1
+clear configuration inconsistency
+2
+hw-module location
+5
+install add
+8
+install activate (IOS XR 64 bit)
+14
+install deactivate (IOS XR 64 bit)
+17
+install commit
+19
+install upgrade source
+21
+install remove
+25
+install replace
+28
+reload
+30
+ztp enable
+32
+ztp disable
+33
+ztp initiate
+34
+Show Commands
+37
+C H A P T E R 2
+show version
+38
+show platform
+41
+show install
+44
+show install active
+47
+show install active
+50
+show install committed
+53
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+iii
+
+
+--- Page 4 ---
+
+show install inactive
+56
+show install package
+60
+show fpd package
+63
+show hw-module fpd
+66
+show interfaces (frame relay)
+69
+show inventory (Cisco IOS XR 64-bit)
+74
+show ipv4 interface
+78
+show ipv6 interface
+81
+show install boot-options
+85
+show running-config
+86
+show redundancy
+89
+show media
+91
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+iv
+Contents
+
+
+--- Page 5 ---
+
+Preface
+This preface contains these sections:
+• Preface, on page v
+• Communications, Services, and Additional Information, on page v
+Preface
+Initial release of the cumulative command reference document that covers all updates from Release 7.0.0
+onwards.
+Communications, Services, and Additional Information
+• To receive timely, relevant information from Cisco, sign up at Cisco Profile Manager.
+• To get the business results you’re looking for with the technologies that matter, visit Cisco Services.
+• To submit a service request, visit Cisco Support.
+• To discover and browse secure, validated enterprise-class apps, products, solutions and services, visit
+Cisco DevNet.
+• To obtain general networking, training, and certification titles, visit Cisco Press.
+• To find warranty information for a specific product or product family, access Cisco Warranty Finder.
+Cisco Bug Search Tool
+Cisco Bug Search Tool (BST) is a web-based tool that acts as a gateway to the Cisco bug tracking system
+that maintains a comprehensive list of defects and vulnerabilities in Cisco products and software. BST provides
+you with detailed defect information about your products and software.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+v
+
+
+--- Page 6 ---
+
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+vi
+Preface
+Communications, Services, and Additional Information
+
+
+--- Page 7 ---
+
+Action Commands
+• clear configuration inconsistency, on page 2
+• hw-module location, on page 5
+• install add, on page 8
+• install activate (IOS XR 64 bit), on page 14
+• install deactivate (IOS XR 64 bit), on page 17
+• install commit, on page 19
+• install upgrade source , on page 21
+• install remove, on page 25
+• install replace, on page 28
+• reload, on page 30
+• ztp enable, on page 32
+• ztp disable, on page 33
+• ztp initiate, on page 34
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+1
+
+
+--- Page 8 ---
+
+clear configuration inconsistency
+To clear an inconsistency alarm for a router configuration or admin plane configuration, use the clear
+configuration inconsistency command in Admin EXEC mode or EXEC mode.
+clear configuration inconsistency
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+Administration EXEC mode: Clears the inconsistency alarms for the admin plane configuration.
+EXEC mode: Clears the inconsistency alarms for an SDR configuration.
+Command Modes
+Admin EXEC mode
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+An inconsistency alarm is set when there is a failure to restore the configuration; this can occur during router
+startup, or when a line card or route switch processor (RSP) card is inserted or removed.
+If an inconsistency alarm is set, a message similar to the following example is displayed:
+RP/0/0/CPU0:May 26 11:58:40.662 : cfgmgr-rp[130]: %MGBL-CONFIGCLI-3
+BATCH_CONFIG_FAIL : 28 config(s) failed during startup. To view
+failed config(s) use the command - "show configuration failed startup"
+RP/0/0/CPU0:May 26 11:58:41.731 : cfgmgr-rp[130]:
+%MGBL-CONFIG-3-ADMIN_INCONSISTENCY_ALARM : Admin plane configuration
+inconsistency alarm has been raised. Configuration commits will be
+blocked until an ADMIN plane 'clear configuration inconsistency' command
+has been run to synchronize persisted admin plane configuration with
+running admin configuration.
+When the inconsistency alarm is set, all configuration commit operations fail until the alarm is cleared using
+the clear configuration inconsistency command. This command clears the alarm and removes the failed
+configuration.
+For example, the following configuration commit fails to finish due to an existing inconsistency alarm:
+RP/0/RSP0/CPU0:router# configure
+ADMIN plane running configuration is inconsistent with persistent
+configuration.
+No configuration commits will be allowed until an admin plane
+'clear configuration inconsistency' command is performed.
+RP/0/RSP0/CPU0:router(config)# hostname router2
+RP/0/RSP0/CPU0:router(config)#commit
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+2
+Action Commands
+clear configuration inconsistency
+
+
+--- Page 9 ---
+
+ADMIN plane running configuration is inconsistent with persistent
+configuration.
+No configuration commits will be allowed until an admin plane
+'clear configuration inconsistency' command is performed.
+Enter the clear configuration inconsistency command to clear the alarm and allow commit operations to
+continue.
+To reapply the failed configuration, you must reapply and recommit the configuration. Use the load
+configuration failed command with the startup keyword to populate the target configuration with the contents
+of the previous failed configuration from the startup configuration.
+Note
+Use the show configuration history command with the alarm keyword to view the inconsistency alarm set
+and alarm clear events in the configuration history log.
+Command Modes
+To clear the inconsistency alarms for the admin plane configuration, enter the clear configuration inconsistency
+command in administration EXEC mode.
+To clear the inconsistency alarms for the router, enter the clear configuration inconsistency command in
+EXEC mode.
+Task ID
+Operations
+Task ID
+execute
+config-services
+The following example shows how to clear the inconsistency alarms for the admin plane configuration
+by entering the clear configuration inconsistency command in administration EXEC mode:
+RP/0/RSP0/CPU0:router# admin
+RP/0/RSP0/CPU0:router(admin)# clear configuration inconsistency
+Creating any missing directories in Configuration File system...OK
+Initializing Configuration Version Manager...OK
+Syncing ADMIN commit database with running configuration...OK
+Re-initializing cache files...OK
+Updating Commit Database.
+Please wait...[OK]
+The following example shows how to clear the inconsistency alarms for a router configuration. The
+command is entered in EXEC mode.
+RP/0/RSP0/CPU0:router# clear configuration inconsistency
+Creating any missing directories in Configuration File system...OK
+Initializing Configuration Version Manager...OK
+Syncing commit database with running configuration...OK
+Re-initializing cache files...OK
+Updating Commit Database.
+Please wait...[OK]
+In the following example, a history of the inconsistency alarms set and cleared for the router
+configuration are displayed using the show configuration history command with the alarm keyword:
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+3
+Action Commands
+clear configuration inconsistency
+
+
+--- Page 10 ---
+
+RP/0/RSP0/CPU0:router# show configuration history alarm
+Sno.
+Event
+Info
+Time Stamp
+~~~~
+~~~~~
+~~~~
+~~~~~~~~~~
+1
+alarm
+inconsistency alarm raised
+Thu Jun 22 15:23:15 2009
+2
+alarm
+inconsistency alarm cleared
+Thu Jun 22 15:42:30 2009
+3
+alarm
+inconsistency alarm raised
+Sun Jul
+9 13:39:57 2009
+4
+alarm
+inconsistency alarm cleared
+Sun Jul
+9 14:15:48 2009
+5
+alarm
+inconsistency alarm raised
+Sat Jul 15 18:18:26 2009
+6
+alarm
+inconsistency alarm cleared
+Sat Jul 15 19:21:03 2009
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+4
+Action Commands
+clear configuration inconsistency
+
+
+--- Page 11 ---
+
+hw-module location
+To configure various hardware attributes for a specific node, or for all nodes installed in the router, use the
+hw-module location command in System Admin EXEC mode.
+To recover the RP (route processor) and SC (shelf controller) card or all the nodes in a system, use the
+hw-module location command in Sysadmin EXEC mode.
+To reset or shutdown a specific node, or to put a node into maintenance mode, use the hw-module location
+command in the mode.
+hw-module location location|all] bootmedia [recovery-partition|usb|network] reloadofflineonlinereload
+[force]shutdown [force]
+Syntax Description
+Node whose hardware attributes
+you want to configure. The node-id
+is expressed in the
+rack/slot/module notation in the
+mode.
+To confgure all nodes, use all .
+Note
+Enter the show platform
+command to see the location of all
+nodes installed in the router.
+node-id|all
+Select a boot media to load images.
+bootmedia
+Changes the state of the hardware
+module to offline to perform
+diagnostics. When card is set to
+offline, it is taken out of the
+network. However, the card is
+powered on and maintains
+connectivity so that it can be
+accessed for diagnostics.
+offline
+Changes the state of the hardware
+module to online for normal
+operation of the device.
+online
+Reloads the hardware module.
+reload
+shut down the hardware module.
+shutdown
+Command Default
+None
+Command Modes
+System Admin EXEC
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+5
+Action Commands
+hw-module location
+
+
+--- Page 12 ---
+
+Command History
+Modification
+Release
+This command was introduced.
+Release 6.0
+Usage Guidelines
+The hw-module locationallbootmedia is used to reimage a node or all nodes.
+When a router reloads using hw-module location all, if the line card experiences a timeout waiting for the
+sysdb configuration replay, the system will notify the user once to reload the line card. This reload allows the
+sysdb configuration to come up properly after the line card restarts.
+If the bootmedia network command specifies a single location, the node will get reloaded and reimaged with
+an image downloaded from the master RP.
+The bootmedia network option is applicable to RP and LC nodes. It is not applicable to FC and SC nodes.
+Note
+The master RP can be determined by looking at the show controller card-mgr inventory
+summary command output in mode:
+sysadmin-vm:0_RP0#
+show controller card-mgr inventory summary
+Fri Feb
+26 03:24:22.205 UTC-08:00
+Card Manager Inventory Summary :
+BP
+HW
+Location Card Type
+ID
+Serial Number
+Ver
+Card State
+------------------------------------------------------------------------------
+0/0
+NC55-24x100G-SE
+1
+SAL1934MNEX
+0.103
+CARD_READY
+0/3
+NC55-6X100GE-PROT
+4
+SAL1915D4D9
+0.110
+CARD_READY
+0/FC1
+NC55-5508-FC
+22
+SAL1923GDG2
+0.305
+CARD_READY
+0/FC3
+NC55-5508-FC
+24
+SAL1926HZYB
+0.106
+CARD_READY
+0/FC5
+NC55-5508-FC
+26
+SAL1911B7WJ
+0.303
+CARD_READY
+0/RP0
+NC55-RP (Master)
+27
+SAL1925HFTH
+1.1
+CARD_READY
+0/RP1
+NC55-RP (Slave)
+28
+SAL1924GUZC
+1.1
+CARD_READY
+0/SC0
+NC55-SC (Slave)
+29
+SAL190389WF
+1.4
+CARD_READY
+0/SC1
+NC55-SC (Master)
+30
+SAL1923G36G
+1.4
+CARD_READY
+If bootmedia network specifies the master RP location, the master RP will reboot and get reimaged
+with an image downloaded from an external PXE server via the master RP’s management ethernet
+interface.
+If bootmedia network command specifies all locations, the master RP will reboot and get reimaged
+with an image downloaded from an external PXE server via the master RP’s management ethernet
+interface. After the master RP is reimaged, all other cards will get reloaded and reimaged with an
+image downloaded from the master RP.
+The bootmedia usb option is only available for RP0 and RP1. When this option is selected, the RP
+will reload and be reimaged using the image stored on the RP’s usb device.
+sysadmin-vm:0_RP0# hw-module location 0/RP1 ?
+Possible completions:
+bootmedia
+Select boot media to load image from
+offline
+Take a hardware module offline for diagnostics
+online
+Take a hardware module online for normal operation
+reload
+Reload a hardware module
+shutdown
+Shut down a hardware module
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+6
+Action Commands
+hw-module location
+
+
+--- Page 13 ---
+
+sysadmin-vm:0_RP0# hw-module location 0/3 bootmedia ?
+Possible completions:
+network
+sysadmin-vm:0_RP0# hw-module location 0/RP1 bootmedia ?
+Possible completions:
+network
+usb
+sysadmin-vm:0_RP0# hw-module location 0/RP1 bootmedia usb ?
+Possible completions:
+reload
+Reload a hardware module
+sysadmin-vm:0_RP0# hw-module location 0/RP1 bootmedia usb reload ?
+Possible completions:
+|
+Output modifiers
+<cr>
+sysadmin-vm:0_RP0# hw-module location 0/3 bootmedia network reload
+Fri Feb
+26 00:47:26.972 UTC-08:00
+Reload hardware module ? [no,yes] yes
+result Card reload request on 0/3 succeeded.
+sysadmin-vm:0_RP0#
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+7
+Action Commands
+hw-module location
+
+
+--- Page 14 ---
+
+install add
+To copy the contents of a package installation envelope (PIE) file to a storage device, use the install add
+command in EXEC or Admin EXEC mode EXEC mode.
+Administration EXEC Mode:
+install add [source source-path | tar] file [activate [pause sw-change] [auto-abort-timer time]
+[location node-id]] [asynchronous | synchronous] [parallel-reload] [prompt-level
+{default | none}]
+[if-active] [sdr sdr-name]
+EXEC Mode:
+install add [source source-path | tar] file [activate [pause sw-change] [auto-abort-timer time]
+[location node-id]] [asynchronous | synchronous] [parallel-reload] [prompt-level
+{default | none}]
+Syntax Description
+(Optional) Specifies the source location of the PIE files to be
+appended to the PIE filenames. Location options are as follows:
+• disk0:
+• disk1:
+• compactflash:
+• harddisk:
+• ftp://username :password@hostname or
+ip-address/directory-path
+• rcp://username@hostname or ip-address/directory-path
+• tftp://hostname or ip-address/directory-path
+source source-path
+(Optional) Indicates that the PIE file is contained in a tar file.
+tar
+Name and location of the PIE file (composite package) to install.
+If a source path location is specified using the source keyword,
+the file argument can be either a fully specified PIE file path,
+or a path to the PIE file relative to the source path.
+Note
+Up to 32 PIE files can be added to a device in a single install
+add operation.
+If the tar keyword is used, the file argument is a tar file that
+contains one or more PIE files, or directories containing PIE
+files. Up to 16 tar files can be added, out of the possible 32
+install files.
+file
+(Optional) Activates the package or packages. This option is
+run only if the install add operation is successful.
+activate
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+8
+Action Commands
+install add
+
+
+--- Page 15 ---
+
+(Optional) Pauses the operation before locking the configuration
+for the software activation. While the operation is paused, you
+can perform configuration changes. You control the resumption
+of the operation at the CLI prompt.
+pause sw-change
+(Optional) Specifies an abort timer value, time, in minutes,
+which when expired loads the last committed loadpath.
+auto-abort-timer time
+(Optional) Activates a package on the designated node. The
+node-id argument is expressed in rack/slot/module notation.
+Note
+A package cannot be activated on a single node unless some
+version of the package being activated is already active on all
+nodes. For example, a Multiprotocol Label Switching (MPLS)
+package cannot be active on only one node. If a version of the
+MPLS package is already active on all nodes, an MPLS package
+then could be upgraded or downgraded on a single node.
+location node-id
+(Optional) Performs the command in asynchronous mode. In
+asynchronous mode, this command runs in the background, and
+the EXEC prompt is returned as soon as possible. This is the
+default mode.
+asynchronous
+(Optional) Performs the command in synchronous mode. This
+mode allows the installation process to finish before the prompt
+is returned.
+synchronous
+(Optional) Forces all cards on the router to reload at the same
+time and then come up with the new software, rather than
+proceeding according to the option encoded in the install
+package.
+parallel-reload
+(Optional) Specifies when you are prompted for input during
+the procedure.
+• default—You are prompted only when input is required
+by the operation.
+• none—You are never prompted.
+prompt-level {default | none}
+(Optional. Administration EXEC mode only.) Activates the
+optional packages only if a version is already active.
+if-active
+(Optional. Administration EXEC mode only.) Activates a
+package for a specific secure domain router (SDR). The
+sdr-name argument is the name assigned to the SDR. The only
+SDR available is Owner, which refers to the entire router.
+sdr sdr-name
+Command Default
+Packages are added to the storage device, but are not activated.
+The operation is performed in asynchronous mode. The install add command runs in the background, and
+the EXEC prompt is returned as soon as possible.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+9
+Action Commands
+install add
+
+
+--- Page 16 ---
+
+Command Modes
+EXEC
+EXEC mode
+Admin EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+This command was removed from EXEC mode.
+The sdr keyword was removed.
+Release 4.0.0
+Usage Guidelines
+Use the install add command to unpack the package software files from a PIE file and copy them to the boot
+device (usually disk0:) .
+• From administration EXEC mode, the package software files are added to all route processors (RPs)
+installed in the router. If the install add command is entered without specifying an SDR, then the package
+files are added to all RPs in the owner SDR.
+• From EXEC mode, the package software files are added to the RPs only for the SDR to which you are
+logged in.
+Adding and Activating a Package
+Software packages remain inactive until activated with the install activate command.
+To add and activate a package at the same time, use the install add command with the activate keyword.
+When this command is used, the keywords and rules for package activation apply.
+• To add and activate a package for the owner SDR, enter the install add command with the activate
+keyword from administration EXEC mode.
+• It is also possible to add and activate a package using the install add command with the activate keyword
+from EXEC mode.
+SDR-specific activation is supported for specific packages and upgrades, such as optional packages and
+Software Maintenance Upgrades (SMUs). Packages that do not support SDR-specific activation can be
+activated for all SDRs simultaneously only from administration EXEC mode. For detailed instructions, see
+the Managing Cisco IOS XR Software Packages module of System Management Configuration Guide for
+Cisco ASR 9000 Series Routers.
+Note
+If a software activation requires a node reload, the config-register for that node should be set to autoboot. If
+the config-register for the node is not set to autoboot, then the system automatically changes the setting and
+the node reloads. A message describing the change is displayed.
+Note
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+10
+Action Commands
+install add
+
+
+--- Page 17 ---
+
+Synchronous Mode
+Use the install add command with the synchronous keyword to complete the operation before the prompt
+is returned. A progress bar indicates the status of the operation. For example:
+- 1% complete: The operation can still be aborted (ctrl-c for options)
+\ 10% complete: The operation can still be aborted (ctrl-c for options)
+TFTP Services and Image Size
+Some Cisco IOS XR images may be larger than 32 MB, and the TFTP services provided by some vendors
+may not support a file this large. If you do not have access to a TFTP server that supports files larger than 32
+MB:
+• Download the software image using FTP or rcp.
+• Use a third-party or freeware TFTP server that supports file sizes larger than 32 MB.
+Adding tar Files
+Use the tar keyword to add one or more PIE files in the tar file format. If the tar keyword is used, only a
+single tar file can be added.
+Multiple tar files or a combination of PIE and tar files is not supported.
+Note
+Note the following regarding tar files:
+• The file argument must include the complete location of the tar file.
+• The tar file can contain only PIE files and directories containing PIE files. For example:
+• The tar file pies.tar containing the files x.tar and y.pie fails because x.tar is not a PIE file.
+• The tar file pies.tar containing the file x.pie and the directory dir_a, where dir_a contains a PIE file
+y.pie succeeds.
+• The tar file pies.tar containing the file x.pie and the directory dir_a, where dir_a contains a tar file
+y.tar fails because y.tar is not a PIE file.
+• The tar file pies.tar containing the PIE files x.pie, y.pie, ...*.pie succeeds.
+• The source keyword is not supported with the tar keyword.
+Following is a valid example of using the tar keyword:
+RP/0/RSP0/CPU0:router(admin)# install add tar
+tftp://223.255.254.254/install/files/pies.tar
+You can add and activate tar files at the same time. In other words, the install add command is supported
+using the tar and the activate keywords simultaneously.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+11
+Action Commands
+install add
+
+
+--- Page 18 ---
+
+Adding Multiple Packages
+To add multiple PIE files, use the source keyword to specify the directory path location of the PIE files. Then
+list all the PIE filenames, as necessary. This alleviates the need to repeat the directory location for each PIE
+file. Up to 32 files can be added, of which 16 can be tar files.
+Following is an example of the install add command using the source keyword:
+RP/0/0/CPU0:router(admin)# install add source
+tftp://192.168.201.1/images/myimages/comp-asr9k-mini.pie
+asr9k-mgbl-p.pie asr9k-mpls-p.pie
+asr9k-mcast-p.pie
+The following example also illustrates a valid use of the install add command with the source keyword:
+RP/0/RSP0/CPU0:router(admin)# install add source
+tftp://192.168.254.254/images/user/asr9k-mcast-p.pie
+pies/asr9k-mpls-p.pie
+ftp://1.2.3.4/other_location/asr9k-mgbl-p.pie
+In the previous example, three PIE files are added from the following locations:
+• tftp://192.168.254.254/images/user/asr9k-mcast-p.pie
+• tftp://192.168.254.254/images/user/pies/asr9k-mpls-p.pie
+• ftp://1.2.3.4/other_location/asr9k-mgbl-p.pie
+Parallel Reload
+Installation operations are activated according to the method encoded in the package being activated. Generally,
+this method has the least impact for routing and forwarding purposes, but it may not be the fastest method
+from start to finish and can require user interaction by default. To perform the installation procedure as quickly
+as possible, you can specify the parallel-reload keyword. This forces the installation to perform a parallel
+reload, so that all cards on the router reload simultaneously, and then come up with the new software. This
+impacts routing and forwarding, but it ensures that the installation is performed without other issues.
+Pausing Activation Before Configuration Lock
+If you specify the activate keyword, use the pause sw-change keywords to pause the software activation
+operation before locking the configuration. A software activation operation begins with preparatory steps,
+such as software checks, and then proceeds with the actual activation of the new software. The configuration
+is locked for the activation. If you specify the pause sw-change keywords, the operation pauses before locking
+the configuration and provides you with the option to hold the operation while you perform configuration
+changes, and proceed with the activation whenever you choose. This is useful, for example, if your workflow
+involves configuring a router out of the network during software installation and you want to minimize the
+time that the router is out of the network. You can specify these keywords for both asynchronous and
+synchronous operations. In both cases, follow the onscreen instructions to control the pausing and completion
+of the operation.
+The following example shows how to add a PIE file for all SDRs in the system. In the following
+example, a Multiprotocol Label Switching (MPLS) package is added in synchronous mode. This
+operation copies the files required for the package to the storage device. This package remains inactive
+until it is activated with the install activate command.
+RP/0/RSP0/CPU0:router# admin
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+12
+Action Commands
+install add
+
+
+--- Page 19 ---
+
+RP/0/RSP0/CPU0:router(admin)# install add
+tftp://209.165.201.1/asr9k-mpls.pie synchronous
+Install operation 4 'install add /tftp://209.165.201.1/asr9k-mpls.pie synchronous'
+started by user
+'user_b' at 03:17:05 UTC Mon Nov 14 2005.
+Info:
+The following package is now available to be activated:
+Info:
+Info:
+disk0:asr9k-mpls-3.3.80
+Info:
+Install operation 4 completed successfully at 03:18:30 UTC Mon Nov 14 2005.
+In the following example, a package is added and activated with a single command:
+RP/0/RSP0/CPU0:router# admin
+RP/0/RSP0/CPU0:router(admin)# install add disk1:asr9k-mgbl-p.pie-3.8.0activate
+Install operation 4 'install add /disk1:asr9k-mgbl-p.pie-3.8.0 activate' started
+by user 'user_b' at 07:58:56 UTC Wed Mar 01 2006.
+The install operation will continue asynchronously.
+:router(admin)#Part 1 of 2 (add software): Started
+Info:
+The following package is now available to be activated:
+Info:
+Info:
+disk0:asr9k-mgbl-3.8.0
+Info:
+Part 1 of 2 (add software): Completed successfully
+Part 2 of 2 (activate software): Started
+Info:
+The changes made to software configurations will not be persistent across
+system reloads. Use the command 'admin install
+Info:
+commit' to make changes persistent.
+Info:
+Please verify that the system is consistent following the software change
+using the following commands:
+Info:
+show system verify
+Info:
+install verify
+Part 2 of 2 (activate software): Completed successfully
+Part 1 of 2 (add software): Completed successfully
+Part 2 of 2 (activate software): Completed successfully
+Install operation 4 completed successfully at 08:00:24 UTC Wed Mar 01 2006.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+13
+Action Commands
+install add
+
+
+--- Page 20 ---
+
+install activate (IOS XR 64 bit)
+To enable the package configurations to be made active on the router so new features and software fixes take
+effect, use the install activate command in EXEC mode or Admin EXEC mode.
+install activate package_name
+install activate id operation_id
+Syntax Description
+Enter the package names separated by space.
+Note
+Up to 16 packages can be specified in a single install
+activate command at a time. Multiple packages can
+be specified using the wildcard syntax, for example,
+asr9k-*-x64-*3I.
+package_name
+The operation_id is the ID from the install add
+operation.
+The show install request command displays the
+operation id number of the install add operation and
+its status. You can also find the operation_id in the
+show install log command output.
+id
+operation_id
+Command Default
+The install activate command activates all packages that were added in the specified install add operation
+and the operation is performed in an asynchronous mode. The command runs in the background and the EXEC
+prompt is returned soon after.
+If you use the operation ID (from the add operation) to activate packages, all packages that were added in the
+specified install add operation are activated together. You do not have to activate the packages individually.
+For example, if five packages are added in operation 6, all the five packages are activated together by executing
+install activate id 6 command.
+• Activation takes some time and does not happen instantaneously.
+• Activation of some SMUs require a manual reloading of the router. When such SMUs are activated, a
+warning message is displayed to perform reload. The components of the SMU get activated only after
+the reload is complete.
+Note
+Command Modes
+EXEC mode
+Admin EXEC mode
+Command History
+Modification
+Release
+Support for IOS XR 64 bit install activate command was added.
+Release 6.1.2
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+14
+Action Commands
+install activate (IOS XR 64 bit)
+
+
+--- Page 21 ---
+
+Usage Guidelines
+• Only inactive packages can be activated. Use the show install inactive command to identify the inactive
+packages that are present in the repository.
+• If you want to activate packages using the install activate id operation_id command syntax, use the
+show install log command to identify the operation ID of the add operation.
+When a router reloads using install activate, if the line card experiences a timeout waiting for the sysdb
+configuration replay, the system will notify the user once to reload the line card. This reload allows the sysdb
+configuration to come up properly after the line card restarts.
+The following example lets you activate packages by specifying the package names:
+RP/0/RSP0/CPU0:router# install activate asr9k-m2m-x64-2.0.0.0-r61106I.x86_64
+asr9k-optic-x64-1.0.0.0-r61106I.x86_64
+Jun 22 14:09:25 Package list:
+Jun 22 14:09:25 asr9k-m2m-x64-2.0.0.0-r61106I.x86_64
+Jun 22 14:09:25 asr9k-optic-x64-1.0.0.0-r61106I.x86_64
+Jun 22 14:09:35 Install operation will continue in the background
+RP/0/RSP0/CPU0:router#
+The following example lets you activate packages by specifying the id from the add operation:
+RP/0/RSP0/CPU0:router# install activate id 6
+Jun 22 15:02:24 Package list:
+Jun 22 15:02:24 asr9k-bgp-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-isis-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-k9sec-x64-1.1.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-li-x64-1.1.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-parser-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-m2m-x64-2.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-mgbl-x64-2.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-optic-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-mcast-x64-1.1.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-mpls-te-rsvp-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-eigrp-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-ospf-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-mpls-x64-2.0.0.0-r61106I.x86_64
+Jun 22 15:02:25 Skipped packages which were already active:
+Jun 22 15:02:25 asr9k-bgp-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:25 asr9k-m2m-x64-2.0.0.0-r61106I.x86_64
+Jun 22 15:02:25 asr9k-optic-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:33 Install operation will continue in the background
+RP/0/RSP0/CPU0:router#
+The following example lets you activate multiple packages using the wildcard syntax:
+RP/0/RSP0/CPU0:router#install activate asr9k-*-x64-*3I
+Jun 16 19:35:06 Install operation 105 started by root:
+install activate pkg asr9k-*-x64-*3I
+Jun 16 19:35:06 Package list:
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+15
+Action Commands
+install activate (IOS XR 64 bit)
+
+
+--- Page 22 ---
+
+Jun 16 19:35:06 asr9k-eigrp-x64-1.0.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-ospf-x64-1.0.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-m2m-x64-2.0.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-k9sec-x64-1.1.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-mpls-x64-1.1.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-bgp-x64-1.0.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-isis-x64-1.0.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-mini-x64-6.1.1.03I
+Jun 16 19:35:06 asr9k-mgbl-x64-2.0.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-parser-x64-1.0.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-optic-x64-1.0.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-mcast-x64-1.1.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-mpls-te-rsvp-x64-1.0.0.0-r61103I.x86_64
+Jun 16 19:35:06 asr9k-li-x64-1.0.0.0-r61103I.x86_64
+Jun 22 15:02:33 Install operation will continue in the background
+RP/0/RSP0/CPU0:router#
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+16
+Action Commands
+install activate (IOS XR 64 bit)
+
+
+--- Page 23 ---
+
+install deactivate (IOS XR 64 bit)
+To remove a package from the active software set, use the install deactivate command in EXEC mode or
+Admin EXEC mode.
+install deactivate package_name
+install deactivate id operation_id
+Syntax Description
+Enter the package names separated by space.
+Note
+Up to 16 packages can be specified in a single install
+deactivate command at a time. Multiple packages
+can be specified using the wildcard syntax, for
+example, asr9k-*-x64-*3I.
+package_name
+The operation_id is the ID from the install add
+operation.
+The show install request command displays the
+operation id number of the install add operation and
+its status. You can also find the operation_id in the
+show install log command output.
+id
+operation_id
+Command Default
+The install deactivate command deactivates all features and software patches associated with the specified
+activated packages. This operation is performed in an asynchronous mode and the command runs in the
+background.
+If you use the operation ID (from the add operation) to deactivate packages, all packages that were added in
+the specified install add operation are deactivated together. You do not have to deactivate the packages
+individually.
+For example, if five packages are added in operation 6, all the five packages are deactivated together by
+executing install deactivate id 6 command.
+The System admin packages that were added as a part of the install add operation (of the ID used in deactivate
+operation) will also be deactivated.
+Note
+Command Modes
+EXEC mode
+Admin EXEC mode
+Command History
+Modification
+Release
+Support for IOS XR 64 bit install deactivate command was added.
+Release 6.1.2
+Usage Guidelines
+• Only active packages can be deactivated. Use the show install active command to identify the active
+packages.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+17
+Action Commands
+install deactivate (IOS XR 64 bit)
+
+
+--- Page 24 ---
+
+• If you want to deactivate packages using the install deactivate id operation_id command syntax, use
+the show install log command to identify the operation ID of the add operation.
+• If you want to remove the inactive packages from the repository, use the show install inactive command
+to identify the deactivated packages that are now listed as inactive packages.
+Then, use the install remove command to remove the packages from the repository.
+When a router reloads using install deactivate, if the line card experiences a timeout waiting for the
+sysdb configuration replay, the system will notify the user once to reload the line card. This reload allows
+the sysdb configuration to come up properly after the line card restarts.
+The following example lets you deactivate packages by specifying the package names:
+RP/0/RSP0/CPU0:router# install deactivate asr9k-m2m-x64-2.0.0.0-r61106I.x86_64
+asr9k-optic-x64-1.0.0.0-r61106I.x86_64
+Jun 22 14:09:25 Package list:
+Jun 22 14:09:25 asr9k-m2m-x64-2.0.0.0-r61106I.x86_64
+Jun 22 14:09:25 asr9k-optic-x64-1.0.0.0-r61106I.x86_64
+Jun 22 14:09:35 Install operation will continue in the background
+RP/0/RSP0/CPU0:router#
+The following example lets you deactivate packages by specifying the id from the add operation:
+RP/0/RSP0/CPU0:router# install deactivate id 6
+Jun 22 15:02:24 Package list:
+Jun 22 15:02:24 asr9k-bgp-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-isis-x64-1.0.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-k9sec-x64-1.1.0.0-r61106I.x86_64
+Jun 22 15:02:24 asr9k-li-x64-1.1.0.0-r61106I.x86_64
+Jun 22 15:02:33 Install operation will continue in the background
+RP/0/RSP0/CPU0:router#
+The following example lets you deactivate multiple packages using the wildcard syntax:
+RP/0/RSP0/CPU0:router# install deactivate *-r61103I
+Jun 16 19:35:06 Install operation 108 started by root:
+install deactivate pkg asr9k-mpls-x64-1.1.0.0-r61103I asr9k-mpls-te-rsvp-x64-1.0.0.0-r61103I
+asr9k-mcast-x64-1.1.0.0-r61103I
+Jun 16 19:35:06 Package list:
+Jun 16 19:35:06 asr9k-mpls-x64-1.1.0.0-r61103I
+Jun 16 19:35:06 asr9k-mpls-te-rsvp-x64-1.0.0.0-r61103I
+Jun 16 19:35:06 asr9k-mcast-x64-1.1.0.0-r61103I
+Jun 16 19:35:06 Install operation will continue in the background
+RP/0/RSP0/CPU0:router#
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+18
+Action Commands
+install deactivate (IOS XR 64 bit)
+
+
+--- Page 25 ---
+
+install commit
+To save the active software set to be persistent across designated system controller (DSC) reloads, use the
+install commit command in EXEC or Admin EXEC mode EXEC mode.
+Administration EXEC Mode:
+install commit [location node-id | sdr sdr-name]
+EXEC mode Mode
+install commit
+Syntax Description
+(Optional. Admin EXEC mode mode only.)Specifies a node. The node-id argument is
+expressed in rack/slot/module notation.
+location node-id
+(Optional. Admin EXEC mode only.) Commits the active software set for a specific SDR.
+The sdr-name argument is the name assigned to the SDR. The only SDR available is
+Owner, which refers to the entire router.
+sdr sdr-name
+Command Default
+Admin EXEC mode: Commits the active software set for all SDRs.
+EXEC mode: Commits the active software set for the current SDR.
+Command Modes
+EXEC
+Admin EXEC mode
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+This command was removed from EXEC mode.
+Support for the sdr keyword was removed.
+Release 4.0.0
+Usage Guidelines
+When a package is activated, it becomes part of the current running configuration. To make the package
+activation persistent across designated secure domain router shelf controller (DSDRSC) reloads, enter the
+install commit command. On startup, the DSDRSC of the SDR loads this committed software set.
+If the system is restarted before the active software set is saved with the install commit command, the
+previously committed software set is used.
+Command Modes
+To commit the active software set for the owner SDR, use the install commit command in either administration
+EXEC or EXEC mode.
+Task ID
+Operations
+Task ID
+read,
+write
+pkg-mgmt
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+19
+Action Commands
+install commit
+
+
+--- Page 26 ---
+
+The following example shows how to make the current active software set persistent across DSDRSC
+reloads for all SDRs in the system:
+RP/0/RSP0/CPU0:router# admin
+RP/0/RSP0/CPU0:router(admin)# install commit
+Install operation 16 'install commit' started by user 'user_b' at 19:18:58 UTC
+Sat Apr 08 2006.
+Install operation 16 completed successfully at 19:19:01 UTC Sat Apr 08 2006.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+20
+Action Commands
+install commit
+
+
+--- Page 27 ---
+
+install upgrade source
+To upgrade the software package, use the install upgrade source command in administration EXEC mode.
+install upgrade source [ftp | tftpsystem-disk] [path directory-path] [file-name | version version-number
+| packages] [source-file] [synchronous] [pause-reload]
+Syntax Description
+Specify the source location of the PIE files to be appended to the
+PIE filenames. Location options are as follows:
+ftp: —Copies from an FTP network server. The syntax is
+ftp:[[[//username [:password]@] location]/directory]/filename.
+tftp: —Copies from a TFTP network server. The syntax is
+tftp:[[//location]/directory]/filename
+system disk —Copies package source from system disk. Location
+options are as follows:
+• harddisk: —Copies from the hard disk drive file system (if
+present).
+• disk1: —Copies from disk1: file system.
+source
+Specify the storage device and directory for the file search. The
+search is performed for the specified directory and all subdirectories
+in that directory tree.
+The syntax for directory-path is: device :[/ directory-path]
+If a directory path is not specified, then the search is performed in
+the current directory (a path of . [dot] is assumed).
+path
+directory-path
+Only for TFTP, with file that contains a list of packages to be
+installed
+Note
+Directory listing is not possible
+file-name
+Specify the package version that is to be installed
+version version-number
+Specify the package names to install (packages can be tar file)
+packages
+Specify the source location of the PIE files on the system
+source-file
+(Optional) Performs the command in synchronous mode. This mode
+allows the installation process to be completed before the prompt is
+returned.
+Note
+By default, installation operations are performed in asynchronous
+mode. In asynchronous mode, the command will run without
+expecting any user inputs while holding the prompt.
+synchronous
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+21
+Action Commands
+install upgrade source
+
+
+--- Page 28 ---
+
+(Optional) Pauses the operation before any reload occurs. The
+configuration remains locked for the activation. This keyword
+precedes the following two keywords:
+• pause-reload allow-sw-change—The operation pauses before
+locking the configuration and provides the option to hold the
+operation while you perform configuration changes. You can
+proceed with the activation whenever you choose.
+• pause-reload disallow-sw-change—The operation pauses
+before reload but this will not allow you to make any
+configuration changes.
+Note
+These keywords are applicable for asynchronous and synchronous
+operations. In both cases, follow onscreen instructions to control
+the pausing and completion of the operation.
+pause-reload
+Command Default
+By default install upgrade source picks active version packages.
+Command Modes
+Administration EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release
+5.3.2
+Usage Guidelines
+When a router reloads using install upgrade source, if the line card experiences a timeout waiting for the
+sysdb configuration replay, the system will notify the user once to reload the line card. This reload allows the
+sysdb configuration to come up properly after the line card restarts.
+FTP
+Use the following options to upgrade the system using FTP as source:
+• Only repository without version—It picks delta packages (ignoring optional packages) of the active
+version; that is, the difference between packages present in the file specified and packages active on the
+system.
+• Repository with version—It picks packages of the specified version. If a mini package of the specified
+version is found in the file, it will upgrade the system, provided all dependency and package compatibility
+checks are completed successfully.
+• Packages—Specifies the list of packages to add or upgrade the system. This option can be used to add
+tar files.
+TFTP
+Use the following options to upgrade the system using TFTP as source:
+• File-name—This option requires the package list to be provided in a file, which can then be used to
+upgrade the system or update the packages or SMU's. It picks delta packages (ignoring optional packages)
+of the active version; that is, the difference between packages present in the file specified and packages
+active on the system.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+22
+Action Commands
+install upgrade source
+
+
+--- Page 29 ---
+
+• File-name with version—It picks packages of the specified version. If a mini package of the specified
+version is found in the file, it will upgrade the system, provided all dependency and package compatibility
+checks are completed successfully.
+• Packages—Specifies the list of packages to add or upgrade the system. This option can be used to add
+tar files.
+harddisk
+Use the following options to upgrade the system using harddisk as source:
+• Only repository without version—It picks delta packages (ignoring optional packages) of the active
+version; that is, the difference between packages present in the file specified and packages active on the
+system.
+• Repository with version—It picks packages of the specified version. If a mini package of the specified
+version is found in the file, it will upgrade the system, provided all dependency and package compatibility
+checks are completed successfully.
+• Packages—Specifies the list of packages to add or upgrade the system. This option can be used to add
+tar files.
+Task ID
+Operation
+Task ID
+execute
+pkg-mgmt
+Example
+This example shows how to upgrade a package to 5.2.4 version with image asr9k-mini-px.pie-5.2.4
+from the FTP repository, using the install upgrade source command:
+RP/0/RSP0/CPU0:router#admin
+RP/0/RSP0/CPU0:router(admin)#install upgrade source ftp://10.10.10.10/yum_like_upgrade
+asr9k-mini-px.pie-5.2.4 synchronous
+This example shows how to upgrade a package to 5.3.2 version from the on-system repository, using
+the install upgrade source command:
+RP/0/RSP0/CPU0:router#admin
+RP/0/RSP0/CPU0:router(admin)#install upgrade source harddisk:/images/532
+version 5.3.2
+synchronous
+This example shows how to upgrade package to release 5.1.0 from the TFTP repository, using the
+install upgrade source command:
+RP/0/RSP0/CPU0:router#admin
+RP/0/RSP0/CPU0:router(admin)# install upgrade source tftp://10.10.10.10/auto/tftpboot/userid
+file-name packages.txt version 5.1.0
+synchronous
+This example shows how to add and activate the package or SMU of active version using the install
+upgrade source command:
+RP/0/RSP0/CPU0:router#admin
+RP/0/RSP0/CPU0:router(admin)# install upgrade source tftp://10.10.10.10/packages pkg1,pkg2
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+23
+Action Commands
+install upgrade source
+
+
+--- Page 30 ---
+
+pkg1 is an optional package and pkg2 is a SMU. Both are active versions, but inactive on the system.
+The install upgrade source command checks whether the package or SMU is already inactive on
+system. If it is in inactive, the command skips its downloading, and adds as well as activates optional
+packages or SMUs along with its pre requisites.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+24
+Action Commands
+install upgrade source
+
+
+--- Page 31 ---
+
+install remove
+To delete inactive packages from a storage device, use the install remove command in EXEC or
+mode.
+Administration EXEC Mode:
+install remove {id add-id | device:package | inactive} [sdr sdr-name] [prompt-level {default | none}]
+[asynchronous | synchronous] [test]
+EXEC Mode:
+install remove
+{device:package | inactive} [prompt-level
+{default | none}] [asynchronous |
+synchronous] [test]
+Syntax Description
+Specifies the ID number of an install add operation. The command deletes all
+packages that were added in the specified install add operation. The ID number of
+an install add operation is indicated in the syslog displayed during the operation
+and in the output of the show install log command.
+Up to 16 install add operations can be specified
+id add-id
+Device and package, expressed in concatenated form (for example,
+disk0:asr9k-mgbl-3.8.0). For the device argument, the value is a specified storage
+device, typically disk0:.
+Note
+Multiple packages can be removed at the same time. Up to 32 device : package
+pairs can be specified.
+device : package
+Removes all inactive, noncommitted packages from the boot device (usually disk0:).
+inactive
+(Optional. Administration EXEC mode only) Removes a package for a specific
+secure domain router (SDR). The sdr-name argument is the name assigned to the
+SDR.
+sdr sdr-name
+(Optional) Specifies when you are prompted for input during the procedure.
+• default —You are prompted only when input is required by the operation.
+• none —You are never prompted.
+prompt-level {default
+| none}
+(Optional) Performs the command in asynchronous mode. In asynchronous mode,
+this command runs in the background, and the EXEC prompt is returned as soon
+as possible. This is the default mode.
+asynchronous
+(Optional) Performs the command in synchronous mode. This mode allows the
+installation process to finish before the prompt is returned.
+synchronous
+(Optional) Verifies the effects of proposed operations without making changes to
+the Cisco IOS XR software.
+test
+Command Default
+The operation is performed in asynchronous mode: The install remove command runs in the background,
+and the EXEC prompt is returned as soon as possible.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+25
+Action Commands
+install remove
+
+
+--- Page 32 ---
+
+Command Modes
+EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+This command was removed from EXEC mode.
+Support was removed for the sdr keyword.
+Release 4.0.0
+Usage Guidelines
+Only inactive packages can be removed. (Packages cannot be in the active or committed software set.)
+Note
+• To remove all inactive packages from the boot device (usually disk0:), use the install remove command
+with the inactive keyword.
+• To remove a specific inactive package from a storage device, use the install remove command with the
+device: package arguments.
+When removing all inactive packages from the boot device, use the show version, show install active, or
+show install committed command to determine the device used as the boot device.
+Note
+• To remove all packages that were added in one or more specific install add operations, use the id add-id
+keyword and argument. The operation ID of an install add operation is indicated in the syslog displayed
+during the operation and in the output of the show install log command. If you specify packages according
+to operation ID, all the packages that were added by the specified operation must still be on the router.
+Command Modes
+• To remove packages from the Owner SDR, use the install remove command in administration EXEC
+or EXEC mode.
+• To remove all inactive packages from the boot device in the system or SDR, use the install remove
+command with the inactive keyword.
+User Prompts
+Use the install remove command with the prompt-level none keywords to automatically ignore any
+confirmation prompts and proceed with the package removal.
+Test Operation
+Use the test keyword to verify the effects of the package removal operation and determine whether the operation
+can be completed. After previewing the effects of the proposed operations, use the show install log command
+for more details about the effects of the proposed operations.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+26
+Action Commands
+install remove
+
+
+--- Page 33 ---
+
+When removing a package, note that the install remove command ignores secure domain router (SDR)
+boundaries and performs the operation in global scope.
+Note
+The following example shows how to remove a specific inactive package. In this example, the
+operation is run in test mode. The operation is then confirmed and the package is removed.
+RP/0/RSP0/CPU0:router# admin
+RP/0/RSP0/CPU0:router(admin)# install remove
+disk0:asr9k-diags-3.7.90 test
+Install operation 30 'install remove disk0:asr9k-diags-3.7.90 test' started by user 'user_b'
+at 23:40:22 UTC Sat Apr 15 2006.
+Warning:
+No changes will occur due to 'test' option being specified. The
+Warning:
+following is the predicted output for this install command.
+Info:
+This operation will remove the following package:
+Info:
+disk0:asr9k-diags-3.7.90
+Info:
+After this install remove the following install rollback points will
+Info:
+no longer be reachable, as the required packages will not be present:
+Info:
+4, 9, 10, 14, 15, 17, 18
+Proceed with removing these packages? [confirm] y
+The install operation will continue asynchronously.
+Install operation 30 completed successfully at 23.
+The following example shows how to remove all inactive packages from the boot device:
+RP/0/RSP0/CPU0:router# admin
+RP/0/RSP0/CPU0:router(admin)# install remove inactive synchronous
+RP/0/RSP0/CPU0:Aug 15 09:25:41.020 :
+instdir[198]: %INSTALL-INSTMGR-6-INSTALL_OPERATION_STARTED :
+Install operation 8 '(admin) install remove inactive' started by user 'user_b'
+Install operation 8 '(admin) install remove inactive' started by user 'user_b' at
+09:25:41 UTC Tue Aug 15 2006.
+Info:
+This operation will remove the following package:
+Info:
+disk0:asr9k-compmgmt__installmgr-0.0.5
+Proceed with removing these packages? [confirm]
+The install operation will continue asynchronously.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+27
+Action Commands
+install remove
+
+
+--- Page 34 ---
+
+install replace
+To replace the currently installed software with that in a given ISO and apply the change, use the install
+replace command in EXEC mode.
+install
+replace
+location
+[commit] [reload] [noprompt]
+[synchronous]
+Specifes the location of the package for installation.
+location
+(Optional) Commits the installed software after replacing.
+commit
+(Optional) Replaces the software through a reload.
+reload
+(Optional) Applies the changes without prompting for permission.
+noprompt
+(Optional) Applies the changes synchronously.
+synchronous
+Command Default
+None
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 6.5.2
+The ftp and tftp keywords are deprecated.
+Release
+25.4.1
+Usage Guidelines
+Include the keyword noprompt in the command to enable the system to bypass your permission to reload the
+router.
+When a router reloads using install replace, if the line card experiences a timeout waiting for the sysdb
+configuration replay, the system will notify the user once to reload the line card. This reload allows the sysdb
+configuration to come up properly after the line card restarts.
+Starting with Cisco IOS XR Software Release 25.4.1, do not use the FTP or TFTP protocols for file transfers,
+as these are unsecure and deprecated. Instead, use SFTP (Secure File Transfer Protocol) or SCP (Secure Copy
+Protocol) for improved security, as they provide encrypted communication.
+Syslog warnings will be displayed each time these commands are executed.
+Task ID
+Operations
+Task ID
+read,
+write
+pkg-mgmt
+This example shows how to replace the current software with the asr9k-x64.iso image.
+Router# install replace /harddisk:/asr9k-x64.iso
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+28
+Action Commands
+install replace
+
+
+--- Page 35 ---
+
+This example shows how to replace the current software and commit the changes:
+Router# install replace /harddisk:/asr9k.iso commit
+This example shows how to replace the current software and reload:
+Router# install replace /harddisk:/asr9k.iso reload
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+29
+Action Commands
+install replace
+
+
+--- Page 36 ---
+
+reload
+reload
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+No default behavior or values
+Command Modes
+EXEC
+Command History
+Modifications
+Releases
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+Use the reload command to cause the RSP to reload the Cisco IOS XR software according to the configuration
+register setting (for example, 0x0 to enter ROMMON mode and 0x2 to reload the RSP to EXEC mode). If a
+standby RSP is in the ready redundancy state, the reload command also causes the router to fail over to the
+standby RSP. Use the show redundancy command in EXEC mode to display the status of the standby RSP.
+When the reload command is used and a switchover occurs, the running (active) software configuration is
+automatically maintained during switchover.
+If a standby RSP is not installed or is not in the ready state, then the router experiences a loss of service while
+the active RSP is reloading Cisco IOS XR software. To view the status of the standby RSP, issue the show
+redundancy command in EXEC mode.
+Caution
+If you use the reload command and there is no available standby node, you are prompted to continue with
+the reload:
+When a router reloads using reload, if the line card experiences a timeout waiting for the sysdb configuration
+replay, the system will notify the user once to reload the line card. This reload allows the sysdb configuration
+to come up properly after the line card restarts.
+RP/0/RSP0/CPU0:router# reload
+Standby card not present or not Ready for failover. Proceed?[confirm]y
+Task ID
+Operations
+Task
+ID
+execute
+root-lr
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+30
+Action Commands
+reload
+
+
+--- Page 37 ---
+
+The following example shows how to reload the active RSP. If a standby RSP is in the ready state,
+then the router fails over to the standby RSP. If the standby RSP is not installed or is not in the ready
+state, then the router enters ROMMON mode and routing operations stop.
+RP/0/RSP0/CPU0:router# reload
+Updating Commit Database.
+Please wait...[OK]
+Proceed with reload? [confirm] y
+PCI0 device[7]: Vendor ID 0x10ee
+PCI0 device[7]: Device ID 0x300e
+PCI1 device[7]: Device ID 0x1100
+PCI1 device[7]: Vendor ID 0x1013
+PCI1 device[8]: Device ID 0x649
+PCI1 device[8]: Vendor ID 0x1095
+PCI1 device[9]: Device ID 0x5618
+PCI1 device[9]: Vendor ID 0x14e4
+PCI1 device[10]: Device ID 0x5618
+PCI1 device[10]: Vendor ID 0x14e4
+System Bootstrap, Version 1.15(20040120:002852) ,
+Copyright (c) 1994-2004 by cisco Systems, Inc.
+Board type is 0x100000 (1048576)
+Enabling watchdog
+Broadcom 5618 #0 Found on PCI
+Broadcom 5618 #1 Found on PCI
+No. of BCM 56xx switches found 2 .
+BCM Switch #0 initialisation complete.
+BCM Switch #1 initialisation complete
+G4(7450-SMP-GT64260_A) platform with 2048 Mb of main memory
+rommon B1 >
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+31
+Action Commands
+reload
+
+
+--- Page 38 ---
+
+ztp enable
+Manual Zero Touch Provisioning (ZTP) invocation using CLI commands allows ZTP to run over more
+interfaces.
+To enable Zero Touch Provisioning (ZTP) at boot, use the ztp enable command in EXEC mode.
+ztp enable
+Command Default
+No default behavior or values
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.0.1
+Usage Guidelines
+By default, ZTP is enabled. When you execute the ztp enable command the start value in the ztp.ini file is
+set to True.
+The following example shows the sample of the ztp.ini file:
+[Startup]
+start: True
+retry_forever: True
+[Fetcher Priority]
+Mgmt4: 0
+Mgmt6: 1
+DPort4: 2
+DPort6: 3
+This example shows how to enable ztp at boot:
+Router#ztp enable
+Fri Jul 12 16:09:02.154 UTC
+Enable ZTP? [confirm] [y/n] :y
+ZTP Enabled.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+32
+Action Commands
+ztp enable
+
+
+--- Page 39 ---
+
+ztp disable
+Manual Zero Touch Provisioning (ZTP) invocation using CLI commands allows ZTP to run over more
+interfaces.
+To disable Zero Touch Provisioning (ZTP) at boot, use the ztp disable command in EXEC mode.
+ztp disable
+Command Default
+No default behavior or values
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+7.0.1
+Usage Guidelines
+Use ztp disable command to disable ZTP. When you execute the ztp disable command, the start value in the
+ztp.ini file is set to False.
+The following example shows the sample of the ztp.ini file:
+[Startup]
+start: False
+retry_forever: True
+[Fetcher Priority]
+Mgmt4: 0
+Mgmt6: 1
+DPort4: 2
+DPort6: 3
+This example shows how to disable ztp at boot:
+Router#ztp disable
+Fri Jul 12 16:07:18.491 UTC
+Disable ZTP? [confirm] [y/n] :y
+ZTP Disabled.
+Run ZTP enable to run ZTP again.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+33
+Action Commands
+ztp disable
+
+
+--- Page 40 ---
+
+ztp initiate
+To invoke a new ZTP DHCP session, use the ztp initiate command in EXEC mode.
+ztp initiate {[ apply configuration ] | [ dataport ] | [ dhcp4 ] | [ dhcp6 ] | [ dhcp4-client-identifier
+] | [ dhcp6-client-identifier ] | [ dscp value ] | [ dscp6 value ] | [ hostname ] | [ interface ] |
+[ management ] | [ noprompt ]} [ debug ] [ verbose ]
+Syntax Description
+Run with additional logging to the console(cisco-support)
+debug
+Run with logging to the console(cisco-support)
+verbose
+XR configuration commands to apply(cisco-support)
+apply configuration
+Send DHCP requests on all ADMIN UP physical LC interfaces.
+dataport
+Send only DHCP IPv4 requests(cisco-support)
+dhcp4
+Send only DHCP IPv6 requests(cisco-support)
+dhcp6
+Override default dhcp-client-identifier(cisco-support)
+dhcp4-client-identifier
+Override default dhcp6-client-id(cisco-support)
+dhcp6-client-identifier
+DSCP/Prec Value(cisco-support)
+dscp value
+DSCP6/Prec Value(cisco-support)
+dscp6 value
+XR hostname to set(cisco-support)
+hostname
+Send DHCP requests only on the given interface(cisco-support)
+interface
+Send DHCP requests on the platforms management interface(cisco-support)
+management
+Run without prompting(cisco-support)
+noprompt
+Command Default
+No default behavior or values
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was
+introduced.
+Release
+6.3.1
+Usage Guidelines
+Use the ztp initiate command to forceably inititate the ZTP, ignoring username configuration. ztp initiate
+allows the execution of a script even when the system has already been configured. This command is useful
+for testing ZTP without forcing a reload. This command is particularly useful to test scripts or if some manual
+operations are required before provisioning the box. ztp initiate can specify any data interfaces and management
+interface on the system to be used for the whole ZTP process. If you don't specify an interface, ztp will be
+invoked on management interface only.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+34
+Action Commands
+ztp initiate
+
+
+--- Page 41 ---
+
+No progress logs are shown by default, although there will be XR syslogs for important events. If you wish
+to see more logs, add verbose after the ztp initiate command. For more details, add debug before verbose.
+Logs can be found in disk0:/ztp/ztp.log.
+Example
+This example shows how to bring up the interface manually:
+RP/0/RP0/CPU0:router#ztp initiate debug verbose interface TenGigE 0/0/0/0
+Invoke ZTP? (this may change your configuration) [confirm] [y/n] :
+This example shows how to get rid of the prompting:
+RP/0/RP0/CPU0:router#ztp initiate noprompt
+Mon Jun 27 20:40:10.353 UTC
+ZTP will now run in the background.
+Please use "show logging" or look at /disk0:/ztp/ztp.log to check progress.
+This example shows how to invoke the breakout discovery and ZTP, ZTP is invoked on the interfaces
+which are up:
+RP/0/RP0/CPU0:router#ztp breakout debug verbose
+RP/0/RP0/CPU0:router#ztp initiate dataport debug verbose
+Invoke ZTP? (this may change your configuration) [confirm] [y/n] :
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+35
+Action Commands
+ztp initiate
+
+
+--- Page 42 ---
+
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+36
+Action Commands
+ztp initiate
+
+
+--- Page 43 ---
+
+Show Commands
+• show version, on page 38
+• show platform, on page 41
+• show install, on page 44
+• show install active, on page 47
+• show install active, on page 50
+• show install committed, on page 53
+• show install inactive, on page 56
+• show install package, on page 60
+• show fpd package, on page 63
+• show hw-module fpd, on page 66
+• show interfaces (frame relay), on page 69
+• show inventory (Cisco IOS XR 64-bit), on page 74
+• show ipv4 interface , on page 78
+• show ipv6 interface , on page 81
+• show install boot-options, on page 85
+• show running-config, on page 86
+• show redundancy, on page 89
+• show media, on page 91
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+37
+
+
+--- Page 44 ---
+
+show version
+To display the configuration of the system hardware, the software version, the names and sources of
+configuration files, and the boot images, use the show version command in appropriate configuration mode.
+show
+version
+[brief]
+Syntax Description
+It displays detail summary of system information and
+hardware details.
+brief
+Command Default
+No default behavior or values
+Command Modes
+EXEC
+XR EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+The brief keyword can be used during command execution on Cisco IOS XR 32 bit routers.
+Note
+The command is applicable for IOS XR 64 Bit software on ASR 9000 Enhanced XR (eXR).
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+The show version command displays a variety of system information, including hardware and software
+version, router uptime, boot settings (configuration register), and active software.
+Task ID
+Operations
+Task ID
+read
+basic-services
+This example shows partial output from the show version command:
+RP/0/RSP0/CPU0:router# show version
+Tue Jul 28 05:14:13.670 DST
+Cisco IOS XR Software, Version 3.9.0.14I
+Copyright (c) 2009 by Cisco Systems, Inc.
+ROM: System Bootstrap, Version 1.1(20090521:183759) [ASR9K ROMMON],
+PE44_ASR-9010 uptime is 1 week, 6 days, 13 hours, 52 minutes
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+38
+Show Commands
+show version
+
+
+--- Page 45 ---
+
+System image file is "bootflash:disk0/asr9k-os-mbi-3.9.0.14I/mbiasr9k-rp.vm"
+cisco ASR9K Series (MPC8641D) processor with 4194304K bytes of memory.
+MPC8641D processor at 1333MHz, Revision 2.2
+2 Management Ethernet
+12 TenGigE
+40 GigabitEthernet
+219k bytes of non-volatile configuration memory.
+975M bytes of compact flash card.
+33994M bytes of hard disk.
+1605616k bytes of disk0: (Sector size 512 bytes).
+1605616k bytes of disk1: (Sector size 512 bytes).
+Configuration register on node 0/RSP0/CPU0 is 0x102
+Boot device on node 0/RSP0/CPU0 is disk0:
+Package active on node 0/RSP0/CPU0:
+asr9k-scfclient, V 3.9.0.14I, Cisco Systems, at disk0:asr9k-scfclient-3.9.0.14I
+Built on Mon Jul 13 08:28:45 DST 2009
+By sjc-lds-208 in /auto/ioxbuild7/production/3.9.0.14I/asr9k/workspace for c4.2.1-p0
+asr9k-adv-video, V 3.9.0.14I, Cisco Systems, at disk0:asr9k-adv-video-3.9.0.14I
+Built on Mon Jul 13 10:13:23 DST 2009
+By sjc-lds-208 in /auto/ioxbuild7/production/3.9.0.14I/asr9k/workspace for c4.2.1-p0
+asr9k-fpd, V 3.9.0.14I, Cisco Systems, at disk0:asr9k-fpd-3.9.0.14I
+Built on Mon Jul 13 08:44:47 DST 2009
+By sjc-lds-208 in /auto/ioxbuild7/production/3.9.0.14I/asr9k/workspace for c4.2.1-p0
+asr9k-diags, V 3.9.0.14I, Cisco Systems, at disk0:asr9k-diags-3.9.0.14I
+Built on Mon Jul 13 08:28:48 DST 2009
+By sjc-lds-208 in /auto/ioxbuild7/production/3.9.0.14I/asr9k/workspace for c4.2.1-p0
+asr9k-k9sec, V 3.9.0.14I, Cisco Systems, at disk0:asr9k-k9sec-3.9.0.14I
+Built on Mon Jul 13 08:43:40 DST 2009
+By sjc-lds-208 in /auto/ioxbuild7/production/3.9.0.14I/asr9k/workspace for c4.2.1-p0
+asr9k-mgbl, V 3.9.0.14I, Cisco Systems, at disk0:asr9k-mgbl-3.9.0.14I
+Built on Mon Jul 13 10:11:41 DST 2009
+By sjc-lds-208 in /auto/ioxbuild7/production/3.9.0.14I/asr9k/workspace for c4.2.1-p0
+asr9k-mcast, V 3.9.0.14I, Cisco Systems, at disk0:asr9k-mcast-3.9.0.14I
+Built on Mon Jul 13 08:40:57 DST 2009
+By sjc-lds-208 in /auto/ioxbuild7/production/3.9.0.14I/asr9k/workspace for c4.2.1-p0
+--More--
+Table 1: show version Field Descriptions
+Description
+Field
+Cisco IOS XR software version number currently running on the
+router.
+Cisco IOS XR Software, Version #
+System bootstrap version number currently running on the router.
+ROM
+Number of uninterrupted days, hours, minutes, and seconds the
+system has been up and running.
+router uptime
+Location and name of the system image file currently running on
+the router.
+System image file is
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+39
+Show Commands
+show version
+
+
+--- Page 46 ---
+
+Description
+Field
+Number of Packet-over-SONET/SDH interfaces available on the
+current router.
+Packet over SONET/SDH network
+interface(s)
+Number of SONET or SDH1 interfaces available on the current
+router.
+SONET/SDH Port controller(s)
+Number of Ethernet or IEEE 802.3 interfaces available on the
+current router.
+Ethernet/IEEE 802.3 interface(s)
+Number of Gigabit Ethernet or IEEE 802.3 interfaces available
+on the current router.
+GigabitEthernet/IEEE interface(s)
+Available volatile configuration memory, in bytes.
+bytes of non-volatile configuration
+memory
+ATA PCMCIA2 available on the card in disk 0, in bytes.
+bytes of ATA PCMCIA card at disk 0
+Details about the current software package that is running on the
+SP node in slot 1.
+Package active on node 0/1/SP
+1 SDH = Synchronous Digital Hierarchy
+2 ATA PCMCIA = AT Attachment Personal Computer Memory Card Industry Association
+This example shows partial output from the show version command for for IOS XR 64 Bit version:
+RP/0/RSP0/CPU0:ASR-9906-C-LS#show version
+Wed Mar 29 11:45:24.914 UTC
+Cisco IOS XR Software, Version 7.5.2
+Copyright (c) 2013-2022 by Cisco Systems, Inc.
+Build Information:
+Built By
+: ingunawa
+Built On
+: Tue Apr 26 18:26:36 PDT 2022
+Built Host
+: iox-ucs-055
+Workspace
+: /auto/srcarchive14/prod/7.5.2/asr9k-x64/ws
+Version
+: 7.5.2
+Location
+: /opt/cisco/XR/packages/
+Label
+: 7.5.2
+cisco ASR9K () processor
+System uptime is 5 weeks 5 days 16 hours 13 minutes
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+40
+Show Commands
+show version
+
+
+--- Page 47 ---
+
+show platform
+To display information and status for each node in the system, use the show platform command in EXEC or
+administration EXEC
+mode.
+show platform [node-id]
+System admin EXEC Mode:
+show
+platform
+[location]
+Syntax Description
+(Optional) Node for which to display information. The node-id
+argument is entered in the rack/slot/module notation.
+node-id
+Command Default
+Status and information are displayed for all nodes in the system.
+Command Modes
+Administration EXEC
+EXEC
+System Admin EXEC mode on 64-bit IOS-XR
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Support was added for the 2-Port Channelized OC-12/DS0 SPA.
+Release 3.9.0
+Usage Guidelines
+The show platform command provides a summary of the nodes in the system, including node type and status.
+Enter the show platform command in administration EXEC mode to display output for the entire system.
+Enter the show platform command in EXEC mode to display output for only those nodes that belong to the
+SDR on which the command is executed.
+For ASR-9001-S, EP1 will be displayed as, Not allowed online, until the required license is bought.
+This example shows the sample display output for ASR9912 and ASR9922:
+RP/0/RSP0/CPU0:router:router(admin) # show platform
+Wed Jul
+3 11:34:18.487 UTC
+Node
+Type
+State
+Config State
+-----------------------------------------------------------------------------
+0/RP0/CPU0
+ASR-9922-RP-SE(Active)
+IOS XR RUN
+PWR,NSHUT,MON
+0/RP1/CPU0
+ASR-9922-RP-TR(Standby)
+IOS XR RUN
+PWR,NSHUT,MON
+0/FT0/SP
+FAN TRAY
+READY
+0/FT1/SP
+FAN TRAY
+READY
+0/0/CPU0
+A9K-36x10GE-TR
+IOS XR RUN
+PWR,NSHUT,MON
+0/1/CPU0
+A9K-36x10GE-SE
+IOS XR RUN
+PWR,NSHUT,MON
+0/2/CPU0
+A9K-36x10GE-TR
+IOS XR RUN
+PWR,NSHUT,MON
+0/3/CPU0
+A9K-36x10GE-SE
+IOS XR RUN
+PWR,NSHUT,MON
+0/4/CPU0
+A9K-36x10GE-SE
+IOS XR RUN
+PWR,NSHUT,MON
+0/5/CPU0
+A9K-36x10GE-SE
+IOS XR RUN
+PWR,NSHUT,MON
+0/6/CPU0
+A9K-36x10GE-SE
+IOS XR RUN
+PWR,NSHUT,MON
+0/7/CPU0
+A9K-36x10GE-TR
+IOS XR RUN
+PWR,NSHUT,MON
+0/8/CPU0
+A9K-24x10GE-SE
+IOS XR RUN
+PWR,NSHUT,MON
+0/9/CPU0
+A9K-24x10GE-TR
+IOS XR RUN
+PWR,NSHUT,MON
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+41
+Show Commands
+show platform
+
+
+--- Page 48 ---
+
+0/PM0/SP
+PWR-3KW-AC-V2
+READY
+PWR,NSHUT,MON
+0/PM1/SP
+PWR-3KW-AC-V2
+READY
+PWR,NSHUT,MON
+0/PM2/SP
+PWR-3KW-AC-V2
+READY
+PWR,NSHUT,MON
+0/PM3/SP
+PWR-3KW-AC-V2
+READY
+PWR,NSHUT,MON
+0/PM4/SP
+PWR-3KW-AC-V2
+READY
+PWR,NSHUT,MON
+0/PM5/SP
+PWR-3KW-AC-V2
+READY
+PWR,NSHUT,MON
+0/FC0/SP
+ASR-9912-SFC110
+OK
+PWR,NSHUT,MON
+0/FC1/SP
+ASR-9912-SFC110
+OK
+PWR,NSHUT,MON
+0/FC2/SP
+ASR-9912-SFC110
+OK
+PWR,NSHUT,MON
+0/FC3/SP
+ASR-9912-SFC110
+OK
+PWR,NSHUT,MON
+0/FC4/SP
+ASR-9912-SFC110
+OK
+PWR,NSHUT,MON
+0/FC5/SP
+ASR-9912-SFC110
+OK
+PWR,NSHUT,MON
+0/FC6/SP
+ASR-9912-SFC110
+OK
+PWR,NSHUT,MON
+The following example shows sample output from the show platform command:
+RP/0/RP0/CPU0:router# show platform
+Thu Nov 19 21:44:49.274 UTC
+Node
+Type
+State
+Config State
+-----------------------------------------------------------------------------
+0/RSP0/CPU0
+A9K-RSP-4G(Active)
+IOS XR RUN
+PWR,NSHUT,MON
+0/RSP1/CPU0
+A9K-RSP-4G(Standby)
+IN-RESET
+PWR,NSHUT,MON
+0/1/CPU0
+A9K-SIP-700
+IOS XR RUN
+PWR,NSHUT,NMON
+0/1/0
+SPA-10X1GE-V2
+OK
+PWR,NSHUT,MON
+0/1/1
+SPA-1X10GE-L-V2
+OK
+PWR,NSHUT,MON
+0/3/CPU0
+A9K-40GE-B
+IOS XR RUN
+PWR,NSHUT,MON
+0/4/CPU0
+A9K-SIP-700
+IOS XR RUN
+PWR,NSHUT,MON
+0/4/1
+SPA-2XCHOC12/DS0
+OK
+PWR,NSHUT,MON
+The following is sample output for the show platform command with the node-id argument:
+RP/0/RSP0/CPU0:router# show platform 0/1/cpu0
+Mon Jul 27 22:30:04.752 DST
+Node
+Type
+State
+Config State
+-----------------------------------------------------------------------------
+0/1/CPU0
+A9K-40GE-B
+IOS XR RUN
+PWR,NSHUT,MON
+This table describes the significant fields shown in the display.
+Table 2: show platform Field Descriptions
+Description
+Field
+Identifier of the node in the rack/slot/module notation.
+Node
+Type of node.
+Type
+Current state of the specified node.
+State
+Current status of the specified node.
+Config
+State
+The following is sample output for the show platform command with the location argument:
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+42
+Show Commands
+show platform
+
+
+--- Page 49 ---
+
+The location argument is only applicable for IOS XR 64 Bit version on ASR 9000 Enhanced XR
+(eXR).
+Note
+sysadmin-vm:0_RSP0# show platform
+Thu Jun
+15 06:14:46.667 UTC+00:00
+Location
+Card Type
+HW State
+SW State
+Config State
+----------------------------------------------------------------------------
+0/0
+A99-32X100GE-TR
+OPERATIONAL
+OPERATIONAL
+NSHUT
+0/RSP0
+A9K-RSP5-64G
+OPERATIONAL
+OPERATIONAL
+NSHUT
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+43
+Show Commands
+show platform
+
+
+--- Page 50 ---
+
+show install
+To display active packages, use the show install command in EXEC or administration EXEC mode.
+Administration EXEC Mode
+show install [detail | summary | verbose] [sdr sdr-name | location node-id]
+EXEC Mode
+show install [detail | summary | verbose] [location node-id]
+Syntax Description
+(Optional) Displays a detailed summary of the active packages for a system, secure domain
+router (SDR), or node.
+detail
+(Optional) Displays a summary of the active packages in a system or SDR. Use this
+command to display the default software profile for SDRs
+summary
+(Optional) Displays a detailed summary of the active packages for a system, SDR, or
+node, including component and file information for each package.
+verbose
+(Optional. Administration EXEC mode only.) Displays the active packages for a specific
+SDR. The sdr-name argument is the name assigned to the SDR. The only SDR available
+is Owner, which refers to the entire router.
+sdr sdr-name
+(Optional) Displays the active packages for a designated node. The node-id argument is
+expressed in rack/slot/module notation.
+location node-id
+Command Default
+No default behavior or values
+Command Modes
+EXEC
+Administration EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+This command displays output that is similar to the show install active command.
+Note
+Use the show install command to display the active software set for all nodes, or for specific nodes. Enter
+the command in administration EXEC mode to display information for all nodes in all SDRs.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+44
+Show Commands
+show install
+
+
+--- Page 51 ---
+
+Displaying Information for a Specific SDR
+• To display information for a specific SDR from administration EXEC mode, use the sdr sdr-name
+keyword and argument.
+• To display information for an SDR when logged into that SDR, enter the command in EXEC mode.
+Displaying Information for a Specific Node
+Use the location node-id keyword and argument to display information for a specific node. If you do not
+specify a location with the location node-id keyword and argument, this command displays information from
+all nodes.
+Summary, Detailed, and Verbose Information
+Use the summary keyword to display a summary of the active packages in a system or SDR. Use the detail
+keyword to display the active packages for each node in an SDR, or in all SDRs. Use the verbose keyword
+to display additional information, including component and file information for each package.
+This command displays output that is similar to the show install active command.
+Note
+Displaying the Default SDR Software Profile
+When an SDR is created, the nodes assigned to that SDR are configured with the default software profile. To
+view a summary of the default SDR software configuration, enter the show install summary command in
+administration EXEC mode. Any new nodes that are configured to become a part of an SDR boot with the
+default software profile listed in the output of this command.
+Task ID
+Operations
+Task ID
+read
+pkg-mgmt
+Use the location node-id keyword and argument to display the active packages for a designated
+node:
+RP/0/RSP0/CPU0:router# show install location 0/rp0/cpu0
+Thu May 20 10:08:54.666 DST
+Node 0/RP0/CPU0 [HRP] [SDR: Owner]
+Boot Device: disk0:
+Boot Image: /disk0/asr9k-os-mbi-3.9.0/mbi-rp.vm
+Active Packages:
+disk0:asr9k-k9sec-p-3.9.0
+disk0:asr9k-mpls-p-3.9.0
+disk0:asr9k-mgbl-p-3.9.0
+disk0:asr9k-mcast-p-3.9.0
+disk0:asr9k-doc-p-3.9.0
+disk0:comp-asr9k-mini-3.9.0
+disk0:asr9k-fpd-3.9.0
+disk0:asr9k-diags-p-3.9.0
+Use the summary keyword to display a summary of the active packages in the system. This command
+also shows the default software profile used for new SDRs.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+45
+Show Commands
+show install
+
+
+--- Page 52 ---
+
+RP/0/RSP0/CPU0:router# show install summary
+Thu May 20 10:14:38.919 DST
+Active Packages:
+disk0:asr9k-upgrade-p-3.9.0
+disk0:asr9k-k9sec-p-3.9.0
+disk0:asr9k-mpls-p-3.9.0
+disk0:asr9k-mgbl-p-3.9.0
+disk0:asr9k-mcast-p-3.9.0
+disk0:asr9k-doc-p-3.9.0
+disk0:comp-asr9k-mini-3.9.0
+disk0:asr9k-fpd-3.9.0
+disk0:asr9k-diags-p-3.9.0
+Table 3: show install Field Descriptions
+Description
+Field
+Device where the node stores the active software.
+Boot Device
+Location on the DSC of the active minimum boot image (MBI) used to boot the node.
+Boot Image
+Active packages loaded on the node.
+Active
+Packages
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+46
+Show Commands
+show install
+
+
+--- Page 53 ---
+
+show install active
+To display active packages, use the show install active command in EXEC or administration EXEC
+mode.
+Administration EXEC Mode
+show install active [detail | summary | verbose] [location node-id]
+EXEC Mode
+show install active [detail | summary | verbose] [location node-id]
+Syntax Description
+(Optional) Displays a detailed summary of the active packages for a system, secure domain
+router (SDR), or node.
+detail
+(Optional) Displays a summary of the active packages in a system or SDR.
+summary
+(Optional) Displays a detailed summary of the active packages for a system, SDR, or
+node, including component information for each package.
+verbose
+(Optional. Administration EXEC mode only.) Displays the active packages for a specific
+SDR. The sdr-name argument is the name assigned to the SDR.
+sdr sdr-name
+(Optional) Displays the active packages for a designated node. The node-id argument
+is expressed in rack/slot/module notation.
+location node-id
+Command Default
+None
+Command Modes
+Administration EXEC
+EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+This command displays output that is similar to the show install command.
+Note
+Use the show install active command to display the active software set for all nodes, or for specific nodes.
+Displaying Information for a Specific Node
+Use the location node-id keyword and argument to display information for a specific node. If you do not
+specify a location with the location node-id keyword and argument, this command displays information from
+all nodes.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+47
+Show Commands
+show install active
+
+
+--- Page 54 ---
+
+Summary, Detailed, and Verbose Information
+Use the summary keyword to display a summary of the active packages in a system or SDR. Use the detail
+keyword to display the active packages for each node in an SDR, or in all SDRs. Use the verbose keyword
+to display additional information, including component and file information for each package.
+For Superceded SMUs
+The show install active command doesnot display superceded SMUs. To get details of the superceded
+SMUs, use the show install superceded command.
+The following example illustrates sample output from the show install active command with the
+location node-id keyword and argument specified:
+RP/0/RSP0/CPU0:router# show install active location 0/1/cpu0
+Node 0/1/CPU0 [LC] [SDR: Owner]
+Boot Device: bootflash:
+Boot Image: /disk0/asr9k-os-mbi-3.9.0.30I/mbiasr9k-lc.vm
+Active Packages:
+disk0:asr9k-adv-video-3.9.0.14I
+disk0:asr9k-fpd-3.9.0.30I
+disk0:asr9k-diags-3.9.0.30I
+disk0:asr9k-k9sec-3.9.0.30I
+disk0:asr9k-mcast-3.9.0.30I
+disk0:asr9k-mpls-3.9.0.30I
+disk0:comp-
+asr9k-mini-3.9.0.30I
+The following example illustrates sample output from the show install active command with the
+summary keyword specified:
+RP/0/RSP0/CPU0:router(admin)# show install active summary
+Wed May 26 12:01:27.993 PST
+Default Profile:
+Admin Resources
+SDRs:
+Owner
+Active Packages:
+disk0:asr9k-doc-3.9.0.03I
+disk0:asr9k-adv-video-3.9.0.14I
+disk0:asr9k-fpd-3.9.0.03I
+disk0:asr9k-diags-3.9.0.03I
+disk0:asr9k-k9sec-3.9.0.03I
+disk0:asr9k-mgbl-3.9.0.03I
+disk0:asr9k-mcast-3.9.0.03I
+disk0:asr9k-mpls-3.9.0.03I
+disk0:comp-
+asr9k-mini-3.9.0.03I
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+48
+Show Commands
+show install active
+
+
+--- Page 55 ---
+
+Table 4: show install active Field Descriptions
+Description
+Field
+Device where the node stores the active software.
+Boot Device
+Location on the DSC of the active minimum boot image (MBI) used to boot the node.
+Boot Image
+Active packages loaded on the node.
+Active
+Packages
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+49
+Show Commands
+show install active
+
+
+--- Page 56 ---
+
+show install active
+To display active packages, use the show install active command in EXEC or administration EXEC
+mode.
+Administration EXEC Mode
+show install active [detail | summary | verbose] [location node-id]
+EXEC Mode
+show install active [detail | summary | verbose] [location node-id]
+Syntax Description
+(Optional) Displays a detailed summary of the active packages for a system, secure domain
+router (SDR), or node.
+detail
+(Optional) Displays a summary of the active packages in a system or SDR.
+summary
+(Optional) Displays a detailed summary of the active packages for a system, SDR, or
+node, including component information for each package.
+verbose
+(Optional. Administration EXEC mode only.) Displays the active packages for a specific
+SDR. The sdr-name argument is the name assigned to the SDR.
+sdr sdr-name
+(Optional) Displays the active packages for a designated node. The node-id argument
+is expressed in rack/slot/module notation.
+location node-id
+Command Default
+None
+Command Modes
+Administration EXEC
+EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+This command displays output that is similar to the show install command.
+Note
+Use the show install active command to display the active software set for all nodes, or for specific nodes.
+Displaying Information for a Specific Node
+Use the location node-id keyword and argument to display information for a specific node. If you do not
+specify a location with the location node-id keyword and argument, this command displays information from
+all nodes.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+50
+Show Commands
+show install active
+
+
+--- Page 57 ---
+
+Summary, Detailed, and Verbose Information
+Use the summary keyword to display a summary of the active packages in a system or SDR. Use the detail
+keyword to display the active packages for each node in an SDR, or in all SDRs. Use the verbose keyword
+to display additional information, including component and file information for each package.
+For Superceded SMUs
+The show install active command doesnot display superceded SMUs. To get details of the superceded
+SMUs, use the show install superceded command.
+The following example illustrates sample output from the show install active command with the
+location node-id keyword and argument specified:
+RP/0/RSP0/CPU0:router# show install active location 0/1/cpu0
+Node 0/1/CPU0 [LC] [SDR: Owner]
+Boot Device: bootflash:
+Boot Image: /disk0/asr9k-os-mbi-3.9.0.30I/mbiasr9k-lc.vm
+Active Packages:
+disk0:asr9k-adv-video-3.9.0.14I
+disk0:asr9k-fpd-3.9.0.30I
+disk0:asr9k-diags-3.9.0.30I
+disk0:asr9k-k9sec-3.9.0.30I
+disk0:asr9k-mcast-3.9.0.30I
+disk0:asr9k-mpls-3.9.0.30I
+disk0:comp-
+asr9k-mini-3.9.0.30I
+The following example illustrates sample output from the show install active command with the
+summary keyword specified:
+RP/0/RSP0/CPU0:router(admin)# show install active summary
+Wed May 26 12:01:27.993 PST
+Default Profile:
+Admin Resources
+SDRs:
+Owner
+Active Packages:
+disk0:asr9k-doc-3.9.0.03I
+disk0:asr9k-adv-video-3.9.0.14I
+disk0:asr9k-fpd-3.9.0.03I
+disk0:asr9k-diags-3.9.0.03I
+disk0:asr9k-k9sec-3.9.0.03I
+disk0:asr9k-mgbl-3.9.0.03I
+disk0:asr9k-mcast-3.9.0.03I
+disk0:asr9k-mpls-3.9.0.03I
+disk0:comp-
+asr9k-mini-3.9.0.03I
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+51
+Show Commands
+show install active
+
+
+--- Page 58 ---
+
+Table 5: show install active Field Descriptions
+Description
+Field
+Device where the node stores the active software.
+Boot Device
+Location on the DSC of the active minimum boot image (MBI) used to boot the node.
+Boot Image
+Active packages loaded on the node.
+Active
+Packages
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+52
+Show Commands
+show install active
+
+
+--- Page 59 ---
+
+show install committed
+To display committed software packages, use the show install committed command in EXEC or administration
+EXEC
+mode.
+Administration EXEC Mode
+show install committed [detail | summary | verbose] [sdr sdr-name | location node-id]
+EXEC Mode
+show install committed [detail | summary | verbose] [location node-id]
+Syntax Description
+(Optional) Displays a detailed summary of the committed packages
+for a system, secure domain router (SDR), or node.
+detail
+(Optional) Displays a summary of the committed packages in a
+system or SDR.
+summary
+(Optional) Displays a detailed summary of the committed packages
+for a system, SDR, or node, including component and file
+information for each package.
+verbose
+(Optional. Administration EXEC mode only.) Displays the
+committed packages for a specific SDR. The sdr-name argument
+is the name assigned to the SDR. The only SDR available is Owner,
+which refers to the entire router.
+sdr sdr-name
+(Optional) Displays the committed packages for a designated node.
+The node-id argument is expressed in rack/slot/module notation.
+location node-id
+Command Default
+Displays detailed information for all nodes in the SDR or system.
+Command Modes
+EXEC
+Administration EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+When a software package is activated, it remains active only until the next router reload. To save the active
+software to be persistent across router reloads, use the install commit command.
+Use the show install committed command to display the packages included in the committed software set.
+This is useful for verifying that the desired set of packages is committed.
+Use the show install command to display the committed software packages for all nodes, or for specific nodes.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+53
+Show Commands
+show install committed
+
+
+--- Page 60 ---
+
+Displaying Information for a Specific SDR
+• To display information for a specific SDR from EXEC or administration EXEC
+mode, use the sdr
+sdr-name keyword and argument.
+• To display information for an SDR when logged into that SDR, enter the show install committed
+command in EXEC or administration EXEC
+mode.
+Displaying Information for a Specific Node
+Use the location node-id keyword and argument to display information for a specific node. If you do not
+specify a location with the location node-id keyword and argument, this command displays information from
+all nodes.
+Summary, Detailed, and Verbose Information
+Use the summary keyword to display summary of packages in a system or SDR. Use the detail keyword to
+display the packages for each node in an SDR, or in all SDRs. Use the verbose keyword to display additional
+information, including component and file information for each package.
+Task ID
+Operations
+Task ID
+read
+pkg-mgmt
+The following shows sample output from the show install committed command with the summary
+keyword:
+RP/0/RSP0/CPU0:router# admin
+RP/0/RSP0/CPU0:router(admin)# show install committed summary
+Thu May 27 00:06:11.155 DST
+Committed Packages:
+disk0:asr9k-doc-3.9.0.04I
+disk0:asr9k-fpd-3.9.0.04I
+disk0:asr9k-adv-video-3.9.0.04I
+disk0:asr9k-diags-3.9.0.04I
+disk0:asr9k-k9sec-3.9.0.04I
+disk0:asr9k-mgbl-3.9.0.04I
+disk0:asr9k-mcast-3.9.0.04I
+disk0:asr9k-mpls-3.9.0.04I
+disk0:comp-
+asr9k-mini-3.9.0.04I
+The following shows sample output from the command. Enter the show install committed command
+without keywords or arguments to display detailed information for all nodes in the SDR or system:
+RP/0/RSP0/CPU0:router# show install committed
+Tue Jul 28 01:50:32.337 DST
+Secure Domain Router: Owner
+Node 0/RSP0/CPU0 [RP] [SDR: Owner]
+Boot Device: disk0:
+Boot Image: /disk0/asr9k-os-mbi-3.9.0.14I/mbiasr9k-rp.vm
+Committed Packages:
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+54
+Show Commands
+show install committed
+
+
+--- Page 61 ---
+
+disk0:comp-asr9k-mini-3.9.0.14I
+disk0:asr9k-adv-video-3.9.0.14I
+disk0:asr9k-fpd-3.9.0.14I
+disk0:asr9k-k9sec-3.9.0.14I
+disk0:asr9k-mgbl-3.9.0.14I
+disk0:asr9k-mcast-3.9.0.14I
+disk0:asr9k-mpls-3.9.0.14I
+Node 0/1/CPU0 [LC] [SDR: Owner]
+Boot Device: mem:
+Boot Image: /disk0/asr9k-os-mbi-3.9.0.14I/lc/mbiasr9k-lc.vm
+Committed Packages:
+disk0:comp-asr9k-mini-3.9.0.14I
+disk0:asr9k-adv-video-3.9.0.14I
+disk0:asr9k-fpd-3.9.0.14I
+disk0:asr9k-mcast-3.9.0.14I
+disk0:asr9k-mpls-3.9.0.14I
+Node 0/4/CPU0 [LC] [SDR: Owner]
+Boot Device: mem:
+Boot Image: /disk0/asr9k-os-mbi-3.9.0.14I/lc/mbiasr9k-lc.vm
+Committed Packages:
+disk0:comp-asr9k-mini-3.9.0.14I
+disk0:asr9k-adv-video-3.9.0.14I
+disk0:asr9k-fpd-3.9.0.14I
+disk0:asr9k-mcast-3.9.0.14I
+disk0:asr9k-mpls-3.9.0.14I
+Node 0/6/CPU0 [LC] [SDR: Owner]
+Boot Device: mem:
+Boot Image: /disk0/asr9k-os-mbi-3.9.0.14I/lc/mbiasr9k-lc.vm
+Committed Packages:
+disk0:comp-asr9k-mini-3.9.0.14I
+disk0:asr9k-adv-video-3.9.0.14I
+disk0:asr9k-fpd-3.9.0.14I
+disk0:asr9k-mcast-3.9.0.14I
+disk0:asr9k-mpls-3.9.0.14I
+Table 6: show install committed Field Descriptions
+Description
+Field
+Location on the DSC of the active minimum boot image (MBI) used to boot the node.
+Boot Image
+Active packages committed on the node.
+CommittedPackages
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+55
+Show Commands
+show install committed
+
+
+--- Page 62 ---
+
+show install inactive
+To display the inactive packages on the designated shelf controller (DSC) for one or more secure domain
+routers (SDRs), use the show install inactive command in EXEC or administration EXEC
+mode.
+Administration EXEC Mode
+show install inactive [detail | summary | verbose] [sdr sdr-name | location node-id]
+EXEC Mode
+show install inactive [detail | summary | verbose] [location node-id]
+Syntax Description
+(Optional) Displays summary and component information for
+inactive packages.
+detail
+(Optional) Displays a summary of inactive packages.
+summary
+(Optional) Displays summary, component, and file information
+for inactive packages.
+verbose
+(Optional. Administration EXEC mode only.) Displays the
+inactive packages for a the boot device in a specific secure domain
+router (SDR). The sdr-name argument is the name assigned to
+the SDR. The only SDR available is Owner, which refers to the
+entire router.
+sdr sdr-name
+(Optional) Displays the inactive software set from a designated
+node. The node-id argument is expressed in rack/slot/module
+notation.
+location node-id
+Command Default
+None
+Command Modes
+Administration EXEC
+EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+Use the show install inactive command to display the inactive packages for the DSC.
+Use the show version, show install active, or show install committed command to determine the device
+used as the boot device.
+Note
+Enter the command in administration EXEC mode to display information for the DSDRSC in all SDRs.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+56
+Show Commands
+show install inactive
+
+
+--- Page 63 ---
+
+Displaying Information for a Specific SDR
+• To display information for a specific SDR from administration EXEC mode, use the sdr sdr-name
+keyword and argument.
+• To display information for an SDR when logged into that SDR, enter the command in EXEC mode.
+Displaying Information for a Specific Node
+Use the location node-id keyword and argument to display information for a specific node. If you do not
+specify a location with the location node-id keyword and argument, this command displays information from
+all nodes.
+Summary, Detailed, and Verbose Information
+Use the summary keyword to display summary of inactive packages in a system or SDR. Use the detail
+keyword to display the packages for each node in an SDR, or in all SDRs. Use the verbose keyword to display
+additional information, including component and file information for each package.
+The following example shows sample output from the show install inactive command:
+RP/0/RP0/CPU0:router# show install inactive
+Node 0/1/CPU0 [LC] [SDR: Owner]
+Boot Device: bootflash:
+Inactive Packages:
+disk0:comp-asr9k-mini-3.7.2
+disk0:asr9k-infra-test-3.7.2
+disk0:asr9k-fpd-3.7.2
+disk0:asr9k-diags-3.7.2
+disk0:asr9k-mcast-3.7.2
+disk0:asr9k-mpls-3.7.2
+disk0:asr9k-base-3.7.2
+disk0:asr9k-os-mbi-3.7.2
+Node 0/4/CPU0 [LC] [SDR: Owner]
+Boot Device: bootflash:
+Inactive Packages:
+disk0:comp-asr9k-mini-3.7.2
+disk0:asr9k-infra-test-3.7.2
+disk0:asr9k-fpd-3.7.2
+disk0:asr9k-diags-3.7.2
+disk0:asr9k-mcast-3.7.2
+disk0:asr9k-mpls-3.7.2
+disk0:asr9k-base-3.7.2
+disk0:asr9k-os-mbi-3.7.2
+Node 0/6/CPU0 [LC] [SDR: Owner]
+Boot Device: bootflash:
+Inactive Packages:
+disk0:comp-asr9k-mini-3.7.2
+disk0:asr9k-infra-test-3.7.2
+disk0:asr9k-fpd-3.7.2
+disk0:asr9k-diags-3.7.2
+disk0:asr9k-mcast-3.7.2
+disk0:asr9k-mpls-3.7.2
+disk0:asr9k-base-3.7.2
+disk0:asr9k-os-mbi-3.7.2
+Node 0/RSP0/CPU0 [HRP] [SDR: Owner]
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+57
+Show Commands
+show install inactive
+
+
+--- Page 64 ---
+
+Boot Device: disk0:
+Inactive Packages:
+disk0:comp-asr9k-mini-3.7.2
+disk0:asr9k-infra-test-3.7.2
+disk0:asr9k-fpd-3.7.2
+disk0:asr9k-doc-3.7.2
+disk0:asr9k-diags-3.7.2
+disk0:asr9k-mgbl-3.7.2
+disk0:asr9k-mcast-3.7.2
+disk0:asr9k-mpls-3.7.2
+disk0:asr9k-rout-3.7.2
+disk0:asr9k-base-3.7.2
+disk0:asr9k-os-mbi-3.7.2
+The following example shows sample output from the show install inactive command with the
+summary keyword:
+RP/0/RSP0/CPU0:router# show install inactive summary
+Tue Feb
+3 02:09:21.359 PST
+Inactive Packages:
+disk0:comp-asr9k-mini-3.7.2
+disk0:asr9k-infra-test-3.7.2
+disk0:asr9k-fpd-3.7.2
+disk0:asr9k-doc-3.7.2
+disk0:asr9k-diags-3.7.2
+disk0:asr9k-mgbl-3.7.2
+disk0:asr9k-mcast-3.7.2
+disk0:asr9k-mpls-3.7.2
+disk0:asr9k-rout-3.7.2
+disk0:asr9k-base-3.7.2
+disk0:asr9k-os-mbi-3.7.2
+The following example shows sample output from the show install inactive command with the
+detail and location keywords:
+RP/0/RSP0/CPU0:router# show install inactive detail location 0/1/cpu0
+Tue Feb
+3 02:14:31.299 PST
+Node 0/1/CPU0 [LC] [SDR: Owner]
+Boot Device: bootflash:
+Inactive Packages:
+disk0:comp-asr9k-mini-3.7.2
+disk0:asr9k-lc-3.7.2
+disk0:asr9k-fwdg-3.7.2
+disk0:asr9k-admin-3.7.2
+disk0:asr9k-base-3.7.2
+disk0:asr9k-os-mbi-3.7.2
+disk0:asr9k-infra-test-3.7.2
+disk0:asr9k-fpd-3.7.2
+disk0:asr9k-diags-3.7.2
+disk0:asr9k-mcast-3.7.2
+disk0:asr9k-mpls-3.7.2
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+58
+Show Commands
+show install inactive
+
+
+--- Page 65 ---
+
+Table 7: show install inactive Field Descriptions
+Description
+Field
+Storage device and the name of the package that is inactive.
+disk0:asr9k-mgbl-3.8.0
+Name of the package that is inactive.
+asr9k-mgbl V3.8.0 Manageability Package
+Name of the manufacturer.
+Vendor
+Name of the package.
+Desc
+The date and time when the inactive package was built.
+Build
+The source directory where the inactive package was built.
+Source
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+59
+Show Commands
+show install inactive
+
+
+--- Page 66 ---
+
+show install package
+To display information about a package, use the show install package command in EXEC or administration
+EXEC
+mode.
+show install package
+{device:package | all} [brief | detail | verbose]
+Syntax Description
+Device and package, expressed in concatenated form (for example,
+disk0:asr9k-mgbl-3.8.0). For the device: argument, the value is a specified storage device,
+typically disk0:.
+device : package
+Displays all installed packages on the system or SDR.
+all
+(Optional) Displays only the name and version of packages.
+brief
+(Optional) Displays detailed information including impact to processes and nodes, vendor
+information, card support, and component information.
+detail
+(Optional) Displays the information included in the keyword, plus information about
+dynamic link libraries (DLLs).
+verbose
+Command Default
+None
+Command Modes
+Administration EXEC
+EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+Use the show install package command with the all keyword to display a list of the packages on the router
+or SDR.
+Use the show install package command with the detail keyword to display the version of the package, name
+of the manufacturer, name of the package, date and time when the package was built, and source directory
+where the package was built.
+Use the show install package command with the verbose keyword to display the same information as the
+detail keyword, plus additional information about DLLs.
+This command returns the same data in EXEC mode and administration EXEC mode. In EXEC mode, only
+the information for the current SDR is displayed.
+Note
+For additional information about the status of installed software packages, use the show install active and
+show install inactive commands.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+60
+Show Commands
+show install package
+
+
+--- Page 67 ---
+
+The following sample output from the show install package command lists all packages that are
+available on the router:
+RP/0/RSP0/CPU0:router(admin)# show install package all
+Tue Jul 28 05:02:53.578 DST
+disk0:asr9k-fpd-3.9.0.14I
+disk0:asr9k-mgbl-3.9.0.14I
+disk0:asr9k-mpls-3.9.0.14I
+disk0:asr9k-k9sec-3.9.0.14I
+disk0:asr9k-mcast-3.9.0.14I
+disk0:asr9k-adv-video-3.9.0.14I
+disk0:comp-asr9k-mini-3.9.0.14I
+disk0:asr9k-scfclient-3.9.0.14I
+disk0:asr9k-diags-3.9.0.14I
+disk0:asr9k-rout-3.9.0.14I
+disk0:asr9k-lc-3.9.0.14I
+disk0:asr9k-fwdg-3.9.0.14I
+disk0:asr9k-admin-3.9.0.14I
+disk0:asr9k-base-3.9.0.14I
+disk0:asr9k-os-mbi-3.9.0.14I
+The following sample output from the show install package command lists all the packages contained
+in a composite package:
+RP/0/RSP0/CPU0:router(admin)# show install package disk0:comp-asr9k-mini-3.8.0
+Tue Feb
+3 04:01:55.015 PST
+disk0:comp-asr9k-mini-3.8.0
+disk0:asr9k-rout-3.8.0
+disk0:asr9k-lc-3.8.0
+disk0:asr9k-fwdg-3.8.0
+disk0:asr9k-admin-3.8.0
+disk0:asr9k-base-3.8.0
+disk0:asr9k-os-mbi-3.8.0
+Table 8: show install package Field Descriptions
+Description
+Field
+Storage device and the name of the package that has been installed.
+disk0:asr9k-rout-3.8.0
+Name of the package.
+asr9k-rout V3.8.0 Routing Package
+Name of the manufacturer.
+Vendor
+Name of the package.
+Desc
+Date and time the package was built.
+Build
+Source directory where the package was built.
+Source
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+61
+Show Commands
+show install package
+
+
+--- Page 68 ---
+
+Description
+Field
+Card types supported by the package.
+Card(s)
+Restart impact on processes or nodes.
+Restart information
+Components included in the package.
+Components in package
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+62
+Show Commands
+show install package
+
+
+--- Page 69 ---
+
+show fpd package
+To display which shared port adapters (SPA) and SPA interface processors (SIPs) are supported with your
+current Cisco IOS XR software release, which field-programmable device (FPD) image you need for each
+SPA and SIP, and what the minimum hardware requirements are for the SPA and SIP modules, use the show
+fpd package command in administration EXEC mode.
+show fpd package
+Syntax Description
+This command has no keywords or arguments.
+Command Default
+No default behavior or values
+Command Modes
+Administration EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+If there are multiple FPD images for your card, use the show fpd package command to determine which FPD
+image to use if you only want to upgrade a specific FPD type.
+Task ID
+Operations
+Task
+ID
+read
+sysmgr
+The following example shows sample output from the show fpd package command:
+show fpd package
+Tue Jan 22 13:56:00.212 UTC
+=============================== ================================================
+Field Programmable Device Package
+================================================
+Req
+SW
+Min Req
+Min Req
+Card Type
+FPD Description
+Reload
+Ver
+SW Ver
+Board Ver
+=================== ========================== ====== ======= ======== =========
+--------------------------------------------------------------------------------
+NC55-1200W-ACFW
+LIT-PriMCU-ACFW(A)
+NO
+2.09
+2.09
+0.0
+--------------------------------------------------------------------------------
+NC55-900W-ACFW-I
+LIT-PriMCU-ACFW-I(A)
+NO
+1.04
+1.04
+0.0
+--------------------------------------------------------------------------------
+NC55-900W-DCFW-I
+LIT-PriMCU-DCFW-I(A)
+NO
+2.260
+2.260
+0.0
+--------------------------------------------------------------------------------
+NC55-930W-DCFW-C
+LIT-PriMCU-DCFW-C(A)
+NO
+2.259
+2.259
+0.0
+--------------------------------------------------------------------------------
+NC55-MPA-12T-S
+MPAFPGA
+YES
+0.27
+0.27
+0.0
+--------------------------------------------------------------------------------
+NC55-MPA-1TH2H-S
+-WDM-D-1HL_DCO_2
+NO
+38.518
+38.518
+0.1
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+63
+Show Commands
+show fpd package
+
+
+--- Page 70 ---
+
+MPAFPGA
+YES
+0.53
+0.53
+0.0
+WDM-DE-1HL_DCO_2
+NO
+38.518
+38.518
+0.1
+WDM-DS-1HL_DCO_2
+NO
+38.268
+38.268
+0.1
+--------------------------------------------------------------------------------
+NC55-MPA-2TH-HX-S
+-WDM-D-1HL_DCO_0
+NO
+38.518
+38.518
+0.1
+-WDM-D-1HL_DCO_1
+NO
+38.518
+38.518
+0.1
+MPAFPGA
+YES
+0.53
+0.53
+0.0
+WDM-DE-1HL_DCO_0
+NO
+38.518
+38.518
+0.1
+WDM-DE-1HL_DCO_1
+NO
+38.518
+38.518
+0.1
+WDM-DS-1HL_DCO_0
+NO
+38.268
+38.268
+0.1
+WDM-DS-1HL_DCO_1
+NO
+38.268
+38.268
+0.1
+--------------------------------------------------------------------------------
+NC55-MPA-2TH-S
+-WDM-D-1HL_DCO_0
+NO
+38.518
+38.518
+0.1
+-WDM-D-1HL_DCO_1
+NO
+38.518
+38.518
+0.1
+MPAFPGA
+YES
+0.53
+0.53
+0.0
+WDM-DE-1HL_DCO_0
+NO
+38.518
+38.518
+0.1
+WDM-DE-1HL_DCO_1
+NO
+38.518
+38.518
+0.1
+WDM-DS-1HL_DCO_0
+NO
+38.268
+38.268
+0.1
+WDM-DS-1HL_DCO_1
+NO
+38.268
+38.268
+0.1
+--------------------------------------------------------------------------------
+NC55-MPA-4H-HD-S
+MPAFPGA
+YES
+0.53
+0.53
+0.0
+--------------------------------------------------------------------------------
+NC55-MPA-4H-HX-S
+MPAFPGA
+YES
+0.53
+0.53
+0.0
+--------------------------------------------------------------------------------
+NC55-MPA-4H-S
+MPAFPGA
+YES
+0.53
+0.53
+0.0
+--------------------------------------------------------------------------------
+NC55A2-MOD-SE-H-S
+Bootloader(A)
+YES
+1.11
+1.11
+0.0
+CPU-IOFPGA(A)
+YES
+1.18
+1.18
+0.1
+MB-IOFPGA(A)
+YES
+0.18
+0.18
+0.1
+MB-MIFPGA
+YES
+0.19
+0.19
+0.0
+SATA(A)
+NO
+5.00
+5.00
+0.0
+--------------------------------------------------------------------------------
+NCS-55A2-MOD-HD-S
+Bootloader(A)
+YES
+1.11
+1.11
+0.0
+CPU-IOFPGA(A)
+YES
+1.18
+1.18
+0.1
+MB-IOFPGA(A)
+YES
+0.18
+0.18
+0.1
+MB-MIFPGA
+YES
+0.19
+0.19
+0.0
+SATA(A)
+NO
+5.00
+5.00
+0.0
+--------------------------------------------------------------------------------
+NCS-55A2-MOD-HX-S
+Bootloader(A)
+YES
+1.11
+1.11
+0.0
+CPU-IOFPGA(A)
+YES
+1.18
+1.18
+0.1
+MB-IOFPGA(A)
+YES
+0.18
+0.18
+0.1
+MB-MIFPGA
+YES
+0.19
+0.19
+0.0
+SATA(A)
+NO
+5.00
+5.00
+0.0
+--------------------------------------------------------------------------------
+NCS-55A2-MOD-S
+Bootloader(A)
+YES
+1.11
+1.11
+0.0
+CPU-IOFPGA(A)
+YES
+1.18
+1.18
+0.1
+MB-IOFPGA(A)
+YES
+0.18
+0.18
+0.1
+MB-MIFPGA
+YES
+0.19
+0.19
+0.0
+SATA(A)
+NO
+5.00
+5.00
+0.0
+--------------------------------------------------------------------------------
+NCS-55A2-MOD-SE-S
+Bootloader(A)
+YES
+1.11
+1.11
+0.0
+CPU-IOFPGA(A)
+YES
+1.18
+1.18
+0.1
+MB-IOFPGA(A)
+YES
+0.18
+0.18
+0.1
+MB-MIFPGA
+YES
+0.19
+0.19
+0.0
+SATA(A)
+NO
+5.00
+5.00
+0.0
+STATSFPGA
+YES
+0.01
+0.01
+0.0
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+64
+Show Commands
+show fpd package
+
+
+--- Page 71 ---
+
+This table describes the significant fields shown in the display:
+Table 9: show fpd package Field Descriptions
+Description
+Field
+Module part number.
+Card Type
+Description of all FPD images available for the line card.
+FPD Description
+Hardware type. Possible types can be:
+• spa—Shared port adapter
+• lc—Line card
+Type
+FPD subtype. These values are used in the upgrade
+hw-module fpd command to indicate a specific FPD image
+type to upgrade.
+Subtype
+FPD software version recommended for the associated module
+running the current Cisco IOS XR software.
+SW Version
+Minimum required FPD image software version to operate
+the card. Version 0.0 indicates that a minimum required image
+was not programmed into the card.
+Min Req SW Vers
+Minimum required hardware version for the associated FPD
+image. A minimum hardware requirement of version 0.0
+indicates that all hardware can support this FPD image version.
+Min Req HW Vers
+In the show fpd package command output, the “subtype” column shows the FPDs that correspond
+with each line card image. To upgrade a specific FPD with the upgrade hw-module fpd command,
+replace the fpga-type argument with the appropriate FPD from the “subtype” column, as shown in
+the following example:
+RP/0/RSP0/CPU0:router(admin)# upgrade hw-module fpd fpga2 location 0/3/1 reload
+Note
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+65
+Show Commands
+show fpd package
+
+
+--- Page 72 ---
+
+show hw-module fpd
+To display field-programmable device (FPD) compatibility for all modules or a specific module, use the
+show hw-module fpd command in the EXEC or administration EXE mode.
+show hw-module fpd location
+{node-id | all}
+Syntax Description
+Specifies the location of the module. The node-id argument is expressed in the
+rack/slot/module notation. Use the all keyword to indicate all nodes.
+location{node-id | all}
+Command Default
+No default behavior or values
+Command Modes
+EXEC
+Administration EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Support was added for the 2-port channelized OC-12/DS0 SPA.
+Release 3.9.0
+Support for Back-plane identification (BPID) nodes.
+Release 4.3.2
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+Task ID
+Operations
+Task
+ID
+read
+sysmgr
+read
+root-lr
+The following example shows how to display FPD compatibility for all modules in the router:
+RP/0/RSP0/CPU0:router# ios#show hw-module fpd
+Tue Jan 22 13:56:55.082 UTC
+FPD Versions
+=================
+Location
+Card type
+HWver FPD device
+ATR Status
+Running Programd
+------------------------------------------------------------------------------
+0/RP0
+NCS-55A2-MOD-S
+0.3
+MB-MIFPGA
+CURRENT
+0.19
+0.19
+0/RP0
+NCS-55A2-MOD-S
+0.3
+Bootloader
+CURRENT
+1.10
+1.10
+0/RP0
+NCS-55A2-MOD-S
+0.3
+CPU-IOFPGA
+CURRENT
+1.18
+1.18
+0/RP0
+NCS-55A2-MOD-S
+0.3
+MB-IOFPGA
+CURRENT
+0.18
+0.18
+0/PM0
+NC55-1200W-ACFW
+1.0
+LIT-PriMCU-ACFW
+NEED UPGD
+2.08
+2.08
+0/PM1
+NC55-1200W-ACFW
+1.0
+LIT-PriMCU-ACFW
+NEED UPGD
+2.08
+2.08
+RP/0/RP0/CPU0:ios#.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+66
+Show Commands
+show hw-module fpd
+
+
+--- Page 73 ---
+
+After Release 5.3.x, Upg/Dng? will display Yes only for upgrade.
+Note
+The following example shows the FPD for which upgrage will be skipped.
+RP/0/RSP1/CPU0:router# show hw-module fpd location all
+Mon Jun 29 05:38:50.332 PST
+===================================== ==========================================
+Existing Field Programmable Devices
+==========================================
+HW
+Current SW Upg/
+Location
+Card Type
+Version Type Subtype Inst
+Version
+Dng?
+============ ======================== ======= ==== ======= ==== =========== ====
+0/RSP0/CPU0
+A9K-RSP-4G
+4.8
+lc
+fpga3
+0
+1.13
+No
+lc
+fpga1
+0
+1.5
+No
+lc
+fpga2
+0
+1.14
+No
+lc
+cbc
+0
+1.2
+No
+lc
+fpga4
+0
+1.6
+No
+lc
+rommon
+0
+1.0
+No
+--------------------------------------------------------------------------------
+0/RSP0/CPU0
+ASR-9010-FAN
+1.0
+lc
+cbc
+1
+4.0
+No
+--------------------------------------------------------------------------------
+0/RSP0/CPU0
+ASR-9010-FAN
+1.0
+lc
+cbc
+2
+4.0
+No
+--------------------------------------------------------------------------------
+0/1/CPU0
+A9K-40GE-B
+1.0
+lc
+fpga1
+0
+0.38
+No
+lc
+fpga2
+0
+0.8
+No
+lc
+cbc
+0
+2.2
+No
+lc
+cpld1
+0
+0.15
+No
+lc
+rommon
+0
+1.0
+No
+--------------------------------------------------------------------------------
+0/1/CPU0
+A9K-40GE-B
+1.0
+lc
+fpga1
+1
+0.38
+No
+--------------------------------------------------------------------------------
+0/4/CPU0
+A9K-8T/4-B
+1.0
+lc
+fpga1
+0
+0.38
+No
+lc
+fpga2
+0
+0.10
+No
+lc
+cbc
+0
+2.2
+No
+lc
+cpld2
+0
+0.7
+No
+lc
+cpld1
+0
+0.15
+No
+lc
+cpld3
+0
+0.3
+No
+lc
+rommon
+0
+1.0
+No
+lc
+fpga3
+0
+14.42
+No
+--------------------------------------------------------------------------------
+0/4/CPU0
+A9K-8T/4-B
+1.0
+lc
+fpga1
+1
+0.38
+No
+--------------------------------------------------------------------------------
+0/6/CPU0
+A9K-4T-B
+1.0
+lc
+fpga1
+0
+0.38
+No
+lc
+fpga2
+0
+0.10
+No
+lc
+cbc
+0
+2.2
+No
+lc
+cpld2
+0
+0.7
+No
+lc
+cpld1
+0
+0.15
+No
+lc
+cpld3
+0
+0.3
+No
+lc
+rommon
+0
+1.0
+No
+lc
+fpga3
+0
+14.42
+No
+--------------------------------------------------------------------------------
+0/6/CPU0
+A9K-4T-B
+1.0
+lc
+fpga1
+1
+0.38
+No
+--------------------------------------------------------------------------------
+The following example shows how to display FPD compatibility for a specific module in the router:
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+67
+Show Commands
+show hw-module fpd
+
+
+--- Page 74 ---
+
+Table 10: show hw-module fpd Field Descriptions
+Description
+Field
+Location of the module in the rack/slot/module notation.
+Location
+Module part number.
+Card Type
+Hardware model version for the module.
+HW Version
+Hardware type. Can be one of the following types:
+• spa—Shared port adapter
+• lc—Line card
+Type
+FPD type. Can be one of the following types:
+• fabldr—Fabric downloader
+• fpga1—Field-programmable gate array
+• fpga2—Field-programmable gate array 2
+• fpga3—Field-programmable gate array 3
+• fpga4—Field-programmable gate array 4
+• fpga5—Field-programmable gate array 5
+• rommonA—Read-only memory monitor A
+• rommon—Read-only memory monitor B
+Subtype
+FPD instance. The FPD instance uniquely identifies an FPD and is used by the FPD
+process to register an FPD.
+Inst
+Currently running FPD image version.
+Current SW Version
+Specifies whether an FPD upgrade or downgrade is required. A downgrade is required
+in rare cases when the version of the FPD image has a higher major revision than the
+version of the FPD image in the current Cisco IOS XR software package.
+Upg/Dng?
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+68
+Show Commands
+show hw-module fpd
+
+
+--- Page 75 ---
+
+show interfaces (frame relay)
+To display statistics about Frame Relay interfaces, use the show interfaces command in EXEC mode.
+show interfaces [summary | [type interface-path-id] [brief | description | detail | accounting [rates]]]
+[location node-id]
+Syntax Description
+(Optional) Displays a summary of interface information by interface type.
+summary
+(Optional) Interface type. For more information, use the question mark (?) online help
+function.
+type
+(Optional) Physical interface or virtual interface.
+Note
+Use the show interfaces command to see a list of all interfaces currently configured on
+the router.
+For more information about the syntax for the router, use the question mark (?) online help
+function.
+interface-path-id
+(Optional) Displays brief information about each interface (one line per interface).
+brief
+(Optional) Displays an interface description.
+description
+(Optional) Displays detailed information about each interface. This is the default.
+detail
+(Optional) Displays the number of packets of each protocol type that have been sent through
+the interface.
+accounting
+(Optional) Displays interface accounting rates.
+rates
+(Optional) Displays information about all interfaces on the specified node. The node-id
+argument is entered in the rack/slot/module notation.
+location node-id
+Command Default
+No default behavior or values
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced
+Release 4.0.0
+Usage Guidelines
+The show interfaces (Frame Relay) command is available on Packet-over-SONET/SDH (POS), serial, and
+multilink interfaces.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+69
+Show Commands
+show interfaces (frame relay)
+
+
+--- Page 76 ---
+
+Task ID
+Operations
+Task
+ID
+read,
+write
+fr
+Examples
+The following example shows the output from the show interfaces command when the interface is
+configured with Frame Relay encapsulation:
+RP/0/RSP0/CPU0:router# show interfaces pos 0/1/0/0
+POS0/1/0/0 is up, line protocol is up
+Hardware is Packet over SONET/SDH
+Internet address is Unknown
+MTU 4474 bytes, BW 622080 Kbit
+reliability 255/255, txload 1/255, rxload 1/255
+Encapsulation FRAME-RELAY, crc 32, controller loopback not set,
+LMI enq sent
+0, LMI stat recvd 0, LMI upd recvd 0
+LMI enq recvd 9463, LMI stat sent
+9463, LMI upd sent
+0, DCE LMI up
+LMI DLCI 0
+LMI type is ANSI Annex D
+frame relay DCE
+Last clearing of "show interface" counters never
+5 minute input rate 0 bits/sec, 0 packets/sec
+5 minute output rate 0 bits/sec, 0 packets/sec
+20934 packets input, 1508069 bytes, 1151 total input drops
+0 drops for unrecognized upper-level protocol
+Received 0 broadcast packets, 0 multicast packets
+0 runts, 0 giants, 0 throttles, 0 parity
+1151 input errors, 1058 CRC, 0 frame, 0 overrun, 93 ignored, 0 abort
+19590 packets output, 990924 bytes, 0 total output drops
+Output 0 broadcast packets, 0 multicast packets
+0 output errors, 0 underruns, 0 applique, 0 resets
+0 output buffer failures, 0 output buffers swapped out
+Table 11: show interfaces Field Descriptions
+Description
+Field
+Displays the name of the current interface. In the example, the interface name is
+POS0/1/0/0.
+Interface name
+Displays the state of the interface. In the example, the interface is in the
+administratively up state.
+Interface state
+Displays the state of the Layer 2 line protocol. This field may be different from
+the interface state if, for example, a keepalive failure has brought down the Layer
+2.
+Note
+The line protocol state is not the same as the protocol state displayed in the show
+ip interfaces command, because it is the state of Layer 2 (media) rather than
+Layer 3 (IP protocol).
+Line protocol state
+Displays the current hardware type.
+Hardware
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+70
+Show Commands
+show interfaces (frame relay)
+
+
+--- Page 77 ---
+
+Description
+Field
+Displays the Layer 2 address (MAC address for Ethernet interfaces).
+Note
+Enter the mac-address command to configure the hardware address.
+Internet address is
+n.n.n.n/n
+Displays the maximum transmission unit (MTU) for the interface. The MTU is
+the maximum packet size that can be transmitted over the interface.
+Note
+The MTU field indicates the interface MTU. Enter the mtu command to configure
+a lower MTU value at the layer 3 level.
+MTU
+Displays the bandwidth of the interface in kbps.
+BW
+Displays the proportion of packets that are not dropped and do not have errors.
+Note
+The reliability is shown as a fraction of 255.
+reliability
+Indicates the traffic flowing out of the interface as a proportion of the bandwidth.
+Note
+The txload is shown as a fraction of 255.
+txload
+Indicates the traffic flowing into the interface as a proportion of the bandwidth.
+Note
+The rxload is shown as a fraction of 255.
+rxload
+Layer 2 encapsulation installed on the interface.
+Encapsulation
+Indicates the length of the cyclic redundancy check (CRC), in bytes.
+Note
+Enter the pos crc command to configure the CRC.
+CRC
+Indicates that the hardware was configured as controller loopback.
+controller loopback
+Number of LMI enquiry messages sent.
+LMI enq sent
+Number of LMI status messages received.
+LMI stat recvd
+Number of LMI updated messages received.
+LMI upd recvd
+Number of LMI enquiry messages received.
+LMI enq recvd
+Number of LMI status messages sent.
+LMI stat sent
+Number of LMI updated messages sent.
+LMI upd sent
+Displays the state of the DCE LMI.
+DCE LMI
+Displays the LMI DLCI identifier.
+LMI DLCI
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+71
+Show Commands
+show interfaces (frame relay)
+
+
+--- Page 78 ---
+
+Description
+Field
+Displays the LMI type.
+LMI type
+Time at which the counters that measure cumulative statistics (such as number of
+bytes transmitted and received) shown in this report were last reset to zero. Note
+that variables that might affect routing for example, load and reliability) are not
+cleared when the counters are cleared.
+Last clearing
+Average number of bits and packets transmitted per second in the last 5 minutes.
+The 5-minute input and output rates should be used only as an approximation of
+traffic per second during a given 5-minute period. These rates are exponentially
+weighted averages with a time constant of 5 minutes. A period of four time
+constants must pass before the average is within two percent of the instantaneous
+rate of a uniform stream of traffic over that period.
+5 minute input rate5
+minute output rate
+Total number of error-free packets received by the system.
+packets input
+Total number of bytes, including data and MAC encapsulation, in the error-free
+packets received by the system.
+bytes
+Total number of broadcast or multicast packets received by the interface
+Received...broadcasts
+Number of packets that are discarded because they are smaller than the minimum
+packet size of the medium.
+runts
+Number of packets that are discarded because they exceed the maximum packet
+size of the medium
+giants
+Total number of no buffer, runts, giants, CRCs, frame, overrun, ignored, and
+terminated counts. Other input-related errors can also increment the count, so that
+this sum might not balance with the other counts.
+input errors
+Cyclic redundancy checksum generated by the originating station or far-end device
+does not match the checksum calculated from the data received. On a serial link,
+CRCs usually indicate noise, gain hits, or other transmission problems on the data
+link.
+CRC
+Number of packets received incorrectly having a CRC error and a noninteger
+number of octets. On a serial line, this is usually the result of noise or other
+transmission problems.
+frame
+Number of times the serial receiver hardware was unable to hand received data
+to a hardware buffer because the input rate exceeded the receiver's ability to handle
+the data.
+overrun
+Number of received packets ignored by the interface because the interface hardware
+ran low on internal buffers. Broadcast storms and bursts of noise can cause the
+ignored count to be increased.
+ignored
+Illegal sequence of one bits on a serial interface. This usually indicates a clocking
+problem between the serial interface and the data link equipment.
+abort
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+72
+Show Commands
+show interfaces (frame relay)
+
+
+--- Page 79 ---
+
+Description
+Field
+Number of times the carrier detect signal of a serial interface has changed state.
+For example, if data carrier detect (DCD) goes down and comes up, the carrier
+transition counter will increment two times. Indicates modem or line problems if
+the carrier detect line is changing state often.
+carrier transitions
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+73
+Show Commands
+show interfaces (frame relay)
+
+
+--- Page 80 ---
+
+show inventory (Cisco IOS XR 64-bit)
+To retrieve and display information about all the Cisco products that are installed in the router, use the
+showinventory command in EXEC or System Admin EXEC mode.
+EXEC Mode
+show
+inventory
+[ node-id | all | location
+{ node-id | all } | raw ]
+System Admin EXEC Mode
+show
+inventory
+[ all | chassis | fan | location
+{ node-id } | power | raw ]
+Syntax Description
+(Optional) Location for which to display the specified information. The node-id argument is
+entered in the rack/slot/module notation.
+node-id
+(Optional) Displays inventory information for all the physical entities in the chassis.
+all
+(Optional) Displays inventory information for a specific node or for all nodes in the chassis.
+location
+(Optional) Displays raw information about the chassis for diagnostic purposes.
+raw
+(Optional) Displays inventory information for the entire chassis.
+chassis
+(Optional) Displays inventory information for the fans.
+fans
+(Optional) Displays inventory information for the power supply.
+power
+Command Default
+All inventory information for the entire chassis is displayed.
+Command Modes
+EXEC
+System Admin EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release
+7.0.1
+Usage Guidelines
+This command is supported on Cisco IOS XR 64-bit software.
+If a Cisco entity is not assigned a product ID (PID), that entity is not retrieved or displayed.
+Enter the show inventory command with the raw keyword to display every RFC 2737 entity installed in the
+router, including those without a PID, unique device identifier (UDI), or other physical identification.
+The raw keyword is primarily intended for troubleshooting problems with the show inventory command
+itself.
+Note
+If any of the Cisco products do not have an assigned PID, the output displays incorrect PIDs, and version ID
+(VID) and serial number (SN) elements may be missing.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+74
+Show Commands
+show inventory (Cisco IOS XR 64-bit)
+
+
+--- Page 81 ---
+
+For UDI compliance products, the PID, VID, and SN are stored in EEPROM and NVRAM. Use the show
+inventory command to display this information.
+Task ID
+Operations
+Task
+ID
+read
+sysmgr
+The following example shows partial sample output from the show inventory command in EXEC
+mode:
+RP/0/RSP0/CPU0:ASR-9906-C-LS#show inventory
+Wed Mar 29 11:46:26.707 UTC
+NAME: "0/RSP0", DESCR: "ASR 9000 Route Switch Processor 5 for Service Edge 40G"
+PID: A9K-RSP5-SE
+, VID: V01, SN: FOC2246NLGP
+NAME: "0/1", DESCR: "ASR 9000 16-port 100GE TR linecard"
+PID: A9K-16X100GE-TR
+, VID: V01, SN: FOC2249PA5Z
+NAME: "HundredGigE0/1/0/14", DESCR: "100GE-SR4-S QSFP Module"
+PID: QSFP-100G-SR4-S
+, VID: V02, SN: AVF2212S1FV
+NAME: "HundredGigE0/1/0/15", DESCR: "100GE-SR4-S QSFP Module"
+PID: QSFP-100G-SR4-S
+, VID: V03, SN: INL23120234
+NAME: "0/2", DESCR: "48X10G/1G Packet Transport Optimized LC"
+PID: A9K-48X10GE-1G-TR , VID: V01, SN: FOC2106NT5R
+NAME: "TenGigE0/2/0/7", DESCR: "10GBASE-SR SFP Module, Enterprise-Class"
+PID: SFP-10G-SR-S
+, VID: V01, SN: AVD2206D0YL
+NAME: "TenGigE0/2/0/9", DESCR: "10GBASE-SR SFP Module, Enterprise-Class"
+PID: SFP-10G-SR-S
+, VID: V01, SN: AVD1912DJMD
+NAME: "TenGigE0/2/0/10", DESCR: "10GBASE-SR SFP+ Module for MMF"
+PID: SFP-10G-SR
+, VID: V03, SN: AVD233691HD
+NAME: "TenGigE0/2/0/11", DESCR: "10GBASE-LR SFP+ Module for SMF"
+PID: SFP-10G-LR
+, VID: V02, SN: SPC182007JY
+NAME: "TenGigE0/2/0/12", DESCR: "10GBASE-SR SFP Module, Enterprise-Class"
+PID: SFP-10G-SR-S
+, VID: V01, SN: ACW223506YD
+NAME: "TenGigE0/2/0/13", DESCR: "10GBASE-LR SFP Module, Enterprise-Class"
+PID: SFP-10G-LR-S
+, VID: V01, SN: AVD2002T02B
+NAME: "TenGigE0/2/0/14", DESCR: "10GBASE-LR SFP+ Module for SMF"
+PID: SFP-10G-LR
+, VID: V02, SN: ACW24151C0F
+NAME: "TenGigE0/2/0/15", DESCR: "10GBASE-LR SFP+ Module for SMF"
+PID: SFP-10G-LR
+, VID: V02, SN: AVD1951R1NG
+NAME: "TenGigE0/2/0/17", DESCR: "10GBASE-LR SFP Module, Enterprise-Class"
+PID: SFP-10G-LR-S
+, VID: V01, SN: AVD2303K0FU
+NAME: "TenGigE0/2/0/18", DESCR: "10GBASE-LR SFP Module, Enterprise-Class"
+PID: SFP-10G-LR-S
+, VID: V01, SN: FNS223007XW
+NAME: "TenGigE0/2/0/20", DESCR: "10GBASE-SR SFP+ Module for MMF"
+PID: SFP-10G-SR
+, VID: V03, SN: AVD1905A4SP
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+75
+Show Commands
+show inventory (Cisco IOS XR 64-bit)
+
+
+--- Page 82 ---
+
+NAME: "TenGigE0/2/0/21", DESCR: "10GBASE-SR SFP+ Module for MMF"
+PID: SFP-10G-SR
+, VID: V02, SN: AGD14063DAL
+NAME: "TenGigE0/2/0/22", DESCR: "10GBASE-SR SFP+ Module for MMF"
+PID: SFP-10G-SR
+, VID: V03, SN: FNS172421U9
+NAME: "TenGigE0/2/0/38", DESCR: "10GBASE-SR SFP+ Module for MMF"
+PID: SFP-10G-SR
+, VID: V03, SN: OPM22320KUR
+NAME: "0/FC0", DESCR: "ASR 9906 Switch Fabric Card 3"
+PID: A99-SFC3-T
+, VID: V01, SN: FOC2242N2MJ
+NAME: "0/FC2", DESCR: "ASR 9906 Switch Fabric Card 3"
+PID: A99-SFC3-T
+, VID: V01, SN: FOC2245N5W6
+NAME: "0/FC4", DESCR: "ASR 9906 Switch Fabric Card 3"
+PID: A99-SFC3-T
+, VID: V01, SN: FOC2245N5UD
+NAME: "Rack 0", DESCR: "ASR 9906 4 Line Card Slot Chassis"
+PID: ASR-9906
+, VID: V01, SN: FOX2434P3J4
+NAME: "0/FT0", DESCR: "ASR 9906 Fan Tray"
+PID: ASR-9906-FAN
+, VID: V01, SN: FOC2323NBSM
+NAME: "0/FT1", DESCR: "ASR 9906 Fan Tray"
+PID: ASR-9906-FAN
+, VID: V01, SN: FOC2323NBSF
+NAME: "0/PT0", DESCR: "Simulated Power Tray IDPROM"
+PID: A9K-AC-PEM-V3
+, VID: V03, SN: FOT1981P81A
+NAME: "0/PT0-PM0", DESCR: "6kW AC Power Module"
+PID: PWR-6KW-AC-V3
+, VID: V02, SN: DTM2013002M
+NAME: "0/PT0-PM1", DESCR: "6kW AC Power Module"
+PID: PWR-6KW-AC-V3
+, VID: V02, SN: DTM19270369
+NAME: "0/PT0-PM2", DESCR: "6kW AC Power Module"
+PID: PWR-6KW-AC-V3
+, VID: V02, SN: DTM1927035H
+The following example shows partial sample output from the show inventory command in System
+Admin EXEC mode:
+sysadmin-vm:0_RSP0#show inventory
+Wed Mar
+29 11:46:49.238 UTC+00:00
+Name: Rack 0
+Descr: ASR 9906 4 Line Card Slot Chassis
+PID: ASR-9906
+VID: V01
+SN: FOX2434P3J4
+Name: 0/1
+Descr: ASR 9000 16-port 100GE TR linecard
+PID: A9K-16X100GE-TR
+VID: V01
+SN: FOC2249PA5Z
+Name: 0/2
+Descr: 48X10G/1G Packet Transport Optimized LC
+PID: A9K-48X10GE-1G-TR
+VID: V01
+SN: FOC2106NT5R
+Name: 0/RSP0
+Descr: ASR 9000 Route Switch Processor 5 for Service Edge 40G
+PID: A9K-RSP5-SE
+VID: V01
+SN: FOC2246NLGP
+Name: 0/FC0
+Descr: ASR 9906 Switch Fabric Card 3
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+76
+Show Commands
+show inventory (Cisco IOS XR 64-bit)
+
+
+--- Page 83 ---
+
+PID: A99-SFC3-T
+VID: V01
+SN: FOC2242N2MJ
+Name: 0/FC2
+Descr: ASR 9906 Switch Fabric Card 3
+PID: A99-SFC3-T
+VID: V01
+SN: FOC2245N5W6
+Name: 0/FC4
+Descr: ASR 9906 Switch Fabric Card 3
+PID: A99-SFC3-T
+VID: V01
+SN: FOC2245N5UD
+Name: 0/FT0
+Descr: ASR 9906 Fan Tray
+PID: ASR-9906-FAN
+VID: V01
+SN: FOC2323NBSM
+Name: 0/FT1
+Descr: ASR 9906 Fan Tray
+PID: ASR-9906-FAN
+VID: V01
+SN: FOC2323NBSF
+Name: 0/PT0
+Descr: Simulated Power Tray IDPROM
+PID: A9K-AC-PEM-V3
+VID: V03
+SN: FOT1981P81A
+Name: 0/PT0-PM0
+Descr: 6kW AC Power Module
+PID: PWR-6KW-AC-V3
+VID: V02
+SN: DTM2013002M
+Name: 0/PT0-PM1
+Descr: 6kW AC Power Module
+PID: PWR-6KW-AC-V3
+VID: V02
+SN: DTM19270369
+Name: 0/PT0-PM2
+Descr: 6kW AC Power Module
+PID: PWR-6KW-AC-V3
+VID: V02
+SN: DTM1927035H
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+77
+Show Commands
+show inventory (Cisco IOS XR 64-bit)
+
+
+--- Page 84 ---
+
+show ipv4 interface
+To display the usability status of interfaces configured for IPv4, use the show ipv4 interface command in the
+EXEC mode.
+show ipv4 [vrf vrf-name] interface [type interface-path-id | brief | summary]
+Syntax Description
+(Optional) Displays VPN routing and forwarding (VRF) instance information.
+vrf
+(Optional) Name of a VRF.
+vrf-name
+Interface type. For more information, use the question mark (?) online help function.
+type
+Either a physical interface instance or a virtual interface instance as follows:
+• Physical interface instance. Naming notation is rack/slot/module/port and a slash
+between values is required as part of the notation.
+• rack: Chassis number of the rack.
+• slot: Physical slot number of the modular services card or line card.
+• module: Module number. A physical layer interface module (PLIM) is always
+0.
+• port: Physical port number of the interface.
+Note
+In references to a Management Ethernet interface located on a route processor card,
+the physical slot number is alphanumeric (RSP0 ) and the module is CPU0.
+Example: interface MgmtEth0/RSP0 /CPU0/0.
+• Virtual interface instance. Number range varies depending on interface type.
+For more information about the syntax for the router, use the question mark (?) online
+help function.
+interface-path-id
+(Optional) Displays the primary IPv4 addresses configured on the router’s interfaces and
+their protocol and line states.
+brief
+(Optional) Displays the number of interfaces on the router that are assigned, unassigned,
+or unnumbered.
+summary
+Command Default
+If VRF is not specified, the software displays the default VRF.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+This command was supported for BNG.
+Release 4.2.0
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+78
+Show Commands
+show ipv4 interface
+
+
+--- Page 85 ---
+
+Usage Guidelines
+The show ipv4 interface command provides output similar to the show ipv6 interface command, except that
+it is IPv4-specific.
+The interface name will be displayed only if the name belongs to the VRF instance. If the vrf-name is not
+specified then the interface instance will be displayed only if the interface belongs to the default VRF.
+Task ID
+Operations
+Task ID
+read
+ipv4
+read
+network
+Examples
+This is the sample output of the show ipv4 interface command:
+RP/0/RSP0/CPU0:router# show ipv4 interface
+Loopback0 is Up, line protocol is Up
+Internet address is 10
+.0.0.1/8
+Secondary address 10.0.0.2/8
+MTU is 1514 (1514 is available to IP)
+Multicast reserved groups joined: 10.0.0.1
+Directed broadcast forwarding is disabled
+Outgoing access list is not set
+Inbound
+access list is not set
+Proxy ARP is enabled
+ICMP redirects are always sent
+ICMP unreachables are always sent
+gigabitethernet0/0/0/0 is Up, line protocol is Up
+Internet address is 10.25.58.1/16
+MTU is 1514 (1500 is available to IP)
+Multicast reserved groups joined: 10.0.224.1
+Directed broadcast forwarding is disabled
+Outgoing access list is not set
+Inbound
+access list is not set
+Proxy ARP is enabled
+ICMP redirects are always sent
+ICMP unreachables are always sent
+gigabitethernet0/0/0/0 is Shutdown, line protocol is Down
+Vrf is default (vrfid 0x60000000)
+Internet protocol processing disabled
+This table describes the significant fields shown in the display.
+Table 12: show ipv4 interface Command Field Descriptions
+Description
+Field
+If the interface hardware is usable, the interface is marked “Up.” For
+an interface to be usable, both the interface hardware and line protocol
+must be up.
+Loopback0 is Up
+If the interface can provide two-way communication, the line protocol
+is marked “Up.” For an interface to be usable, both the interface
+hardware and line protocol must be up.
+line protocol is Up
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+79
+Show Commands
+show ipv4 interface
+
+
+--- Page 86 ---
+
+Description
+Field
+IPv4 Internet address and subnet mask of the interface.
+Internet address
+Displays a secondary address, if one has been set.
+Secondary address
+Displays the IPv4 MTU3 value set on the interface.
+MTU
+Indicates the multicast groups this interface belongs to.
+Multicast reserved groups joined
+Indicates whether directed broadcast forwarding is enabled or disabled.
+Directed broadcast forwarding
+Indicates whether the interface has an outgoing access list set.
+Outgoing access list
+Indicates whether the interface has an incoming access list set.
+Inbound access list
+Indicates whether proxy ARP4 is enabled or disabled on an interface.
+Proxy ARP
+Specifies whether ICMPv45 redirects are sent on this interface.
+ICMP redirects
+Specifies whether unreachable messages are sent on this interface.
+ICMP unreachables
+Indicates an IPv4 address has not been configured on the interface.
+Internet protocol processing disabled
+3 MTU = maximum transmission unit
+4 ARP = Address Resolution Protocoladdress resolution protocol
+5 ICMPv4 = Internet Control Message Protocol internet control message protocol version 4
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+80
+Show Commands
+show ipv4 interface
+
+
+--- Page 87 ---
+
+show ipv6 interface
+To display the usability status of interfaces configured for IPv6, use the show ipv6 interface command in the
+EXEC mode.
+show ipv6 [vrf vrf-name] interface [summary | [type interface-path-id][brief [link-local | global]]]
+Syntax Description
+(Optional) Displays VPN routing and forwarding (VRF) instance information.
+vrf
+(Optional) Name of a VRF.
+vrf-name
+(Optional) Interface type. For more information, use the question mark (?) online help
+function.
+type
+(Optional) Either a physical interface instance or a virtual interface instance as follows:
+• Physical interface instance. Naming notation is rack/slot/module/port and a slash
+between values is required as part of the notation.
+• rack: Chassis number of the rack.
+• slot: Physical slot number of the modular services card or line card.
+• module: Module number. A physical layer interface module (PLIM) is always
+0.
+• port: Physical port number of the interface.
+Note
+In references to a Management Ethernet interface located on a route processor card,
+the physical slot number is alphanumeric (RSP0) and the module is CPU0. Example:
+interface MgmtEth0/RSP0 /CPU0/0.
+• Virtual interface instance. Number range varies depending on interface type.
+For more information about the syntax for the router, use the question mark (?) online
+help function.
+interface-path-id
+(Optional) Displays the primary IPv6 addresses configured on the router interfaces and
+their protocol and line states.
+brief
+(Optional) Displays the link local IPv6 address.
+link-local
+(Optional) Displays the global IPv6 address.
+global
+(Optional) Displays the number of interfaces on the router that are assigned, unassigned,
+or unnumbered.
+summary
+Command Default
+None
+Command Modes
+EXEC mode
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+81
+Show Commands
+show ipv6 interface
+
+
+--- Page 88 ---
+
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+This command was supported for
+BNG.
+Release 4.3.0
+The link-local and global
+keywords were added to the
+command.
+Release 5.1.2
+Usage Guidelines
+The show ipv6 interface command provides output similar to the show ipv4 interface command, except that
+it is IPv6-specific.
+Use the link-local or global keywords along with the brief keyword to view the link local or global IPv6
+addresses.
+Task ID
+Operations
+Task
+ID
+read
+ipv6
+Examples
+This is the sample output of the show ipv6 interface command:
+RP/0/RSP0/CPU0:router# show ipv6 interface
+GigabitEthernet0/2/0/0 is Up, line protocol is Up, Vrfid is default (0x60000000)
+IPv6 is enabled, link-local address is fe80::212:daff:fe62:c150
+Global unicast address(es):
+202::1, subnet is 202::/64
+Joined group address(es): ff02::1:ff00:1 ff02::1:ff62:c150 ff02::2
+ff02::1
+MTU is 1514 (1500 is available to IPv6)
+ICMP redirects are disabled
+ICMP unreachables are enabled
+ND DAD is enabled, number of DAD attempts 1
+ND reachable time is 0 milliseconds
+ND advertised retransmit interval is 0 milliseconds
+ND router advertisements are sent every 200 seconds
+ND router advertisements live for 1800 seconds
+Hosts use stateless autoconfig for addresses.
+Outgoing access list is not set
+Inbound
+access list is not set
+This table describes the significant fields shown in the display.
+Table 13: show ipv6 interface Command Field Descriptions
+Description
+Field
+Indicates whether the interface hardware is currently active (whether line
+signal is present) and whether it has been taken down by an administrator. If
+the interface hardware is usable, the interface is marked “Up.” For an interface
+to be usable, both the interface hardware and line protocol must be up.
+GigabitEthernet0 /3/0/0 is
+Shutdown, line protocol is
+Down
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+82
+Show Commands
+show ipv6 interface
+
+
+--- Page 89 ---
+
+Description
+Field
+Indicates whether the software processes that handle the line protocol consider
+the line usable (that is, whether keepalives are successful). If the interface
+can provide two-way communication, the line protocol is marked “Up.” For
+an interface to be usable, both the interface hardware and line protocol must
+be up.
+line protocol is Up (or down)
+Indicates that IPv6 is enabled, stalled, or disabled on the interface. If IPv6 is
+enabled, the interface is marked “enabled.” If duplicate address detection
+processing identified the link-local address of the interface as being a duplicate
+address, the processing of IPv6 packets is disabled on the interface and the
+interface is marked “stalled.” If IPv6 is not enabled, the interface is marked
+“disabled.”
+IPv6 is enabled, stalled,
+disabled (stalled and disabled
+are not shown in sample
+output)
+Displays the link-local address assigned to the interface.
+link-local address
+The state of the address in relation to duplicate address detection. States can
+be any of the following:
+• duplicate—The address is not unique and is not being used. If the
+duplicate address is the link-local address of an interface, the processing
+of IPv6 packets is disabled on that interface.
+• tentative—Duplicate address detection is either pending or under way
+on this interface.
+Note
+If an address does not have one of these states (the state for the address is
+blank), the address is unique and is being used.
+TENTATIVE
+Displays the global unicast addresses assigned to the interface.
+Global unicast addresses
+State of Internet Control Message Protocol (ICMP) IPv6 redirect messages
+on the interface (the sending of the messages is enabled or disabled).
+ICMP redirects
+State of duplicate address detection on the interface (enabled or disabled).
+ND DAD
+Number of consecutive neighbor solicitation messages that are sent on the
+interface while duplicate address detection is performed.
+number of DAD attempts
+Displays the neighbor discovery reachable time (in milliseconds) assigned to
+this interface.
+ND reachable time
+This is the sample output of the show ipv6 interface brief link-local command:
+RP/0/RSP0/CPU0:router#show ipv6 interface brief link-local
+Interface
+IPv6-Address
+Status
+Protocol
+GigabitEthernet0/0/0/0
+fe80::fe:8ff:fecb:26c5
+Up
+Up
+GigabitEthernet0/0/0/1
+fe80::4f:88ff:fea0:8c9d
+Up
+Up
+GigabitEthernet0/0/0/3
+unassigned
+Shutdown
+Down
+GigabitEthernet0/0/0/4
+unassigned
+Shutdown
+Down
+This is the sample output of the show ipv6 interface brief global command:
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+83
+Show Commands
+show ipv6 interface
+
+
+--- Page 90 ---
+
+RP/0/RSP0/CPU0:router#show ipv6 interface brief global
+Interface
+IPv6-Address
+Status
+Protocol
+GigabitEthernet0/0/0/0
+2001:db8::1
+Up
+Up
+GigabitEthernet0/0/0/1
+2001:db8::2
+Up
+Up
+GigabitEthernet0/0/0/3
+unassigned
+Shutdown
+Down
+GigabitEthernet0/0/0/4
+unassigned
+Shutdown
+Down
+This is the sample output of the show ipv6 interface type interface-path-id brief link-local command:
+RP/0/RSP0/CPU0:router#show ipv6 interface gigabitEthernet 0/0/0/0 brief link-local
+Interface
+IPv6-Address
+Status
+Protocol
+GigabitEthernet0/0/0/0
+fe80::fe:8ff:fecb:26c5
+Up
+Up
+This is the sample output of the show ipv6 interface type interface-path-id brief global command:
+RP/0/RSP0/CPU0:router#show ipv6 interface gigabitEthernet 0/0/0/0 brief global
+Interface
+IPv6-Address
+Status
+Protocol
+GigabitEthernet0/0/0/0
+2001:db8::1
+Up
+Up
+This is the sample output of the show ipv6 vrf vrf-name interface brief link-local command:
+RP/0/RSP0/CPU0:router#show ipv6 vrf vrf1 interface brief link-local
+Interface
+IPv6-Address
+Status
+Protocol
+GigabitEthernet0/0/0/2
+fe80::46:c8ff:fe22:daae
+Up
+Up
+This is the sample output of the show ipv6 vrf vrf-name interface brief global command:
+RP/0/RSP0/CPU0:router#show ipv6 vrf vrf1 interface brief global
+Interface
+IPv6-Address
+Status
+Protocol
+GigabitEthernet0/0/0/2
+2001:db8::2
+Up
+Up
+This is the sample output of the show ipv6 vrf vrf-name interface type interface-path-id brief
+link-local command:
+RP/0/RSP0/CPU0:router#show ipv6 vrf vrf1 interface gigabitEthernet 0/0/0/2 brief link-local
+Interface
+IPv6-Address
+Status
+Protocol
+GigabitEthernet0/0/0/2
+fe80::46:c8ff:fe22:daae
+Up
+Up
+This is the sample output of the show ipv6 vrf vrf-name interface type interface-path-id brief global
+command:
+RP/0/RSP0/CPU0:router#show ipv6 vrf vrf1 interface gigabitEthernet 0/0/0/2 brief global
+Interface
+IPv6-Address
+Status
+Protocol
+GigabitEthernet0/0/0/2
+2001:db8::2
+Up
+Up
+Related Commands
+Description
+Command
+Displays the usability status of interfaces configured for IPv4.
+show ipv4 interface , on page 78
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+84
+Show Commands
+show ipv6 interface
+
+
+--- Page 91 ---
+
+show install boot-options
+To display the boot options set for a specified location or for all locations, use the show install boot-options
+command in administration EXEC mode or EXEC mode.
+show install boot-options [location node-id | all]
+Syntax Description
+(Optional) Specifies a node. The node-id argument is expressed in
+rack/slot/module notation. The all keyword specifies all nodes.
+location {node-id | all}
+Command Default
+If no location is specified, the show install boot-options command displays boot options for all locations.
+Command Modes
+Administration EXEC
+EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+Use the show install boot-options command to display boot options that were set using the install
+boot-options command.
+Task ID
+Operations
+Task ID
+read
+pkg-mgmt
+The following example shows how to display the boot options for all locations:
+RP/0/RSP0/CPU0:router# show install boot-options
+Thu Jul 30 05:00:30.652 DST
+Node
+Boot Options
+--------------------------------+-------------------
+0/RSP0/CPU0
+no boot options set.
+0/1/CPU0
+no boot options set.
+0/4/CPU0
+no boot options set.
+0/6/CPU0
+no boot options set.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+85
+Show Commands
+show install boot-options
+
+
+--- Page 92 ---
+
+show running-config
+To display the contents of the currently running configuration or a subset of that configuration, use the show
+running-config command in the appropriate mode.
+show running-config [[exclude] command] [sanitized]
+Syntax Description
+(Optional) Excludes a specific configuration from the display.
+exclude
+(Optional) Command for which to display the configuration.
+command
+(Optional) Displays a sanitized configuration for safe
+distribution and analysis.
+sanitized
+Command Default
+The show running-config command without any arguments or keywords displays the entire contents of the
+running configuration file.
+Command Modes
+EXEC
+Administration EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+You can display either the entire running configuration, or a subset of the running configuration. The subset
+may be all the commands within a specified command mode.
+In Cisco IOS XR software, the running configuration is automatically used at system startup, reset, or power
+cycle. The running configuration is the committed configuration.
+Note
+Sanitized Output
+Use the show running-config command with the sanitized keyword to display the contents of the active
+running configuration without installation-specific parameters. Some configuration details, such as IP addresses,
+are replaced with different addresses. The sanitized configuration can be used to share a configuration without
+exposing the configuration details.
+Command Modes
+When the show running-config command is entered in administration configuration mode, the configuration
+for the administration plane is displayed, including the configured logical routers for the system. When the
+show running-config command is entered in any global configuration mode, or in EXEC mode, the
+configuration for the specific secure domain router (SDR) is displayed.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+86
+Show Commands
+show running-config
+
+
+--- Page 93 ---
+
+The inheritance and no-annotations keywords are not supported in administration EXEC or configuration
+modes.
+Excluding Parts of the Display
+Use the exclude keyword followed by a command argument to exclude a specific configuration from the
+display.
+Task ID
+Operations
+Task ID
+read
+config-services
+This example shows how to enter the show running-config command with the question mark (?)
+online help function to display the available subsets of the running configuration that can be entered
+to display a subset of the running configuration:
+RP/0/RSP0/CPU0:router# show running-config ?
+aaa
+Authentication, Authorization and Accounting
+alias
+Create an alias for entity
+aps
+Configure SONET Automatic Protection Switching (APS)
+arp
+Global ARP configuration subcommands
+as-path
+BGP autonomous system path filter
+as-path-set
+Define an AS-path set
+banner
+Define a login banner
+cdp
+Enable CDP, or configure global CDP subcommands
+cef
+CEF configuration commands
+cinetd
+Global Cisco inetd configuration commands
+class-map
+Configure QoS Class-map command
+clock
+Configure time-of-day clock
+community-list
+Add a community list entry
+community-set
+Define a community set
+controller
+Controller configuration subcommands
+dhcp
+Dynamic Host Configuration Protocol
+domain
+Domain service related commands
+exception
+Coredump configuration commands
+exclude
+Exclude a feature or configuration item from display
+explicit-path
+Explicit-path config commands
+extcommunity-set
+Define an extended communitiy set
+fault
+Fault related commands
+forward-protocol
+Controls forwarding of physical and directed IP broadcasts
+ftp
+Global FTP configuration commands
+--More--
+In this example, the show running-config command is used to display the running configuration for
+Packet-over-SONET/SDH (POS) interface 0/2/0/1:
+RP/0/RSP0/CPU0:router# show running-config interface pos 0/2/0/1
+interface POS0/2/0/1
+ipv4 address 10.0.0.0 255.0.0.0
+This example shows sample output from the show running-config command with the sanitized
+keyword displays a sanitized version of the running configuration. The sanitized configuration can
+be used to share a configuration without exposing specific configuration details.
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+87
+Show Commands
+show running-config
+
+
+--- Page 94 ---
+
+RP/0/RSP0/CPU0:router# show running-config sanitized
+Building configuration...
+!! Last configuration change at 05:26:50 UTC Thu Jan 19 2009 by <removed>
+!
+snmp-server traps fabric plane
+snmp-server traps fabric bundle state
+hostname <removed>
+line console
+exec-timeout 0 0
+!
+exception choice 1 compress off filepath <removed>
+logging console debugging
+telnet vrf <removed> ipv4 server max-servers no-limit
+snmp-server ifindex persist
+snmp-server host 10.0.0.1 traps version <removed> priv <removed> udp-port 2555
+snmp-server view <removed> <removed> included
+snmp-server community <removed> RO LROwner
+snmp-server community <removed> RO LROwner
+snmp-server group <removed> v3 priv read <removed> write <removed>
+snmp-server traps snmp
+snmp-server traps syslog
+interface Loopback10
+!
+interface Loopback1000
+!
+--More--
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+88
+Show Commands
+show running-config
+
+
+--- Page 95 ---
+
+show redundancy
+To display the status of route processor redundancy, use the show redundancy command in EXEC mode.
+show redundancy [location
+{node-id | all} | statistics | summary]
+Syntax Description
+(Optional) Specifies the node for which to display LED
+information. The node-id argument is expressed in the
+rack/slot/module notation. Use the all keyword to
+indicate all nodes.
+location {node-id | all}
+(Optional) Displays redundancy statistics information.
+statistics
+(Optional) Displays a summary of all redundant node
+pairs in the router.
+summary
+Command Default
+Route processor redundancy information is displayed for all nodes in the system.
+Command Modes
+EXEC mode
+Command History
+Modification
+Release
+This command was introduced.
+Release 3.7.2
+Usage Guidelines
+To use this command, you must be in a user group associated with a task group that includes appropriate task
+IDs. If the user group assignment is preventing you from using a command, contact your AAA administrator
+for assistance.
+Use the show redundancy command to display the redundancy status of the route switch processors (RSPs).
+The show redundancy command also displays the boot and switchover history for the RSPs. To view the
+nonstop routing (NSR) status of the standby RSPs in the system, use the summary keyword.
+Task ID
+Operations
+Task ID
+read
+system
+read (for statistics keyword)
+basic-services
+The following example shows sample output from the show redundancy command:
+RP/0/RSP0/CPU0:router# show redundancy location 0/rsp0/cpu0
+Thu Jul 30 05:47:12.155 DST
+Node 0/RSP0/CPU0 is in ACTIVE role
+Node 0/RSP0/CPU0 has no valid partner
+Reload and boot info
+----------------------
+A9K-RSP-4G reloaded Tue Jul 14 15:21:30 2009: 2 weeks, 1 day,
+14 hours, 25 minutes ago
+Active node booted Tue Jul 14 15:21:30 2009: 2 weeks, 1 day,
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+89
+Show Commands
+show redundancy
+
+
+--- Page 96 ---
+
+14 hours, 25 minutes ago
+Active node reload "Cause: User initiated forced reload all"
+Table 14: show redundancy Field Descriptions
+Description
+Field
+Current role of the primary route processor, where (*/*/*) is the route
+processor ID in the format rack/slot/module, and XXX is the role of the route
+processor (active or standby).
+In the example, this field shows that the node with the ID 0/RP0/CPU0 is
+in active role.
+Node */*/* is in XXX role
+Current role of the secondary (or partner) route processor, where (*/*/*) is
+the route processor ID in the rack/slot/module format, and XXX is the role
+of the route processor (active or standby).
+In the example, this field shows that the node with the ID 0/RP1/CPU0 is
+in standby role.
+Partner node (*/*/*) is in
+XXX role
+Current state of the standby node, where (*/*/*) is the standby route
+processor ID.
+In the example, the standby node is ready.
+Standby node in (*/*/*) is
+ready
+Current state of the standby node regarding nonstop routing (NSR), where
+(*/*/*) is the standby route processor ID.
+In the example, the standby node is NSR-ready.
+Standby node in (*/*/*) is
+NSR-ready
+General overview of the active and standby route processors’ reload and
+boot history.
+Reload and boot info
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+90
+Show Commands
+show redundancy
+
+
+--- Page 97 ---
+
+show media
+To display the current state of the disk storage media, use the show media command in EXEC or Administration
+EXEC mode.
+show media location
+{node-id | all}
+Syntax Description
+(Optional) Specifies the node where the file system is located. The node-id argument
+is expressed in the rack/slot/module notation. Use the all keyword to indicate all
+nodes.
+location{node-id | all}
+Command Default
+The disk storage media for the active RP is displayed.
+Command Modes
+Administration EXEC
+EXEC
+Command History
+Modification
+Release
+This command was introduced.
+Release 7.0.1
+Usage Guidelines
+Use the show media command to view the status of the storage media on your system.
+The following example displays the output of the show media command:.
+sysadmin-vm:0_RP0 #show media
+Thu Nov 30 14:57:14.002 WET
+Media Information for local node.
+----------------------------------------------
+Partition
+Size
+Used
+Percent
+Avail
+rootfs:
+2.7G
+1.5G
+59%
+1.1G
+apphost:
+1.9G
+61M
+4%
+1.7G
+/dev/sde
+870M
+401M
+50%
+409M
+harddisk:
+2.4G
+966M
+43%
+1.3G
+log:
+459M
+67M
+16%
+359M
+config:
+159M
+2.5M
+2%
+144M
+disk0:
+1.3G
+108M
+9%
+1.1G
+---------------------------------------------------
+rootfs: = root file system (read-only)
+log: = system log files (read-only)
+config: = configuration storage (read-only)
+Table 15: show media Field Descriptions
+Description
+Field
+Partition on the disk.
+Partition
+Size of the partition.
+Size
+Partition size used.
+Used
+Percentage used.
+Percent
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+91
+Show Commands
+show media
+
+
+--- Page 98 ---
+
+Description
+Field
+Available free partition space.
+Avail
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+92
+Show Commands
+show media
+
+
+--- Page 99 ---
+
+I N D E X
+C
+clear configuration inconsistency command
+2
+I
+install add command
+8
+install commit command
+19
+install remove command
+25
+S
+show fpd package command
+63
+show hw-module fpd command
+66
+show install active command
+47, 50
+show install boot-options command
+85
+show install command
+44
+show install committed command
+53
+show install inactive command
+56
+show install package command
+60
+show interfaces (frame relay) command
+69
+show platform command
+41
+show redundancy command
+89
+show running-config command
+86
+show version command
+38
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+IN-1
+
+
+--- Page 100 ---
+
+System Setup Command Reference for Cisco ASR 9000 Series Routers
+IN-2
+INDEX
