@@ -1,6 +1,7 @@
 package studio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -44,6 +45,15 @@ var funcMap = template.FuncMap{
 		case "testing":  return "badge-testing"
 		case "approved": return "badge-approved"
 		case "rejected": return "badge-rejected"
+		}
+		return ""
+	},
+	"outputTypeClass": func(s string) string {
+		switch s {
+		case "pipeline":     return "tag-pipeline"
+		case "table":        return "tag-table"
+		case "raw":          return "tag-raw"
+		case "hierarchical": return "tag-hierarchical"
 		}
 		return ""
 	},
@@ -206,23 +216,82 @@ func (h *handlers) apiDashboard(w http.ResponseWriter, r *http.Request) {
 // ── Page: Rules List ─────────────────────────────────────────────────────
 
 func (h *handlers) list(w http.ResponseWriter, r *http.Request) {
-	draft, err := h.db.ListPendingRules("draft", 50)
+	query := r.URL.Query().Get("q")
+	vendor := r.URL.Query().Get("vendor")
+	status := r.URL.Query().Get("status")
+
+	var rules []store.PendingRule
+	var err error
+
+	if query != "" || vendor != "" || status != "" {
+		// Search mode
+		rules, err = h.db.SearchPendingRules(query, vendor, status, 100)
+	} else {
+		// Default: show all rules (all statuses)
+		rules, err = h.db.SearchPendingRules("", "", "", 100)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	testing_, err := h.db.ListPendingRules("testing", 50)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
+
+	// Collect distinct vendors for filter dropdown
+	vendorSet := map[string]bool{}
+	for _, r := range rules {
+		vendorSet[r.Vendor] = true
 	}
-	rules := append(draft, testing_...)
+	var vendors []string
+	for v := range vendorSet {
+		vendors = append(vendors, v)
+	}
+
+	// Counts per status
+	drafts, _ := h.db.ListPendingRules("draft", 100)
+	testing_, _ := h.db.ListPendingRules("testing", 100)
+	approved, _ := h.db.ListPendingRules("approved", 100)
+	rejected, _ := h.db.ListPendingRules("rejected", 100)
+
 	pd := h.newPageData("rules")
 	tmpl := template.Must(template.New("list").Funcs(funcMap).Parse(baseHTML + listHTML))
 	tmpl.Execute(w, struct {
 		pageData
-		Rules []store.PendingRule
-	}{pageData: pd, Rules: rules})
+		Rules         []store.PendingRule
+		Vendors       []string
+		Query         string
+		FilterVendor  string
+		FilterStatus  string
+		TotalCount    int
+		DraftCount    int
+		TestingCount  int
+		ApprovedCount int
+		RejectedCount int
+	}{
+		pageData:      pd,
+		Rules:         rules,
+		Vendors:       vendors,
+		Query:         query,
+		FilterVendor:  vendor,
+		FilterStatus:  status,
+		TotalCount:    len(drafts) + len(testing_) + len(approved) + len(rejected),
+		DraftCount:    len(drafts),
+		TestingCount:  len(testing_),
+		ApprovedCount: len(approved),
+		RejectedCount: len(rejected),
+	})
+}
+
+// apiSearchRules returns JSON for AJAX search
+func (h *handlers) apiSearchRules(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	vendor := r.URL.Query().Get("vendor")
+	status := r.URL.Query().Get("status")
+	rules, err := h.db.SearchPendingRules(query, vendor, status, 100)
+	if err != nil {
+		jsonError(w, err.Error(), 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(rules)
 }
 
 // ── Page: Rule Editor + Sandbox (merged) ─────────────────────────────────
@@ -494,12 +563,20 @@ func (h *handlers) apiDispatch(w http.ResponseWriter, r *http.Request) {
 		h.apiDeleteTestCase(w, r, id, parts)
 	case "get-testcase":
 		h.apiGetTestCase(w, r, id, parts)
+	case "run-all-tests":
+		h.apiRunAllTests(w, r, id)
+	case "improve":
+		h.apiImprove(w, r, id)
 	case "approve":
 		h.apiApprove(w, r, id)
 	case "ignore":
 		h.apiIgnore(w, r, id)
 	case "save-local":
 		h.apiSaveLocal(w, r, id)
+	case "delete":
+		h.apiDeleteRule(w, r, id)
+	case "regenerate":
+		h.apiRegenerateRule(w, r, id)
 	default:
 		http.NotFound(w, r)
 	}
@@ -511,42 +588,55 @@ func (h *handlers) apiTest(w http.ResponseWriter, r *http.Request, id int) {
 		jsonError(w, "rule not found", 404)
 		return
 	}
-	if rule.OutputType != "table" {
-		jsonError(w, "live test only supported for table-type rules", 400)
-		return
-	}
 	r.ParseForm()
 	input := r.FormValue("input")
-	var schemaDef struct {
-		HeaderPattern string `yaml:"header_pattern"`
-		SkipLines     int    `yaml:"skip_lines"`
-		Columns       []struct {
-			Name     string `yaml:"name"`
-			Index    int    `yaml:"index"`
-			Type     string `yaml:"type"`
-			Optional bool   `yaml:"optional"`
-		} `yaml:"columns"`
+
+	switch rule.OutputType {
+	case "pipeline":
+		// Pipeline DSL: the DSL text is stored in SchemaYAML field
+		result, err := engine.ExecPipeline(rule.SchemaYAML, input)
+		if err != nil {
+			jsonError(w, "pipeline error: "+err.Error(), 400)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+
+	case "table":
+		var schemaDef struct {
+			HeaderPattern string `yaml:"header_pattern"`
+			SkipLines     int    `yaml:"skip_lines"`
+			Columns       []struct {
+				Name     string `yaml:"name"`
+				Index    int    `yaml:"index"`
+				Type     string `yaml:"type"`
+				Optional bool   `yaml:"optional"`
+			} `yaml:"columns"`
+		}
+		if err := yaml.Unmarshal([]byte(rule.SchemaYAML), &schemaDef); err != nil {
+			jsonError(w, "invalid schema YAML: "+err.Error(), 400)
+			return
+		}
+		cols := make([]engine.ColumnDef, len(schemaDef.Columns))
+		for i, c := range schemaDef.Columns {
+			cols[i] = engine.ColumnDef{Name: c.Name, Index: c.Index, Type: c.Type, Optional: c.Optional}
+		}
+		schema := engine.TableSchema{
+			HeaderPattern: schemaDef.HeaderPattern,
+			SkipLines:     schemaDef.SkipLines,
+			Columns:       cols,
+		}
+		result, err := engine.ParseTable(schema, input)
+		if err != nil {
+			jsonError(w, err.Error(), 400)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+
+	default:
+		jsonError(w, fmt.Sprintf("live test not supported for %q type rules", rule.OutputType), 400)
 	}
-	if err := yaml.Unmarshal([]byte(rule.SchemaYAML), &schemaDef); err != nil {
-		jsonError(w, "invalid schema YAML: "+err.Error(), 400)
-		return
-	}
-	cols := make([]engine.ColumnDef, len(schemaDef.Columns))
-	for i, c := range schemaDef.Columns {
-		cols[i] = engine.ColumnDef{Name: c.Name, Index: c.Index, Type: c.Type, Optional: c.Optional}
-	}
-	schema := engine.TableSchema{
-		HeaderPattern: schemaDef.HeaderPattern,
-		SkipLines:     schemaDef.SkipLines,
-		Columns:       cols,
-	}
-	result, err := engine.ParseTable(schema, input)
-	if err != nil {
-		jsonError(w, err.Error(), 400)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
 }
 
 func (h *handlers) apiSaveTestCase(w http.ResponseWriter, r *http.Request, id int) {
@@ -651,13 +741,7 @@ func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 		jsonError(w, "code generation failed: "+err.Error(), 500)
 		return
 	}
-	vendor := strings.ToLower(rule.Vendor)
-	lower := strings.ToLower(strings.TrimSpace(rule.CommandPattern))
-	for _, p := range []string{"display ", "show ", "dis ", "sh "} {
-		lower = strings.TrimPrefix(lower, p)
-	}
-	importParts := strings.FieldsFunc(lower, func(r rune) bool { return r == ' ' || r == '-' })
-	goFilePath := fmt.Sprintf("internal/parser/%s/%s.go", vendor, strings.Join(importParts, "_"))
+	goFilePath := codegen.TargetFilePath(rule.Vendor, rule.CommandPattern)
 	h.db.ApprovePendingRule(id, approvedBy, time.Now())
 	h.db.SetPendingRulePR(id, prURL, goFilePath)
 	w.Header().Set("Content-Type", "application/json")
@@ -674,6 +758,496 @@ func (h *handlers) apiIgnore(w http.ResponseWriter, r *http.Request, id int) {
 	h.db.UpdatePendingRule(rule)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "rejected"})
+}
+
+// ── API: Run All Tests ───────────────────────────────────────────────────
+
+// TestRunResult is a single test case execution result.
+type TestRunResult struct {
+	TCID     int    `json:"tc_id"`
+	Passed   bool   `json:"passed"`
+	Expected string `json:"expected,omitempty"`
+	Actual   string `json:"actual,omitempty"`
+	Error    string `json:"error,omitempty"`
+	Diff     *DiffResult `json:"diff,omitempty"`
+}
+
+// DiffResult holds the structured diff between expected and actual.
+type DiffResult struct {
+	Match         bool        `json:"match"`
+	RowCountMatch bool        `json:"row_count_match"`
+	ExpectedRows  int         `json:"expected_rows"`
+	ActualRows    int         `json:"actual_rows"`
+	FieldDiffs    []FieldDiff `json:"field_diffs,omitempty"`
+	MissingFields []string    `json:"missing_fields,omitempty"`
+	ExtraFields   []string    `json:"extra_fields,omitempty"`
+}
+
+// FieldDiff describes a single field mismatch.
+type FieldDiff struct {
+	Row      int    `json:"row"`
+	Field    string `json:"field"`
+	Expected string `json:"expected"`
+	Actual   string `json:"actual"`
+}
+
+func (h *handlers) apiRunAllTests(w http.ResponseWriter, r *http.Request, id int) {
+	if r.Method != "POST" {
+		http.Error(w, "POST only", 405)
+		return
+	}
+	rule, err := h.db.GetPendingRule(id)
+	if err != nil {
+		jsonError(w, "rule not found", 404)
+		return
+	}
+	testCases, err := h.db.ListRuleTestCases(id)
+	if err != nil {
+		testCases = nil
+	}
+
+	// If no test cases, run against sample inputs as a preview (no pass/fail comparison).
+	if len(testCases) == 0 {
+		samples := parseSampleInputs(rule.SampleInputs)
+		if len(samples) == 0 {
+			jsonError(w, "no test cases and no sample inputs — paste a sample and save a test case first", 400)
+			return
+		}
+		// Run DSL against first sample to show what it produces
+		var previewResult any
+		switch rule.OutputType {
+		case "pipeline":
+			pResult, execErr := engine.ExecPipeline(rule.SchemaYAML, samples[0])
+			if execErr != nil {
+				jsonError(w, "DSL execution error on sample: "+execErr.Error(), 400)
+				return
+			}
+			previewResult = pResult
+		default:
+			jsonError(w, "no test cases found and preview not supported for "+rule.OutputType, 400)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"all_passed":     false,
+			"no_test_cases":  true,
+			"sample_preview": previewResult,
+			"message":        "No test cases found. Showing current DSL output on sample input — save a test case to enable pass/fail testing.",
+			"results":        []TestRunResult{},
+			"total":          0,
+		})
+		return
+	}
+
+	results := make([]TestRunResult, len(testCases))
+	allPassed := true
+
+	for i, tc := range testCases {
+		result := TestRunResult{TCID: tc.ID}
+
+		// Execute parse
+		var actualJSON string
+		switch rule.OutputType {
+		case "pipeline":
+			pResult, execErr := engine.ExecPipeline(rule.SchemaYAML, tc.Input)
+			if execErr != nil {
+				result.Error = execErr.Error()
+				result.Passed = false
+				allPassed = false
+				results[i] = result
+				continue
+			}
+			actualBytes, _ := json.Marshal(pResult)
+			actualJSON = string(actualBytes)
+		default:
+			result.Error = fmt.Sprintf("run-all-tests not yet supported for %q type", rule.OutputType)
+			result.Passed = false
+			allPassed = false
+			results[i] = result
+			continue
+		}
+
+		// Deep compare expected vs actual
+		diff := deepCompare(tc.Expected, actualJSON)
+		result.Diff = &diff
+		result.Passed = diff.Match
+		result.Expected = tc.Expected
+		result.Actual = actualJSON
+		if !diff.Match {
+			allPassed = false
+		}
+		results[i] = result
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"all_passed": allPassed,
+		"results":    results,
+		"total":      len(results),
+	})
+}
+
+// deepCompare performs a structural comparison between expected and actual JSON.
+func deepCompare(expectedJSON, actualJSON string) DiffResult {
+	result := DiffResult{Match: true}
+
+	// Parse both as generic structures
+	var expected, actual map[string]any
+	if err := json.Unmarshal([]byte(expectedJSON), &expected); err != nil {
+		// Try parsing as array
+		var expectedArr, actualArr []map[string]string
+		if err2 := json.Unmarshal([]byte(expectedJSON), &expectedArr); err2 != nil {
+			result.Match = false
+			result.FieldDiffs = append(result.FieldDiffs, FieldDiff{
+				Row: 0, Field: "_parse_error", Expected: "valid JSON", Actual: err.Error(),
+			})
+			return result
+		}
+		if err2 := json.Unmarshal([]byte(actualJSON), &actualArr); err2 != nil {
+			result.Match = false
+			return result
+		}
+		return compareRowArrays(expectedArr, actualArr)
+	}
+
+	if err := json.Unmarshal([]byte(actualJSON), &actual); err != nil {
+		result.Match = false
+		return result
+	}
+
+	// Compare rows arrays
+	expectedRows := extractRows(expected)
+	actualRows := extractRows(actual)
+
+	result.ExpectedRows = len(expectedRows)
+	result.ActualRows = len(actualRows)
+	result.RowCountMatch = len(expectedRows) == len(actualRows)
+
+	if !result.RowCountMatch {
+		result.Match = false
+	}
+
+	return compareRowArrays(expectedRows, actualRows)
+}
+
+func extractRows(data map[string]any) []map[string]string {
+	// Try "rows" key (pipeline result format)
+	rawRows, ok := data["rows"]
+	if !ok {
+		// Try "Rows" key (table result format)
+		rawRows, ok = data["Rows"]
+		if !ok {
+			return nil
+		}
+	}
+
+	rowsArr, ok := rawRows.([]any)
+	if !ok {
+		return nil
+	}
+
+	var result []map[string]string
+	for _, rawRow := range rowsArr {
+		rowMap, ok := rawRow.(map[string]any)
+		if !ok {
+			continue
+		}
+		strRow := make(map[string]string)
+		for k, v := range rowMap {
+			switch tv := v.(type) {
+			case string:
+				strRow[k] = tv
+			default:
+				strRow[k] = fmt.Sprintf("%v", v)
+			}
+		}
+		result = append(result, strRow)
+	}
+	return result
+}
+
+func compareRowArrays(expected, actual []map[string]string) DiffResult {
+	result := DiffResult{
+		Match:         true,
+		ExpectedRows:  len(expected),
+		ActualRows:    len(actual),
+		RowCountMatch: len(expected) == len(actual),
+	}
+
+	if !result.RowCountMatch {
+		result.Match = false
+	}
+
+	// Compare up to min(len) rows
+	minRows := len(expected)
+	if len(actual) < minRows {
+		minRows = len(actual)
+	}
+
+	for i := 0; i < minRows; i++ {
+		expRow := expected[i]
+		actRow := actual[i]
+
+		// Find missing/extra fields in first row only
+		if i == 0 {
+			for k := range expRow {
+				if _, ok := actRow[k]; !ok {
+					result.MissingFields = append(result.MissingFields, k)
+					result.Match = false
+				}
+			}
+			for k := range actRow {
+				if _, ok := expRow[k]; !ok {
+					result.ExtraFields = append(result.ExtraFields, k)
+				}
+			}
+		}
+
+		// Compare field values
+		for k, expVal := range expRow {
+			actVal, ok := actRow[k]
+			if !ok {
+				continue // missing field already recorded
+			}
+			// Normalize: trim whitespace, case-insensitive for common values
+			expNorm := strings.TrimSpace(expVal)
+			actNorm := strings.TrimSpace(actVal)
+			if expNorm != actNorm {
+				result.Match = false
+				result.FieldDiffs = append(result.FieldDiffs, FieldDiff{
+					Row: i, Field: k, Expected: expVal, Actual: actVal,
+				})
+			}
+		}
+	}
+
+	return result
+}
+
+// ── API: LLM Improve ─────────────────────────────────────────────────────
+
+func (h *handlers) apiImprove(w http.ResponseWriter, r *http.Request, id int) {
+	if r.Method != "POST" {
+		http.Error(w, "POST only", 405)
+		return
+	}
+	if h.eng == nil {
+		jsonError(w, "discovery engine not configured", 503)
+		return
+	}
+	rule, err := h.db.GetPendingRule(id)
+	if err != nil {
+		jsonError(w, "rule not found", 404)
+		return
+	}
+	testCases, err := h.db.ListRuleTestCases(id)
+	if err != nil {
+		testCases = nil // treat DB error as empty
+	}
+
+	// If no test cases exist, synthesize from SampleInputs.
+	// Run the current DSL against sample inputs and treat every result as a
+	// "needs improvement" failure, so the LLM can see what the DSL currently
+	// produces and improve it.
+	if len(testCases) == 0 {
+		samples := parseSampleInputs(rule.SampleInputs)
+		if len(samples) == 0 {
+			jsonError(w, "no test cases and no sample inputs available — paste a sample and save a test case first", 400)
+			return
+		}
+		var failures []discovery.FailedTestCase
+		for i, sample := range samples {
+			if i >= 3 {
+				break // limit to 3 samples to keep LLM context manageable
+			}
+			var actualJSON string
+			switch rule.OutputType {
+			case "pipeline":
+				pResult, execErr := engine.ExecPipeline(rule.SchemaYAML, sample)
+				if execErr != nil {
+					failures = append(failures, discovery.FailedTestCase{
+						Input: sample, Expected: "(not available)", Actual: "",
+						Error: "DSL execution error: " + execErr.Error(),
+					})
+					continue
+				}
+				b, _ := json.Marshal(pResult)
+				actualJSON = string(b)
+			default:
+				continue
+			}
+			// We don't have an expected value, so tell the LLM the current result
+			// and ask it to evaluate & improve based on the raw input.
+			failures = append(failures, discovery.FailedTestCase{
+				Input:    sample,
+				Expected: "(no expected value — please infer from the raw input what the correct extraction should be)",
+				Actual:   actualJSON,
+				Error:    "no test case exists; the current extraction may be incomplete or incorrect",
+			})
+		}
+		if len(failures) == 0 {
+			jsonError(w, "could not run DSL against samples", 400)
+			return
+		}
+		improved, improveErr := h.eng.ImproveDSL(r.Context(), rule, failures)
+		if improveErr != nil {
+			jsonError(w, "LLM improve failed: "+improveErr.Error(), 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"status":                      "improved",
+			"improved_dsl":                improved.SchemaYAML,
+			"output_type":                 improved.OutputType,
+			"expected_output_description": improved.ExpectedOutputDescription,
+		})
+		return
+	}
+
+	// Normal path: we have test cases — collect failures.
+	var failures []discovery.FailedTestCase
+	for _, tc := range testCases {
+		var actualJSON string
+		var execErr error
+		switch rule.OutputType {
+		case "pipeline":
+			pResult, err := engine.ExecPipeline(rule.SchemaYAML, tc.Input)
+			if err != nil {
+				execErr = err
+			} else {
+				b, _ := json.Marshal(pResult)
+				actualJSON = string(b)
+			}
+		default:
+			continue
+		}
+
+		if execErr != nil {
+			failures = append(failures, discovery.FailedTestCase{
+				Input:    tc.Input,
+				Expected: tc.Expected,
+				Actual:   "",
+				Error:    execErr.Error(),
+			})
+			continue
+		}
+
+		diff := deepCompare(tc.Expected, actualJSON)
+		if !diff.Match {
+			failures = append(failures, discovery.FailedTestCase{
+				Input:    tc.Input,
+				Expected: tc.Expected,
+				Actual:   actualJSON,
+				Error:    fmt.Sprintf("diff: %d field mismatches, row count %d vs %d", len(diff.FieldDiffs), diff.ExpectedRows, diff.ActualRows),
+			})
+		}
+	}
+
+	if len(failures) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "all_passed"})
+		return
+	}
+
+	improved, err := h.eng.ImproveDSL(r.Context(), rule, failures)
+	if err != nil {
+		jsonError(w, "LLM improve failed: "+err.Error(), 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"status":                      "improved",
+		"improved_dsl":                improved.SchemaYAML,
+		"output_type":                 improved.OutputType,
+		"expected_output_description": improved.ExpectedOutputDescription,
+	})
+}
+
+// parseSampleInputs extracts sample strings from the JSON array stored in SampleInputs.
+func parseSampleInputs(raw string) []string {
+	if raw == "" || raw == "[]" {
+		return nil
+	}
+	var samples []string
+	if err := json.Unmarshal([]byte(raw), &samples); err != nil {
+		return nil
+	}
+	// Filter out empty samples
+	var valid []string
+	for _, s := range samples {
+		if strings.TrimSpace(s) != "" {
+			valid = append(valid, s)
+		}
+	}
+	return valid
+}
+
+func (h *handlers) apiDeleteRule(w http.ResponseWriter, r *http.Request, id int) {
+	if r.Method != "POST" {
+		http.Error(w, "POST only", 405)
+		return
+	}
+	if err := h.db.DeletePendingRule(id); err != nil {
+		jsonError(w, "delete failed: "+err.Error(), 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+}
+
+func (h *handlers) apiRegenerateRule(w http.ResponseWriter, r *http.Request, id int) {
+	if r.Method != "POST" {
+		http.Error(w, "POST only", 405)
+		return
+	}
+	if h.eng == nil {
+		jsonError(w, "discovery engine not configured", 503)
+		return
+	}
+	rule, err := h.db.GetPendingRule(id)
+	if err != nil {
+		jsonError(w, "rule not found", 404)
+		return
+	}
+	// Delete old rule
+	h.db.DeletePendingRule(id)
+	// Reset the associated unknown outputs so they can be re-discovered
+	h.db.UpdateUnknownOutputStatus(rule.Vendor, rule.CommandPattern, "new")
+	// Find the unknown output for this command and re-generate
+	unknowns, _ := h.db.ListUnknownOutputs(rule.Vendor, "new", 100)
+	var unknownID int
+	for _, u := range unknowns {
+		if u.CommandNorm == rule.CommandPattern {
+			unknownID = u.ID
+			break
+		}
+	}
+	if unknownID == 0 {
+		jsonError(w, "no unknown output found for re-generation — the command may have been ingested with different output", 400)
+		return
+	}
+	newRuleID, err := h.eng.GenerateForUnknown(r.Context(), unknownID)
+	if err != nil {
+		jsonError(w, "regeneration failed: "+err.Error(), 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"status": "regenerated", "rule_id": newRuleID, "redirect": fmt.Sprintf("/rule/%d", newRuleID)})
+}
+
+func (h *handlers) apiDeleteDraftRules(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "POST only", 405)
+		return
+	}
+	n, err := h.db.DeletePendingRulesByStatus("draft")
+	if err != nil {
+		jsonError(w, "delete failed: "+err.Error(), 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"status": "deleted", "count": n})
 }
 
 func (h *handlers) apiSaveLocal(w http.ResponseWriter, r *http.Request, id int) {
@@ -783,14 +1357,42 @@ func (h *handlers) apiDiscover(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "discovery engine not configured", 503)
 		return
 	}
-	vendor := r.URL.Query().Get("vendor")
-	n, err := h.eng.RunOnce(r.Context(), vendor)
-	if err != nil {
-		jsonError(w, err.Error(), 500)
+
+	// SSE: Server-Sent Events for real-time progress
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		jsonError(w, "streaming not supported", 500)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]int{"created": n})
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no") // nginx
+
+	vendor := r.URL.Query().Get("vendor")
+
+	// Use a background context so closing the browser tab doesn't cancel LLM calls.
+	// But still respect a reasonable overall timeout (10 min for a full discovery run).
+	bgCtx, bgCancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer bgCancel()
+
+	// If the client disconnects, cancel the background context.
+	clientGone := r.Context().Done()
+	go func() {
+		select {
+		case <-clientGone:
+			bgCancel()
+		case <-bgCtx.Done():
+		}
+	}()
+
+	ch := h.eng.RunStream(bgCtx, vendor)
+	for ev := range ch {
+		data, _ := json.Marshal(ev)
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		flusher.Flush()
+	}
 }
 
 // ── Unknown Outputs API ──────────────────────────────────────────────────
@@ -825,13 +1427,43 @@ func (h *handlers) apiUnknownGenerate(w http.ResponseWriter, r *http.Request, id
 		jsonError(w, "discovery engine not configured", 503)
 		return
 	}
-	ruleID, err := h.eng.GenerateForUnknown(r.Context(), id)
-	if err != nil {
-		jsonError(w, "generate failed: "+err.Error(), 500)
+
+	// SSE mode: stream progress events
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		// Fallback: non-streaming mode
+		ruleID, err := h.eng.GenerateForUnknown(r.Context(), id)
+		if err != nil {
+			jsonError(w, "generate failed: "+err.Error(), 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"status": "ok", "rule_id": ruleID, "redirect": fmt.Sprintf("/rule/%d", ruleID)})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"status": "ok", "rule_id": ruleID, "redirect": fmt.Sprintf("/rule/%d", ruleID)})
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	bgCtx, bgCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer bgCancel()
+	clientGone := r.Context().Done()
+	go func() {
+		select {
+		case <-clientGone:
+			bgCancel()
+		case <-bgCtx.Done():
+		}
+	}()
+
+	ch := h.eng.GenerateForUnknownStream(bgCtx, id)
+	for ev := range ch {
+		data, _ := json.Marshal(ev)
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		flusher.Flush()
+	}
 }
 
 func (h *handlers) apiUnknownIgnore(w http.ResponseWriter, r *http.Request, id int) {
@@ -1124,11 +1756,54 @@ const dashboardHTML = `
 
 const listHTML = `
 <div class="page-header">
-  <h1>📋 Pending Rules</h1>
+  <h1>📋 Rules</h1>
   <div class="actions">
+    {{if gt .DraftCount 0}}<button class="btn btn-danger btn-sm" onclick="confirmAction('Delete All Drafts','This will permanently delete ALL {{.DraftCount}} draft rules and reset their unknown outputs for re-discovery.',function(){fetch('/api/rules/delete-drafts',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.error){Toast.error(d.error)}else{Toast.success(d.count+' draft(s) deleted');setTimeout(()=>location.href='/rules',500)}})})">🗑 Delete All Drafts ({{.DraftCount}})</button>{{end}}
     <button class="btn btn-primary" onclick="runDiscovery()">🔄 Run Discovery</button>
   </div>
 </div>
+
+<!-- Search & Filter Bar -->
+<div class="card" style="margin-bottom:16px;padding:12px 16px">
+  <form method="GET" action="/rules" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">
+      <input type="text" name="q" placeholder="🔍 Search command pattern..." value="{{.Query}}" style="width:100%;margin:0" autofocus>
+    </div>
+    <select name="vendor" style="width:140px;margin:0">
+      <option value="">All Vendors</option>
+      {{range .Vendors}}<option value="{{.}}" {{if eq . $.FilterVendor}}selected{{end}}>{{.}}</option>{{end}}
+    </select>
+    <select name="status" style="width:140px;margin:0">
+      <option value="">All Status</option>
+      <option value="draft" {{if eq .FilterStatus "draft"}}selected{{end}}>Draft</option>
+      <option value="testing" {{if eq .FilterStatus "testing"}}selected{{end}}>Testing</option>
+      <option value="approved" {{if eq .FilterStatus "approved"}}selected{{end}}>Approved</option>
+      <option value="rejected" {{if eq .FilterStatus "rejected"}}selected{{end}}>Rejected</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    {{if or .Query .FilterVendor .FilterStatus}}<a href="/rules" class="btn btn-ghost btn-sm">✕ Clear</a>{{end}}
+  </form>
+</div>
+
+<!-- Status Summary Tabs -->
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+  <a href="/rules" class="btn btn-ghost btn-sm {{if and (not .FilterStatus) (not .Query)}}btn-primary{{end}}" style="min-width:80px;justify-content:center">
+    All <span class="tag" style="margin-left:4px">{{.TotalCount}}</span>
+  </a>
+  {{if gt .DraftCount 0}}<a href="/rules?status=draft" class="btn btn-ghost btn-sm {{if eq .FilterStatus "draft"}}btn-primary{{end}}" style="min-width:80px;justify-content:center">
+    📝 Draft <span class="tag" style="margin-left:4px">{{.DraftCount}}</span>
+  </a>{{end}}
+  {{if gt .TestingCount 0}}<a href="/rules?status=testing" class="btn btn-ghost btn-sm {{if eq .FilterStatus "testing"}}btn-primary{{end}}" style="min-width:80px;justify-content:center">
+    🧪 Testing <span class="tag" style="margin-left:4px">{{.TestingCount}}</span>
+  </a>{{end}}
+  {{if gt .ApprovedCount 0}}<a href="/rules?status=approved" class="btn btn-ghost btn-sm {{if eq .FilterStatus "approved"}}btn-primary{{end}}" style="min-width:80px;justify-content:center">
+    ✅ Approved <span class="tag" style="margin-left:4px">{{.ApprovedCount}}</span>
+  </a>{{end}}
+  {{if gt .RejectedCount 0}}<a href="/rules?status=rejected" class="btn btn-ghost btn-sm {{if eq .FilterStatus "rejected"}}btn-primary{{end}}" style="min-width:80px;justify-content:center">
+    ✕ Rejected <span class="tag" style="margin-left:4px">{{.RejectedCount}}</span>
+  </a>{{end}}
+</div>
+
 {{if .Rules}}
 <div class="card">
   <table class="data-table">
@@ -1137,10 +1812,10 @@ const listHTML = `
       <th>Confidence</th><th>Status</th><th>Created</th><th>Actions</th>
     </tr>
     {{range .Rules}}
-    <tr>
+    <tr id="rule-row-{{.ID}}">
       <td><span class="badge badge-vendor">{{.Vendor}}</span></td>
       <td><code>{{truncate .CommandPattern 50}}</code></td>
-      <td><span class="tag">{{.OutputType}}</span></td>
+      <td><span class="tag {{outputTypeClass .OutputType}}">{{.OutputType}}</span></td>
       <td>
         <div class="confidence-bar">
           <div class="confidence-track">
@@ -1154,6 +1829,7 @@ const listHTML = `
       <td>
         <div class="btn-group">
           <a href="/rule/{{.ID}}" class="btn btn-ghost btn-sm">Edit & Test</a>
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="confirmAction('Delete Rule #{{.ID}}','Permanently delete this rule and its test cases?',function(){fetch('/api/rule/{{.ID}}/delete',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.error){Toast.error(d.error)}else{document.getElementById('rule-row-{{.ID}}').remove();Toast.success('Rule deleted')}})})">✕</button>
         </div>
       </td>
     </tr>
@@ -1162,7 +1838,11 @@ const listHTML = `
 </div>
 {{else}}
 <div class="empty-state">
-  <h3>No Pending Rules</h3>
+  {{if or .Query .FilterVendor .FilterStatus}}
+  <h3>No Rules Found</h3>
+  <p>No rules match your search criteria. <a href="/rules">Clear filters</a></p>
+  {{else}}
+  <h3>No Rules</h3>
   <p>Import device logs and run discovery to generate parser rule drafts.</p>
   <div class="steps-flow">
     <div class="step-item done"><span class="step-num">1</span>Import logs</div>
@@ -1174,6 +1854,7 @@ const listHTML = `
     <code style="color:var(--text-muted)">nethelper watch ingest ~/logs/session.log</code>
   </div>
   <button class="btn btn-primary" style="margin-top:16px" onclick="runDiscovery()">🔄 Run Discovery Now</button>
+  {{end}}
 </div>
 {{end}}
 ` + pageFooter
@@ -1181,7 +1862,7 @@ const listHTML = `
 // ── Rule Editor + Sandbox (merged) ───────────────────────────────────────
 
 const editorHTML = `
-<div class="breadcrumb"><a href="/">Rules</a> / {{.Rule.CommandPattern}}</div>
+<div class="breadcrumb"><a href="/rules">Rules</a> / {{.Rule.CommandPattern}}</div>
 <div class="page-header">
   <h1>{{.Rule.CommandPattern}}</h1>
   <div class="actions">
@@ -1191,7 +1872,7 @@ const editorHTML = `
 </div>
 
 <div class="info-grid">
-  <div class="info-item"><div class="label">Output Type</div><div class="value"><span class="tag">{{.Rule.OutputType}}</span></div></div>
+  <div class="info-item"><div class="label">Output Type</div><div class="value"><span class="tag {{outputTypeClass .Rule.OutputType}}">{{.Rule.OutputType}}</span></div></div>
   <div class="info-item">
     <div class="label">Confidence</div>
     <div class="value">
@@ -1210,14 +1891,26 @@ const editorHTML = `
 <!-- ═══ Section 1: Schema / Code Editor ═══ -->
 <div class="card">
   <div class="card-header">
-    <h3>{{if eq .Rule.OutputType "table"}}📝 Schema YAML{{else}}📝 Go Code Draft{{end}}</h3>
+    <h3>{{if eq .Rule.OutputType "table"}}📝 Schema YAML{{else if eq .Rule.OutputType "pipeline"}}🔧 Pipeline DSL{{else}}📝 Go Code Draft{{end}}</h3>
     <div class="btn-group">
       {{if .LLMAvailable}}<button class="btn btn-sm btn-ghost" onclick="askLLMImprove({{.Rule.ID}}, '{{.Rule.OutputType}}')">🤖 Ask LLM to Improve</button>{{end}}
       <button class="btn btn-sm btn-primary" onclick="saveSchema({{.Rule.ID}})">💾 Save (⌘S)</button>
     </div>
   </div>
   <div class="card-body">
-    {{if eq .Rule.OutputType "table"}}
+    {{if eq .Rule.OutputType "pipeline"}}
+    <div style="margin-bottom:8px;padding:8px 12px;background:var(--bg-tertiary);border-radius:var(--radius);font-size:0.78rem;color:var(--text-secondary)">
+      <strong>DSL Reference:</strong>
+      <code>SKIP_UNTIL</code> <code>SKIP_LINES</code> <code>SKIP_BLANK</code> <code>STOP_AT</code> <code>FILTER</code> <code>REJECT</code> — trimming &nbsp;|&nbsp;
+      <code>SPLIT $a $b $c</code> — whitespace split (last var gets rest) &nbsp;|&nbsp;
+      <code>REGEX (?P&lt;name&gt;...)</code> — named capture &nbsp;|&nbsp;
+      <code>REPLACE &lt;pattern&gt; "replacement"</code> &nbsp;|&nbsp;
+      <code>SET $x $a "/" $b</code> — concat/ternary &nbsp;|&nbsp;
+      <code>SECTION</code> — split into independent sub-pipelines (for multi-table output, joined by row index) &nbsp;|&nbsp;
+      Lines starting with <code>#</code> are comments
+    </div>
+    <textarea name="schema_yaml" class="code-editor" id="pipeline-editor">{{.Rule.SchemaYAML}}</textarea>
+    {{else if eq .Rule.OutputType "table"}}
     <textarea name="schema_yaml" class="code-editor" id="schema-editor">{{.Rule.SchemaYAML}}</textarea>
     {{else}}
     <textarea name="go_code_draft" class="code-editor" id="code-editor">{{.Rule.GoCodeDraft}}</textarea>
@@ -1258,11 +1951,7 @@ const editorHTML = `
         <span class="step-indicator">2</span>
         <label style="margin:0">Parse & Review</label>
         <div class="btn-group" style="margin-left:auto">
-          {{if eq .Rule.OutputType "table"}}
           <button class="btn btn-primary btn-sm" onclick="runParse({{.Rule.ID}})">▶ Run Parse (⌘↵)</button>
-          {{else}}
-          <span style="font-size:0.78rem;color:var(--text-muted)">Go code rules: live execution unavailable, review code above</span>
-          {{end}}
         </div>
       </div>
       <div id="parse-result" class="result-area empty">
@@ -1283,7 +1972,7 @@ const editorHTML = `
         </div>
         <div>
           <label style="font-size:0.78rem">Expected Result <span style="color:var(--text-muted)">(auto-filled from parse result if available)</span></label>
-          <textarea id="tc-expected" placeholder="Parse result will be auto-filled here, or enter manually..." style="min-height:60px"></textarea>
+          <textarea id="tc-expected" placeholder='JSON format, e.g.: {"Rows":[{"Port":"XGE2/0/35:1","Status":"S"}]}&#10;&#10;Tip: Click "Run Parse" first, the result will auto-fill here.' style="min-height:200px;max-height:400px"></textarea>
         </div>
       </div>
       <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
@@ -1341,16 +2030,16 @@ const editorHTML = `
 <!-- ═══ Action Bar ═══ -->
 <div class="action-bar">
   <div>
-    <a href="/" class="btn btn-ghost">← Back to Rules</a>
+    <a href="/rules" class="btn btn-ghost">← Back to Rules</a>
   </div>
   <div class="btn-group">
-    <button class="btn btn-danger btn-sm" onclick="confirmAction('Reject Rule','This will mark the rule as rejected and moved to history.',function(){fetch('/api/rule/{{.Rule.ID}}/ignore',{method:'POST'}).then(()=>{Toast.success('Rule rejected');setTimeout(()=>location.href='/',500)})})">
+    <button class="btn btn-danger btn-sm" onclick="confirmAction('Reject Rule','This will mark the rule as rejected and moved to history.',function(){fetch('/api/rule/{{.Rule.ID}}/ignore',{method:'POST'}).then(()=>{Toast.success('Rule rejected');setTimeout(()=>location.href='/rules',500)})})">
       ✕ Reject
     </button>
     {{if gt .TestCount 0}}
     <button class="btn btn-ghost" onclick="saveLocal({{.Rule.ID}})">💾 Save to Local Files</button>
-    <button class="btn btn-success" onclick="confirmAction('Approve & Generate PR','This will generate Go code and create a PR. Requires gh CLI.',function(){fetch('/api/rule/{{.Rule.ID}}/approve',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.error){Toast.error(d.error)}else{Toast.success('PR created: '+d.pr_url);setTimeout(()=>location.href='/',1500)}})})">
-      ✅ Approve & Generate PR
+    <button class="btn btn-success" onclick="approveAndSave({{.Rule.ID}})">
+      ✅ Approve & Save
     </button>
     {{else}}
     <span style="color:var(--warning);font-size:0.85rem">⚠ Save at least 1 test case to enable approve</span>
@@ -1427,21 +2116,38 @@ const unknownListHTML = `
     <button class="btn btn-primary" onclick="runDiscovery()">🔄 Discover Rules</button>
   </div>
 </div>
-<p style="color:var(--text-secondary);margin-bottom:16px">Commands from ingested logs that no parser matched.</p>
+
+<!-- Filter info -->
+<div class="card" style="margin-bottom:16px;padding:12px 16px;border-color:var(--border)">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:0.82rem;color:var(--text-secondary)">
+      <strong>Auto-filtered:</strong> empty outputs • control commands (quit/return/save/system-view/screen-length…) • help queries (?)
+    </span>
+    <span style="font-size:0.78rem;color:var(--text-muted)">|</span>
+    <span style="font-size:0.82rem;color:var(--text-secondary)">
+      <strong>Normalised:</strong> abbreviations expanded • trailing arguments (IPs, interface names, IDs) replaced with placeholders
+    </span>
+  </div>
+</div>
+
+<p style="color:var(--text-secondary);margin-bottom:16px">Commands from ingested logs that no parser matched. Only commands with actual output are shown.</p>
 {{if .Outputs}}
 <div class="card">
   <table class="data-table">
-    <tr><th>Vendor</th><th>Command</th><th>Count</th><th>First Seen</th><th>Preview</th><th>Actions</th></tr>
+    <tr><th>Vendor</th><th>Command Pattern</th><th>Raw Command</th><th>Count</th><th>First Seen</th><th>Preview</th><th>Actions</th></tr>
     {{range .Outputs}}
     <tr id="unknown-{{.ID}}">
       <td><span class="badge badge-vendor">{{.Vendor}}</span></td>
-      <td><code>{{.CommandNorm}}</code></td>
+      <td>
+        <code style="font-weight:600">{{.CommandNorm}}</code>
+      </td>
+      <td style="font-size:0.78rem;color:var(--text-muted)"><code>{{truncate .CommandRaw 40}}</code></td>
       <td>{{.OccurrenceCount}}</td>
       <td style="font-size:0.8rem;color:var(--text-muted)">{{.FirstSeen.Format "2006-01-02"}}</td>
-      <td><div class="truncate output-preview" style="max-height:40px;padding:4px 8px;max-width:300px;font-size:0.78rem">{{truncate .RawOutput 120}}</div></td>
+      <td><div class="truncate output-preview" style="max-height:40px;padding:4px 8px;max-width:260px;font-size:0.78rem">{{truncate .RawOutput 120}}</div></td>
       <td>
         <div class="btn-group">
-          <button class="btn btn-primary btn-sm" onclick="(async()=>{Toast.info('Generating rule...');const r=await fetch('/api/unknown/{{.ID}}/generate',{method:'POST'});const d=await r.json();if(d.error){Toast.error(d.error)}else{Toast.success('Rule created');location.href=d.redirect}})()">
+          <button class="btn btn-primary btn-sm" onclick="storeOriginalActions({{.ID}});generateRule({{.ID}}, '{{.CommandNorm}}')">
             🔬 Generate
           </button>
           <button class="btn btn-ghost btn-sm" hx-post="/api/unknown/{{.ID}}/ignore" hx-target="#unknown-{{.ID}}" hx-swap="outerHTML"
@@ -1456,6 +2162,7 @@ const unknownListHTML = `
 <div class="empty-state">
   <h3>No Unknown Outputs</h3>
   <p>All ingested commands are matched by existing parsers, or no logs have been imported yet.</p>
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-top:8px">Control commands, empty outputs, and help queries are auto-filtered.</p>
 </div>
 {{end}}
 ` + pageFooter

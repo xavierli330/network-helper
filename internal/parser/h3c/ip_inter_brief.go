@@ -11,5 +11,5 @@ import (
 )
 
 func ParseH3cIpInterBrief(raw string) (model.ParseResult, error) {
-	
+	return model.ParseResult{}, nil
 }

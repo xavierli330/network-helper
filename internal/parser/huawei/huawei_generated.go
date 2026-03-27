@@ -3,6 +3,8 @@
 package huawei
 
 import (
+	"strings"
+
 	"github.com/xavierli/nethelper/internal/model"
 )
 
@@ -10,6 +12,14 @@ import (
 // returns CmdUnknown. Rule Studio inserts cases here automatically.
 func classifyGenerated(cmd string) model.CommandType {
 	switch {
+	case strings.HasPrefix(cmd, "display link-aggregation verbose bridge-aggregation 1"):
+		return model.CommandType("generated:huawei:link_aggregation_verbose_bridge_aggregation_1") // ParseHuaweiLinkAggregationVerboseBridgeAggregation1
+	case strings.HasPrefix(cmd, "display ip inter brief"):
+		return model.CommandType("generated:huawei:ip_inter_brief") // ParseHuaweiIpInterBrief
+	case strings.HasPrefix(cmd, "display route-policy"):
+		return model.CommandType("generated:huawei:route_policy") // ParseHuaweiRoutePolicy
+	case strings.HasPrefix(cmd, "display route-policy {name} no-more"):
+		return model.CommandType("generated:huawei:route_policy_no_more") // ParseHuaweiRoutePolicyNoMore
 	// GENERATED CASES — do not edit this comment
 	}
 	return model.CmdUnknown
@@ -19,6 +29,14 @@ func classifyGenerated(cmd string) model.CommandType {
 // Rule Studio inserts dispatch cases here automatically (one per approved rule).
 func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, error) {
 	switch cmdType {
+	case model.CommandType("generated:huawei:link_aggregation_verbose_bridge_aggregation_1"):
+		return ParseHuaweiLinkAggregationVerboseBridgeAggregation1(raw)
+	case model.CommandType("generated:huawei:ip_inter_brief"):
+		return ParseHuaweiIpInterBrief(raw)
+	case model.CommandType("generated:huawei:route_policy"):
+		return ParseHuaweiRoutePolicy(raw)
+	case model.CommandType("generated:huawei:route_policy_no_more"):
+		return ParseHuaweiRoutePolicyNoMore(raw)
 	// GENERATED PARSE CASES — do not edit this comment
 	}
 	return model.ParseResult{Type: cmdType, RawText: raw}, nil
@@ -27,6 +45,10 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 // generatedCmdTypes returns CommandType values for all approved Rule Studio rules.
 func generatedCmdTypes() []model.CommandType {
 	return []model.CommandType{
+		model.CommandType("generated:huawei:link_aggregation_verbose_bridge_aggregation_1"),
+		model.CommandType("generated:huawei:ip_inter_brief"),
+		model.CommandType("generated:huawei:route_policy"),
+		model.CommandType("generated:huawei:route_policy_no_more"),
 		// GENERATED CMDTYPES — do not edit this comment
 	}
 }
@@ -34,6 +56,14 @@ func generatedCmdTypes() []model.CommandType {
 // generatedFieldSchema returns FieldDef slices for Rule Studio generated parsers.
 func generatedFieldSchema(cmdType model.CommandType) []model.FieldDef {
 	switch cmdType {
+	case model.CommandType("generated:huawei:link_aggregation_verbose_bridge_aggregation_1"):
+		return nil
+	case model.CommandType("generated:huawei:ip_inter_brief"):
+		return nil
+	case model.CommandType("generated:huawei:route_policy"):
+		return nil
+	case model.CommandType("generated:huawei:route_policy_no_more"):
+		return nil
 	// GENERATED FIELD CASES — do not edit this comment
 	}
 	return nil

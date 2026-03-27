@@ -14,6 +14,12 @@ func classifyGenerated(cmd string) model.CommandType {
 	switch {
 	case strings.HasPrefix(cmd, "display ip inter brief"):
 		return model.CommandType("generated:h3c:ip_inter_brief") // ParseH3cIpInterBrief
+	case strings.HasPrefix(cmd, "display link-aggregation verbose bridge-aggregation 1"):
+		return model.CommandType("generated:h3c:link_aggregation_verbose_bridge_aggregation_1") // ParseH3cLinkAggregationVerboseBridgeAggregation1
+	case strings.HasPrefix(cmd, "display acl all"):
+		return model.CommandType("generated:h3c:acl_all") // ParseH3cAclAll
+	case strings.HasPrefix(cmd, "display route-policy"):
+		return model.CommandType("generated:h3c:route_policy") // ParseH3cRoutePolicy
 	// GENERATED CASES — do not edit this comment
 	}
 	return model.CmdUnknown
@@ -25,6 +31,12 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 	switch cmdType {
 	case model.CommandType("generated:h3c:ip_inter_brief"):
 		return ParseH3cIpInterBrief(raw)
+	case model.CommandType("generated:h3c:link_aggregation_verbose_bridge_aggregation_1"):
+		return ParseH3cLinkAggregationVerboseBridgeAggregation1(raw)
+	case model.CommandType("generated:h3c:acl_all"):
+		return ParseH3cAclAll(raw)
+	case model.CommandType("generated:h3c:route_policy"):
+		return ParseH3cRoutePolicy(raw)
 	// GENERATED PARSE CASES — do not edit this comment
 	}
 	return model.ParseResult{Type: cmdType, RawText: raw}, nil
@@ -34,6 +46,9 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 func generatedCmdTypes() []model.CommandType {
 	return []model.CommandType{
 		model.CommandType("generated:h3c:ip_inter_brief"),
+		model.CommandType("generated:h3c:link_aggregation_verbose_bridge_aggregation_1"),
+		model.CommandType("generated:h3c:acl_all"),
+		model.CommandType("generated:h3c:route_policy"),
 		// GENERATED CMDTYPES — do not edit this comment
 	}
 }
@@ -42,6 +57,12 @@ func generatedCmdTypes() []model.CommandType {
 func generatedFieldSchema(cmdType model.CommandType) []model.FieldDef {
 	switch cmdType {
 	case model.CommandType("generated:h3c:ip_inter_brief"):
+		return nil
+	case model.CommandType("generated:h3c:link_aggregation_verbose_bridge_aggregation_1"):
+		return nil
+	case model.CommandType("generated:h3c:acl_all"):
+		return nil
+	case model.CommandType("generated:h3c:route_policy"):
 		return nil
 	// GENERATED FIELD CASES — do not edit this comment
 	}

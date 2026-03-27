@@ -43,11 +43,14 @@ type derivedDef struct {
 
 // CmdNameToGoIdent converts a command string to a CamelCase Go identifier fragment.
 // "display traffic-policy statistics" → "TrafficPolicyStatistics"
+// Placeholder parameters like {name} are stripped from the output.
 func CmdNameToGoIdent(cmd string) string {
 	lower := strings.ToLower(strings.TrimSpace(cmd))
 	for _, prefix := range []string{"display ", "show ", "dis ", "sh "} {
 		lower = strings.TrimPrefix(lower, prefix)
 	}
+	// Remove {placeholder} tokens before splitting
+	lower = placeholderRe.ReplaceAllString(lower, "")
 	parts := strings.FieldsFunc(lower, func(r rune) bool { return r == ' ' || r == '-' || r == '_' })
 	var sb strings.Builder
 	for _, p := range parts {
@@ -58,6 +61,9 @@ func CmdNameToGoIdent(cmd string) string {
 	return sb.String()
 }
 
+// placeholderRe matches {placeholder} tokens in command patterns (e.g. {name}, {id}).
+var placeholderRe = regexp.MustCompile(`\{[^}]*\}`)
+
 // GoFuncName returns the generated parser function name.
 func GoFuncName(vendor, cmd string) string {
 	v := strings.ToUpper(vendor[:1]) + vendor[1:]
@@ -66,25 +72,34 @@ func GoFuncName(vendor, cmd string) string {
 
 // TargetFilePath returns the repo-relative path in snake_case.
 // "huawei", "display traffic-policy statistics" → "internal/parser/huawei/traffic_policy_statistics.go"
+// Placeholder parameters like {name} are stripped from the path.
 func TargetFilePath(vendor, cmd string) string {
 	lower := strings.ToLower(strings.TrimSpace(cmd))
 	for _, prefix := range []string{"display ", "show ", "dis ", "sh "} {
 		lower = strings.TrimPrefix(lower, prefix)
 	}
+	// Remove {placeholder} tokens before generating filename
+	lower = placeholderRe.ReplaceAllString(lower, "")
 	snakeRe := regexp.MustCompile(`[\s\-]+`)
-	filename := snakeRe.ReplaceAllString(lower, "_")
+	filename := snakeRe.ReplaceAllString(strings.TrimSpace(lower), "_")
+	// Trim trailing underscores from removed placeholders
+	filename = strings.TrimRight(filename, "_")
 	return fmt.Sprintf("internal/parser/%s/%s.go", vendor, filename)
 }
 
 // computeCmdTypeStr derives the unique CommandType string for a rule.
 // "huawei", "display traffic-policy statistics interface" → "generated:huawei:traffic_policy_statistics_interface"
+// Placeholder parameters like {name} are stripped.
 func computeCmdTypeStr(vendor, commandPattern string) string {
 	lower := strings.ToLower(strings.TrimSpace(commandPattern))
 	for _, pfx := range []string{"display ", "show ", "dis ", "sh "} {
 		lower = strings.TrimPrefix(lower, pfx)
 	}
+	// Remove {placeholder} tokens
+	lower = placeholderRe.ReplaceAllString(lower, "")
 	snakeRe := regexp.MustCompile(`[\s\-]+`)
-	stem := snakeRe.ReplaceAllString(lower, "_")
+	stem := snakeRe.ReplaceAllString(strings.TrimSpace(lower), "_")
+	stem = strings.TrimRight(stem, "_")
 	return fmt.Sprintf("generated:%s:%s", vendor, stem)
 }
 
@@ -101,7 +116,8 @@ func GenerateParserFile(rule store.PendingRule) (string, error) {
 	funcName := GoFuncName(rule.Vendor, rule.CommandPattern)
 
 	var body, extraImport string
-	if rule.OutputType == "table" {
+	switch rule.OutputType {
+	case "table":
 		cmdTypeStr := computeCmdTypeStr(rule.Vendor, rule.CommandPattern)
 		tb, err := generateTableBody(rule.SchemaYAML, funcName, cmdTypeStr)
 		if err != nil {
@@ -109,7 +125,11 @@ func GenerateParserFile(rule store.PendingRule) (string, error) {
 		}
 		body = tb
 		extraImport = `"github.com/xavierli/nethelper/internal/parser/engine"`
-	} else {
+	case "pipeline":
+		cmdTypeStr := computeCmdTypeStr(rule.Vendor, rule.CommandPattern)
+		body = generatePipelineBody(rule.SchemaYAML, funcName, cmdTypeStr)
+		extraImport = `"github.com/xavierli/nethelper/internal/parser/engine"`
+	default:
 		body = fmt.Sprintf("func %s(raw string) (model.ParseResult, error) {\n\t%s\n}", funcName, rule.GoCodeDraft)
 	}
 
@@ -140,6 +160,32 @@ import (
 		"ExtraImport": extraImport,
 	})
 	return buf.String(), err
+}
+
+// generatePipelineBody produces a Go function body that calls engine.ExecPipeline
+// with the DSL text embedded as a raw string literal.
+func generatePipelineBody(dsl, funcName, cmdTypeStr string) string {
+	return fmt.Sprintf("func %s(raw string) (model.ParseResult, error) {\n"+
+		"\tdsl := %s\n"+
+		"\tresult, err := engine.ExecPipeline(dsl, raw)\n"+
+		"\tif err != nil {\n"+
+		"\t\treturn model.ParseResult{RawText: raw}, err\n"+
+		"\t}\n"+
+		"\treturn model.ParseResult{\n"+
+		"\t\tType:    model.CommandType(%q),\n"+
+		"\t\tRawText: raw,\n"+
+		"\t\tRows:    result.Rows,\n"+
+		"\t}, nil\n"+
+		"}", funcName, goRawString(dsl), cmdTypeStr)
+}
+
+// goRawString returns s as a Go raw string literal (backtick-delimited).
+// If s contains backticks, falls back to a quoted string literal.
+func goRawString(s string) string {
+	if !strings.Contains(s, "`") {
+		return "`" + s + "`"
+	}
+	return fmt.Sprintf("%q", s)
 }
 
 func generateTableBody(schemaYAML, funcName, cmdTypeStr string) (string, error) {
@@ -298,9 +344,18 @@ func PatchGeneratedFile(path, commandPattern, funcName, vendor, schemaYAML strin
 
 	// Add "strings" import if this is the first case
 	if !strings.Contains(patched, `"strings"`) {
-		patched = strings.Replace(patched,
+		// Try single-line import format first
+		replaced := strings.Replace(patched,
 			`import "github.com/xavierli/nethelper/internal/model"`,
 			"import (\n\t\"strings\"\n\n\t\"github.com/xavierli/nethelper/internal/model\"\n)", 1)
+		if replaced != patched {
+			patched = replaced
+		} else {
+			// Already using grouped import — insert "strings" before the model import line
+			patched = strings.Replace(patched,
+				"\t\"github.com/xavierli/nethelper/internal/model\"",
+				"\t\"strings\"\n\n\t\"github.com/xavierli/nethelper/internal/model\"", 1)
+		}
 	}
 
 	return os.WriteFile(path, []byte(patched), 0644)

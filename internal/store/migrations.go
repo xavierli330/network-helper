@@ -391,4 +391,36 @@ var migrations = []string{
     expected    TEXT NOT NULL DEFAULT '{}',
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`,
+
+	// Add 'pipeline' to output_type constraint. SQLite doesn't support
+	// ALTER CHECK, so we recreate the table. Safe because this runs at startup.
+	`CREATE TABLE IF NOT EXISTS pending_rules_v2 (
+    id               INTEGER PRIMARY KEY,
+    vendor           TEXT NOT NULL,
+    command_pattern  TEXT NOT NULL,
+    output_type      TEXT NOT NULL CHECK(output_type IN ('table','hierarchical','raw','pipeline')),
+    schema_yaml      TEXT,
+    go_code_draft    TEXT,
+    sample_inputs    TEXT NOT NULL DEFAULT '[]',
+    expected_outputs TEXT,
+    confidence       REAL,
+    occurrence_count INTEGER NOT NULL DEFAULT 0,
+    status           TEXT NOT NULL DEFAULT 'draft'
+                     CHECK(status IN ('draft','testing','approved','rejected')),
+    approved_by      TEXT,
+    approved_at      DATETIME,
+    pr_url           TEXT,
+    merged_at        DATETIME,
+    go_file_path     TEXT,
+    created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+	`INSERT OR IGNORE INTO pending_rules_v2 SELECT * FROM pending_rules`,
+	`DROP TABLE IF EXISTS pending_rules`,
+	`ALTER TABLE pending_rules_v2 RENAME TO pending_rules`,
+	`CREATE TRIGGER IF NOT EXISTS pending_rules_updated_at
+ AFTER UPDATE ON pending_rules
+ BEGIN
+     UPDATE pending_rules SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+ END`,
 }

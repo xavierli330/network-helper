@@ -65,6 +65,8 @@ func (s *Server) registerRoutes() {
 
 	// APIs
 	s.mux.HandleFunc("/api/rule/", h.apiDispatch)
+	s.mux.HandleFunc("/api/rules/delete-drafts", h.apiDeleteDraftRules)
+	s.mux.HandleFunc("/api/rules/search", h.apiSearchRules)
 	s.mux.HandleFunc("/api/discover", h.apiDiscover)
 	s.mux.HandleFunc("/api/dashboard", h.apiDashboard)
 	s.mux.HandleFunc("/api/fields", h.apiFields)

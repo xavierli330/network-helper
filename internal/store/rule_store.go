@@ -255,6 +255,76 @@ func (db *DB) CountRuleTestCases(ruleID int) (int, error) {
 	return n, err
 }
 
+// DeletePendingRule removes a rule and its test cases by ID.
+// It also resets the associated unknown_outputs back to "new" so they can be re-discovered.
+func (db *DB) DeletePendingRule(id int) error {
+	// Reset associated unknown_outputs to "new"
+	db.Exec(`UPDATE unknown_outputs SET status = 'new'
+		WHERE vendor || char(0) || command_norm IN (
+			SELECT vendor || char(0) || command_pattern FROM pending_rules WHERE id = ?
+		)`, id)
+	// test cases have ON DELETE CASCADE, but let's be explicit
+	db.Exec(`DELETE FROM rule_test_cases WHERE rule_id = ?`, id)
+	_, err := db.Exec(`DELETE FROM pending_rules WHERE id = ?`, id)
+	return err
+}
+
+// DeletePendingRulesByStatus removes all rules with the given status.
+// It also resets the associated unknown_outputs back to "new" so they can be re-discovered.
+func (db *DB) DeletePendingRulesByStatus(status string) (int, error) {
+	// Reset associated unknown_outputs to "new" so they can be re-discovered
+	db.Exec(`UPDATE unknown_outputs SET status = 'new'
+		WHERE vendor || char(0) || command_norm IN (
+			SELECT vendor || char(0) || command_pattern FROM pending_rules WHERE status = ?
+		)`, status)
+	// Delete associated test cases
+	db.Exec(`DELETE FROM rule_test_cases WHERE rule_id IN (SELECT id FROM pending_rules WHERE status = ?)`, status)
+	res, err := db.Exec(`DELETE FROM pending_rules WHERE status = ?`, status)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
+}
+
+// SearchPendingRules searches rules by command pattern, vendor, or status.
+func (db *DB) SearchPendingRules(query, vendor, status string, limit int) ([]PendingRule, error) {
+	q := `SELECT id, vendor, command_pattern, output_type, COALESCE(confidence,0),
+		COALESCE(occurrence_count,0), status, created_at
+          FROM pending_rules WHERE 1=1`
+	var args []any
+	if query != "" {
+		q += " AND command_pattern LIKE ?"
+		args = append(args, "%"+query+"%")
+	}
+	if vendor != "" {
+		q += " AND vendor = ?"
+		args = append(args, vendor)
+	}
+	if status != "" {
+		q += " AND status = ?"
+		args = append(args, status)
+	}
+	q += " ORDER BY updated_at DESC, occurrence_count DESC LIMIT ?"
+	args = append(args, limit)
+
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []PendingRule
+	for rows.Next() {
+		var r PendingRule
+		if err := rows.Scan(&r.ID, &r.Vendor, &r.CommandPattern, &r.OutputType,
+			&r.Confidence, &r.OccurrenceCount, &r.Status, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // GetPendingRuleByCommandNorm returns an existing draft/testing rule for (vendor, command_norm).
 func (db *DB) GetPendingRuleByCommandNorm(vendor, commandNorm string) (PendingRule, error) {
 	var r PendingRule
