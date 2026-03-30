@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -23,11 +24,14 @@ import (
 )
 
 type handlers struct {
-	db       *store.DB
-	eng      *discovery.Engine
-	generate GenerateFn // may be nil
-	fieldReg *parser.FieldRegistry
-	repoRoot string
+	db           *store.DB
+	eng          *discovery.Engine
+	generate     GenerateFn // may be nil
+	fieldReg     *parser.FieldRegistry
+	repoRoot     string
+	hintCache    *store.VendorHintCache
+	patternCache *store.PatternCache
+	runtimeReg   *store.RuntimeRegistry
 }
 
 var funcMap = template.FuncMap{
@@ -403,61 +407,28 @@ func (h *handlers) patterns(w http.ResponseWriter, r *http.Request) {
 	pd := h.newPageData("patterns")
 
 	type prefixRule struct {
-		Prefix  string
-		CmdType string
+		ID       int
+		Prefix   string
+		CmdType  string
+		Priority int
 	}
 	type vendorPatterns struct {
-		Vendor  string
-		Rules   []prefixRule
+		Vendor string
+		Rules  []prefixRule
 	}
 
-	// Build the classification prefix rules from each vendor's ClassifyCommand
-	// We statically define the known prefixes since they're hardcoded in Go
-	allPatterns := []vendorPatterns{
-		{Vendor: "huawei", Rules: []prefixRule{
-			{"display ip routing-table", "rib"}, {"display ip rout", "rib"},
-			{"display fib", "fib"},
-			{"display mpls lsp", "lfib"}, {"display mpls forwarding", "lfib"},
-			{"display interface", "interface"}, {"display int", "interface"},
-			{"display ospf peer", "neighbor"}, {"display bgp peer", "neighbor"},
-			{"display isis peer", "neighbor"}, {"display mpls ldp session", "neighbor"},
-			{"display mpls ldp peer", "neighbor"}, {"display rsvp session", "neighbor"},
-			{"display lldp neighbor", "neighbor"},
-			{"display mpls te tunnel", "tunnel"},
-			{"display segment-routing", "sr_mapping"}, {"display isis segment-routing", "sr_mapping"},
-			{"display current-configuration", "config"}, {"display saved-configuration", "config"},
-			{"display cur", "config"}, {"display sa", "config"},
-		}},
-		{Vendor: "cisco", Rules: []prefixRule{
-			{"show ip route", "rib"}, {"show route", "rib"},
-			{"show ip cef", "fib"},
-			{"show mpls forwarding", "lfib"},
-			{"show interface", "interface"}, {"show ip interface", "interface"},
-			{"show ip ospf neighbor", "neighbor"}, {"show ip bgp summary", "neighbor"},
-			{"show bgp summary", "neighbor"}, {"show isis neighbor", "neighbor"},
-			{"show mpls ldp neighbor", "neighbor"}, {"show lldp neighbor", "neighbor"},
-			{"show mpls traffic-eng tunnel", "tunnel"},
-			{"show running-config", "config"}, {"show startup-config", "config"},
-		}},
-		{Vendor: "h3c", Rules: []prefixRule{
-			{"display ip routing-table", "rib"},
-			{"display fib", "fib"},
-			{"display mpls lsp", "lfib"}, {"display mpls forwarding", "lfib"},
-			{"display ip interface", "interface"}, {"display interface", "interface"},
-			{"display ospf peer", "neighbor"}, {"display bgp peer", "neighbor"},
-			{"display isis peer", "neighbor"}, {"display mpls ldp session", "neighbor"},
-			{"display current-configuration", "config"},
-		}},
-		{Vendor: "juniper", Rules: []prefixRule{
-			{"show route", "rib"},
-			{"show interface", "interface"},
-			{"show ospf neighbor", "neighbor"}, {"show bgp summary", "neighbor"},
-			{"show isis adjacency", "neighbor"}, {"show ldp session", "neighbor"},
-			{"show rsvp session", "tunnel"},
-			{"show route table mpls", "lfib"},
-			{"show configuration", "config"},
-			{"| display set", "config_set"},
-		}},
+	// Build the classification prefix rules from PatternCache (DB-backed)
+	var allPatterns []vendorPatterns
+	if h.patternCache != nil {
+		vendors := h.patternCache.Vendors()
+		grouped := h.patternCache.AllPatterns()
+		for _, v := range vendors {
+			var rules []prefixRule
+			for _, p := range grouped[v] {
+				rules = append(rules, prefixRule{ID: p.ID, Prefix: p.Prefix, CmdType: p.CmdType, Priority: p.Priority})
+			}
+			allPatterns = append(allPatterns, vendorPatterns{Vendor: v, Rules: rules})
+		}
 	}
 
 	// Add unknown command samples from DB
@@ -571,6 +542,8 @@ func (h *handlers) apiDispatch(w http.ResponseWriter, r *http.Request) {
 		h.apiApprove(w, r, id)
 	case "ignore":
 		h.apiIgnore(w, r, id)
+	case "save-patterns":
+		h.apiSavePatterns(w, r, id)
 	case "save-local":
 		h.apiSaveLocal(w, r, id)
 	case "delete":
@@ -717,10 +690,6 @@ func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 		http.Error(w, "POST only", 405)
 		return
 	}
-	if h.generate == nil {
-		jsonError(w, "code generator not available (codegen not wired)", 503)
-		return
-	}
 	rule, err := h.db.GetPendingRule(id)
 	if err != nil {
 		jsonError(w, "rule not found", 404)
@@ -735,6 +704,49 @@ func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 	if u, err := user.Current(); err == nil {
 		approvedBy = u.Username
 	}
+
+	// Phase 3B: Pipeline/DSL rules → runtime_rules (no go build needed)
+	if rule.OutputType == "pipeline" {
+		// The DSL text is stored in SchemaYAML field for pipeline rules
+		cmdType := "unknown"
+		if h.patternCache != nil {
+			if ct, ok := h.patternCache.Classify(rule.Vendor, rule.CommandPattern); ok {
+				cmdType = ct
+			}
+		}
+		rr := store.RuntimeRule{
+			Vendor:         rule.Vendor,
+			CommandPattern: rule.CommandPattern,
+			ModelPattern:   rule.ModelPattern,
+			OSPattern:      rule.OSPattern,
+			CmdType:        cmdType,
+			OutputType:     rule.OutputType,
+			DSLText:        rule.SchemaYAML,
+			Enabled:        true,
+			SourceRuleID:   &id,
+		}
+		_, upsertErr := h.db.UpsertRuntimeRule(rr)
+		if upsertErr != nil {
+			jsonError(w, "runtime rule creation failed: "+upsertErr.Error(), 500)
+			return
+		}
+		// Sync field schemas from DSL
+		h.db.SyncFieldSchemasFromDSL(rule.Vendor, cmdType, rule.SchemaYAML)
+		// Hot-reload runtime registry
+		if h.runtimeReg != nil {
+			h.runtimeReg.Reload(h.db)
+		}
+		h.db.ApprovePendingRule(id, approvedBy, time.Now())
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "approved", "mode": "runtime"})
+		return
+	}
+
+	// Traditional Go code path: requires codegen + go build
+	if h.generate == nil {
+		jsonError(w, "code generator not available (codegen not wired)", 503)
+		return
+	}
 	repoRoot, _ := os.Getwd()
 	prURL, err := h.generate(rule, testCases, repoRoot, approvedBy)
 	if err != nil {
@@ -745,7 +757,46 @@ func (h *handlers) apiApprove(w http.ResponseWriter, r *http.Request, id int) {
 	h.db.ApprovePendingRule(id, approvedBy, time.Now())
 	h.db.SetPendingRulePR(id, prURL, goFilePath)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "approved", "pr_url": prURL})
+	json.NewEncoder(w).Encode(map[string]string{"status": "approved", "pr_url": prURL, "mode": "codegen"})
+}
+
+func (h *handlers) apiSavePatterns(w http.ResponseWriter, r *http.Request, id int) {
+	if r.Method != "POST" {
+		http.Error(w, "POST only", 405)
+		return
+	}
+	var body struct {
+		ModelPattern string `json:"model_pattern"`
+		OSPattern    string `json:"os_pattern"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonError(w, "invalid JSON", 400)
+		return
+	}
+	// Default to ".*" if empty
+	if body.ModelPattern == "" {
+		body.ModelPattern = ".*"
+	}
+	if body.OSPattern == "" {
+		body.OSPattern = ".*"
+	}
+	// Validate regex patterns
+	if _, err := regexp.Compile(body.ModelPattern); err != nil {
+		jsonError(w, "invalid model_pattern regex: "+err.Error(), 400)
+		return
+	}
+	if _, err := regexp.Compile(body.OSPattern); err != nil {
+		jsonError(w, "invalid os_pattern regex: "+err.Error(), 400)
+		return
+	}
+	_, err := h.db.Exec(`UPDATE pending_rules SET model_pattern=?, os_pattern=? WHERE id=?`,
+		body.ModelPattern, body.OSPattern, id)
+	if err != nil {
+		jsonError(w, "update failed: "+err.Error(), 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"success": true})
 }
 
 func (h *handlers) apiIgnore(w http.ResponseWriter, r *http.Request, id int) {
@@ -1265,6 +1316,50 @@ func (h *handlers) apiSaveLocal(w http.ResponseWriter, r *http.Request, id int) 
 		jsonError(w, "at least one test case is required before saving locally", 400)
 		return
 	}
+
+	// Phase 3B: Pipeline/DSL rules → runtime_rules (no file generation needed)
+	if rule.OutputType == "pipeline" {
+		cmdType := "unknown"
+		if h.patternCache != nil {
+			if ct, ok := h.patternCache.Classify(rule.Vendor, rule.CommandPattern); ok {
+				cmdType = ct
+			}
+		}
+		rr := store.RuntimeRule{
+			Vendor:         rule.Vendor,
+			CommandPattern: rule.CommandPattern,
+			ModelPattern:   rule.ModelPattern,
+			OSPattern:      rule.OSPattern,
+			CmdType:        cmdType,
+			OutputType:     rule.OutputType,
+			DSLText:        rule.SchemaYAML,
+			Enabled:        true,
+			SourceRuleID:   &id,
+		}
+		_, upsertErr := h.db.UpsertRuntimeRule(rr)
+		if upsertErr != nil {
+			jsonError(w, "runtime rule creation failed: "+upsertErr.Error(), 500)
+			return
+		}
+		h.db.SyncFieldSchemasFromDSL(rule.Vendor, cmdType, rule.SchemaYAML)
+		if h.runtimeReg != nil {
+			h.runtimeReg.Reload(h.db)
+		}
+		approvedBy := ""
+		if u, err2 := user.Current(); err2 == nil {
+			approvedBy = u.Username
+		}
+		h.db.ApprovePendingRule(id, approvedBy, time.Now())
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"mode":    "runtime",
+			"message": "Pipeline rule activated as runtime rule. No build needed.",
+		})
+		return
+	}
+
+	// Traditional Go code path
 	root := h.repoRoot
 	if root == "" {
 		root, err = discoverRepoRoot()
@@ -1396,6 +1491,116 @@ func (h *handlers) apiDiscover(w http.ResponseWriter, r *http.Request) {
 }
 
 // ── Unknown Outputs API ──────────────────────────────────────────────────
+
+// apiUnknownBatchGenerate handles batch generation for multiple unknown outputs.
+// POST /api/unknown/batch-generate with JSON body: {"ids": [1, 2, 3]}
+func (h *handlers) apiUnknownBatchGenerate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "POST only", 405)
+		return
+	}
+	if h.eng == nil {
+		jsonError(w, "discovery engine not configured", 503)
+		return
+	}
+
+	var req struct {
+		IDs []int `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid JSON: "+err.Error(), 400)
+		return
+	}
+	if len(req.IDs) == 0 {
+		jsonError(w, "no IDs provided", 400)
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		jsonError(w, "streaming not supported", 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	bgCtx, bgCancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	defer bgCancel()
+	clientGone := r.Context().Done()
+	go func() {
+		select {
+		case <-clientGone:
+			bgCancel()
+		case <-bgCtx.Done():
+		}
+	}()
+
+	total := len(req.IDs)
+	created := 0
+	failed := 0
+
+	sendSSE(w, flusher, map[string]any{"type": "start", "total": total})
+
+	for i, unknownID := range req.IDs {
+		if bgCtx.Err() != nil {
+			break
+		}
+		idx := i + 1
+
+		u, err := h.db.GetUnknownOutputByID(unknownID)
+		if err != nil {
+			failed++
+			sendSSE(w, flusher, map[string]any{
+				"type": "failed", "index": idx, "total": total,
+				"unknown_id": unknownID, "error": "not found",
+			})
+			continue
+		}
+
+		// Check existing rule
+		existing, err := h.db.GetPendingRuleByCommandNorm(u.Vendor, u.CommandNorm)
+		if err == nil {
+			sendSSE(w, flusher, map[string]any{
+				"type": "skipped", "index": idx, "total": total,
+				"unknown_id": unknownID, "command": u.CommandNorm,
+				"rule_id": existing.ID, "message": "rule already exists",
+			})
+			continue
+		}
+
+		sendSSE(w, flusher, map[string]any{
+			"type": "pending", "index": idx, "total": total,
+			"unknown_id": unknownID, "command": u.CommandNorm,
+		})
+
+		ruleID, genErr := h.eng.GenerateForUnknown(bgCtx, unknownID)
+		if genErr != nil {
+			failed++
+			sendSSE(w, flusher, map[string]any{
+				"type": "failed", "index": idx, "total": total,
+				"unknown_id": unknownID, "command": u.CommandNorm,
+				"error": genErr.Error(),
+			})
+			continue
+		}
+
+		created++
+		rule, _ := h.db.GetPendingRule(ruleID)
+		sendSSE(w, flusher, map[string]any{
+			"type": "success", "index": idx, "total": total,
+			"unknown_id": unknownID, "command": u.CommandNorm,
+			"rule_id": ruleID, "confidence": rule.Confidence,
+		})
+	}
+
+	sendSSE(w, flusher, map[string]any{
+		"type": "done", "total": total, "created": created, "failed": failed,
+		"message": fmt.Sprintf("Batch complete: %d created, %d failed, %d total", created, failed, total),
+	})
+}
 
 func (h *handlers) unknownDispatch(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/unknown/"), "/")
@@ -1626,10 +1831,19 @@ const baseHTML = `<!DOCTYPE html>
     <a href="/unknown" {{if eq .ActivePage "unknown"}}class="active"{{end}}>
       <span class="nav-icon">⚠️</span>Unknown{{if gt .UnknownCount 0}}<span class="nav-badge">{{.UnknownCount}}</span>{{end}}
     </a>
+    <a href="/import" {{if eq .ActivePage "import"}}class="active"{{end}}>
+      <span class="nav-icon">📥</span>Batch Import
+    </a>
     <div class="sidebar-sep"></div>
     <div class="sidebar-label">Inspect</div>
     <a href="/patterns" {{if eq .ActivePage "patterns"}}class="active"{{end}}>
       <span class="nav-icon">🔗</span>Command Patterns
+    </a>
+    <a href="/vendor-hints" {{if eq .ActivePage "vendor-hints"}}class="active"{{end}}>
+      <span class="nav-icon">🏷️</span>Vendor Hints
+    </a>
+    <a href="/coverage" {{if eq .ActivePage "coverage"}}class="active"{{end}}>
+      <span class="nav-icon">📈</span>Coverage
     </a>
     <a href="/fields" {{if eq .ActivePage "fields"}}class="active"{{end}}>
       <span class="nav-icon">🔍</span>Field Browser
@@ -1888,6 +2102,31 @@ const editorHTML = `
   <div class="info-item"><div class="label">Test Cases</div><div class="value"><span id="tc-count">{{.TestCount}}</span></div></div>
 </div>
 
+<!-- ═══ Model / OS Pattern (4D matching) ═══ -->
+<div class="card" style="margin-top:12px">
+  <div class="card-header">
+    <h3>🎯 Matching Scope</h3>
+    <span style="font-size:0.78rem;color:var(--text-muted)">Regex patterns — use <code>.*</code> to match all</span>
+  </div>
+  <div class="card-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label style="font-size:0.78rem;color:var(--text-secondary)">Model Pattern <span style="color:var(--text-muted)">(regex)</span></label>
+        <input type="text" id="model-pattern" class="pattern-input" value="{{.Rule.ModelPattern}}" placeholder=".*" spellcheck="false" />
+        <div id="model-pattern-hint" class="pattern-hint"></div>
+      </div>
+      <div>
+        <label style="font-size:0.78rem;color:var(--text-secondary)">OS Pattern <span style="color:var(--text-muted)">(regex)</span></label>
+        <input type="text" id="os-pattern" class="pattern-input" value="{{.Rule.OSPattern}}" placeholder=".*" spellcheck="false" />
+        <div id="os-pattern-hint" class="pattern-hint"></div>
+      </div>
+    </div>
+    <div style="margin-top:8px;text-align:right">
+      <button class="btn btn-sm btn-ghost" onclick="savePatterns({{.Rule.ID}})">💾 Save Patterns</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ Section 1: Schema / Code Editor ═══ -->
 <div class="card">
   <div class="card-header">
@@ -2113,6 +2352,10 @@ const unknownListHTML = `
 <div class="page-header">
   <h1>⚠️ Unknown Outputs</h1>
   <div class="actions">
+    <span id="unknown-batch-count" style="font-size:0.82rem;color:var(--text-secondary)"></span>
+    <button class="btn btn-primary btn-sm" id="btn-unknown-batch" onclick="batchGenerateUnknown()" disabled>
+      ⚡ Batch Generate Selected
+    </button>
     <button class="btn btn-primary" onclick="runDiscovery()">🔄 Discover Rules</button>
   </div>
 </div>
@@ -2134,9 +2377,13 @@ const unknownListHTML = `
 {{if .Outputs}}
 <div class="card">
   <table class="data-table">
-    <tr><th>Vendor</th><th>Command Pattern</th><th>Raw Command</th><th>Count</th><th>First Seen</th><th>Preview</th><th>Actions</th></tr>
+    <tr>
+      <th style="width:32px"><input type="checkbox" onchange="selectAllUnknown(this)" title="Select All"></th>
+      <th>Vendor</th><th>Command Pattern</th><th>Raw Command</th><th>Count</th><th>First Seen</th><th>Preview</th><th>Actions</th>
+    </tr>
     {{range .Outputs}}
     <tr id="unknown-{{.ID}}">
+      <td><input type="checkbox" class="unknown-row-cb" id="unknown-cb-{{.ID}}" data-id="{{.ID}}" onchange="updateUnknownBatchCount()"></td>
       <td><span class="badge badge-vendor">{{.Vendor}}</span></td>
       <td>
         <code style="font-weight:600">{{.CommandNorm}}</code>
@@ -2201,7 +2448,36 @@ const historyHTML = `
 
 const patternsHTML = `
 <div class="page-header"><h1>🔗 Command Patterns</h1></div>
-<p style="color:var(--text-secondary);margin-bottom:16px">Classification prefix rules per vendor. Commands matching these prefixes are parsed; others become "unknown".</p>
+<p style="color:var(--text-secondary);margin-bottom:16px">Classification prefix rules per vendor. Commands matching these prefixes are parsed; others become "unknown".<br>
+<em>Rules are stored in database and can be added/removed at runtime.</em></p>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-top:0;">Add New Pattern</h3>
+  <form id="pattern-form" style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+    <div>
+      <label style="display:block;font-size:0.8rem;margin-bottom:0.25rem;">Vendor</label>
+      <select id="pat-vendor" style="padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text-primary);font-size:0.9rem;">
+        <option value="huawei">huawei</option>
+        <option value="h3c">h3c</option>
+        <option value="cisco">cisco</option>
+        <option value="juniper">juniper</option>
+      </select>
+    </div>
+    <div>
+      <label style="display:block;font-size:0.8rem;margin-bottom:0.25rem;">Command Prefix</label>
+      <input type="text" id="pat-prefix" placeholder="e.g. display bgp vpnv4" style="padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text-primary);font-size:0.9rem;min-width:250px;" required>
+    </div>
+    <div>
+      <label style="display:block;font-size:0.8rem;margin-bottom:0.25rem;">Command Type</label>
+      <input type="text" id="pat-cmdtype" placeholder="e.g. neighbor, rib, config" style="padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text-primary);font-size:0.9rem;" required>
+    </div>
+    <div>
+      <label style="display:block;font-size:0.8rem;margin-bottom:0.25rem;">Priority</label>
+      <input type="number" id="pat-priority" value="10" min="0" max="100" style="padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text-primary);font-size:0.9rem;width:70px;">
+    </div>
+    <button type="submit" class="btn btn-primary" style="height:fit-content;">Add Pattern</button>
+  </form>
+</div>
 
 {{range .Patterns}}
 <div class="card">
@@ -2210,11 +2486,13 @@ const patternsHTML = `
   </div>
   <div class="card-body">
     <table class="data-table">
-      <tr><th style="width:50%">Command Prefix</th><th>Maps to CommandType</th></tr>
+      <tr><th style="width:45%">Command Prefix</th><th>Maps to CommandType</th><th style="width:70px">Priority</th><th style="width:80px">Actions</th></tr>
       {{range .Rules}}
-      <tr>
+      <tr data-id="{{.ID}}">
         <td><code>{{.Prefix}}</code></td>
         <td><span class="tag">{{.CmdType}}</span></td>
+        <td style="text-align:center;color:var(--text-muted)">{{.Priority}}</td>
+        <td><button class="btn btn-sm btn-danger pat-delete" data-id="{{.ID}}">Delete</button></td>
       </tr>
       {{end}}
     </table>
@@ -2243,6 +2521,52 @@ const patternsHTML = `
   </div>
 </div>
 {{end}}
+
+<script>
+document.getElementById('pattern-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const vendor = document.getElementById('pat-vendor').value;
+  const prefix = document.getElementById('pat-prefix').value.trim();
+  const cmd_type = document.getElementById('pat-cmdtype').value.trim();
+  const priority = parseInt(document.getElementById('pat-priority').value) || 10;
+  if (!prefix || !cmd_type) return;
+
+  try {
+    const resp = await fetch('/api/patterns', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({vendor, prefix, cmd_type, priority})
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      showToast(err.error || 'Failed to create pattern', 'error');
+      return;
+    }
+    showToast('Pattern added successfully', 'success');
+    setTimeout(() => location.reload(), 500);
+  } catch(e) {
+    showToast('Network error: ' + e.message, 'error');
+  }
+});
+
+document.querySelectorAll('.pat-delete').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const id = btn.dataset.id;
+    if (!confirm('Delete this pattern?')) return;
+    try {
+      const resp = await fetch('/api/patterns/' + id, {method:'DELETE'});
+      if (!resp.ok) {
+        showToast('Delete failed', 'error');
+        return;
+      }
+      showToast('Pattern deleted', 'success');
+      btn.closest('tr').remove();
+    } catch(e) {
+      showToast('Network error: ' + e.message, 'error');
+    }
+  });
+});
+</script>
 ` + pageFooter
 
 // ── Cross-Vendor Compare ─────────────────────────────────────────────────

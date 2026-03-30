@@ -1155,6 +1155,554 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════════
+// Batch Import — File upload, analyze, review, batch generate
+// ══════════════════════════════════════════════════════════════════════════
+
+// Global state for batch import
+let batchAnalysis = null; // last analysis result
+
+// ── File Upload (drag & drop + click) ────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  const zone = document.getElementById('drop-zone');
+  if (zone) zone.classList.remove('drag-over');
+  const files = e.dataTransfer?.files;
+  if (files && files.length > 0) {
+    loadFile(files[0]);
+  }
+}
+
+function handleFileSelect(input) {
+  if (input.files && input.files.length > 0) {
+    loadFile(input.files[0]);
+  }
+}
+
+function loadFile(file) {
+  const info = document.getElementById('file-info');
+  if (file.size > 50 * 1024 * 1024) {
+    Toast.error('File too large (max 50MB)');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const textarea = document.getElementById('paste-area');
+    if (textarea) textarea.value = e.target.result;
+    if (info) info.innerHTML = `📄 ${escHtml(file.name)} (${(file.size / 1024).toFixed(1)} KB, ${e.target.result.split('\n').length} lines)`;
+    Toast.info(`Loaded ${file.name}`);
+  };
+  reader.readAsText(file);
+}
+
+// Make drop zone clickable
+document.addEventListener('click', function(e) {
+  if (e.target.closest('#drop-zone')) {
+    const fileInput = document.getElementById('file-input');
+    if (fileInput && e.target.tagName !== 'INPUT') fileInput.click();
+  }
+});
+
+// ── Analyze Log ──────────────────────────────────────────────────────────
+async function analyzeLog() {
+  const content = document.getElementById('paste-area')?.value || '';
+  const vendor = document.getElementById('import-vendor')?.value || 'auto';
+  const btn = document.getElementById('btn-analyze');
+
+  if (!content.trim()) {
+    Toast.warning('Upload a file or paste session log content first');
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analyzing...'; }
+
+  try {
+    const resp = await fetch('/api/import/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, vendor }),
+    });
+    const data = await resp.json();
+    if (data.error) { Toast.error(data.error); return; }
+
+    batchAnalysis = data;
+    renderCommandList(data);
+
+    // Show step 2 and step 3
+    document.getElementById('step-review').style.display = '';
+    document.getElementById('step-generate').style.display = '';
+    document.getElementById('step-review').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    Toast.success(`Analyzed: ${data.total_blocks} unique commands found`);
+  } catch (e) {
+    Toast.error('Analysis failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔍 Analyze'; }
+  }
+}
+
+// ── Render Command List ──────────────────────────────────────────────────
+function renderCommandList(analysis) {
+  const container = document.getElementById('command-list');
+  const summary = document.getElementById('analysis-summary');
+  if (!container) return;
+
+  // Summary
+  const cmds = analysis.commands || [];
+  const selectedCount = cmds.filter(c => c.selected).length;
+  const controlCount = cmds.filter(c => c.is_control).length;
+  const helpCount = cmds.filter(c => c.is_help).length;
+  const errorCount = cmds.filter(c => c.is_error).length;
+  const existingCount = cmds.filter(c => c.has_existing_rule).length;
+
+  if (summary) {
+    summary.innerHTML = `
+      <strong>Vendor:</strong> ${escHtml(analysis.vendor || 'auto')} &nbsp;|&nbsp;
+      <strong>Total:</strong> ${cmds.length} unique commands &nbsp;|&nbsp;
+      <span style="color:var(--success)">✓ ${selectedCount} recommended</span> &nbsp;|&nbsp;
+      <span style="color:var(--text-muted)">${controlCount} control, ${helpCount} help, ${errorCount} error, ${existingCount} existing rule</span>
+    `;
+  }
+
+  // Column header
+  let html = `<div class="cmd-row-header">
+    <div>☑</div><div>Command Pattern</div><div>Category</div><div>Output</div><div>Status</div>
+  </div>`;
+
+  // Rows
+  cmds.forEach((cmd, i) => {
+    const classes = ['cmd-row'];
+    if (cmd.selected) classes.push('selected');
+    if (cmd.is_control) classes.push('is-control');
+    if (cmd.is_help) classes.push('is-help');
+    if (cmd.is_error) classes.push('is-error');
+    if (cmd.has_existing_rule) classes.push('has-rule');
+
+    let statusBadge = '';
+    if (cmd.is_control) statusBadge = '<span class="tag" style="color:var(--text-muted)">control</span>';
+    else if (cmd.is_help) statusBadge = '<span class="tag" style="color:var(--text-muted)">help</span>';
+    else if (cmd.is_error) statusBadge = '<span class="tag" style="color:var(--danger)">error</span>';
+    else if (cmd.has_existing_rule) statusBadge = `<span class="tag" style="color:var(--success)">✓ ${escHtml(cmd.existing_cmd_type)}</span>`;
+    else statusBadge = '<span class="tag" style="color:var(--accent)">new</span>';
+
+    html += `<div class="${classes.join(' ')}" data-index="${i}" onclick="toggleCommand(${i})">
+      <div><input type="checkbox" ${cmd.selected ? 'checked' : ''} onclick="event.stopPropagation();toggleCommand(${i})"></div>
+      <div>
+        <code style="font-weight:600;cursor:pointer" onclick="event.stopPropagation();editPattern(${i})" title="Click to edit pattern">${escHtml(cmd.pattern)}</code>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">${escHtml(cmd.raw)}</div>
+      </div>
+      <div><span class="category-tag">${escHtml(cmd.category)}</span></div>
+      <div style="font-size:0.78rem;color:var(--text-muted)">${cmd.has_output ? cmd.output_lines + ' lines' : 'none'}</div>
+      <div>${statusBadge}</div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+  updateSelectedCount();
+}
+
+// ── Toggle Command Selection ─────────────────────────────────────────────
+function toggleCommand(index) {
+  if (!batchAnalysis || !batchAnalysis.commands) return;
+  batchAnalysis.commands[index].selected = !batchAnalysis.commands[index].selected;
+
+  const rows = document.querySelectorAll('.cmd-row');
+  const row = rows[index];
+  if (row) {
+    const cb = row.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = batchAnalysis.commands[index].selected;
+    row.classList.toggle('selected', batchAnalysis.commands[index].selected);
+  }
+  updateSelectedCount();
+}
+
+function selectAll() {
+  if (!batchAnalysis) return;
+  batchAnalysis.commands.forEach(c => c.selected = true);
+  renderCommandList(batchAnalysis);
+}
+
+function selectNone() {
+  if (!batchAnalysis) return;
+  batchAnalysis.commands.forEach(c => c.selected = false);
+  renderCommandList(batchAnalysis);
+}
+
+function selectRecommended() {
+  if (!batchAnalysis) return;
+  batchAnalysis.commands.forEach(c => {
+    c.selected = c.has_output && !c.is_control && !c.is_help && !c.is_error && !c.has_existing_rule;
+  });
+  renderCommandList(batchAnalysis);
+}
+
+function updateSelectedCount() {
+  const el = document.getElementById('selected-count');
+  if (!el || !batchAnalysis) return;
+  const count = (batchAnalysis.commands || []).filter(c => c.selected).length;
+  el.textContent = `${count} command${count !== 1 ? 's' : ''} selected`;
+}
+
+// ── Batch Generate ───────────────────────────────────────────────────────
+async function batchGenerate() {
+  if (!batchAnalysis || !batchAnalysis.commands) {
+    Toast.warning('Analyze a log file first');
+    return;
+  }
+
+  const selected = batchAnalysis.commands.filter(c => c.selected);
+  if (selected.length === 0) {
+    Toast.warning('Select at least one command to generate rules for');
+    return;
+  }
+
+  const btn = document.getElementById('btn-generate');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating...'; }
+
+  const progressEl = document.getElementById('generate-progress');
+  const statusEl = document.getElementById('gen-status');
+  const logEl = document.getElementById('gen-log');
+  const resultsEl = document.getElementById('generate-results');
+
+  if (progressEl) progressEl.style.display = '';
+  if (logEl) logEl.innerHTML = '';
+  if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
+
+  const payload = {
+    vendor: batchAnalysis.vendor || '',
+    commands: selected.map(c => ({
+      pattern: c.pattern,
+      raw_command: c.raw,
+      sample_output: c.full_output,
+    })),
+  };
+
+  try {
+    const resp = await fetch('/api/import/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({ error: resp.statusText }));
+      throw new Error(errData.error || resp.statusText);
+    }
+
+    // SSE stream via ReadableStream (same technique as generateRule)
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let created = 0, failed = 0, skipped = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const ev = JSON.parse(line.slice(6));
+
+          switch (ev.type) {
+            case 'start':
+              if (statusEl) statusEl.innerHTML = `⏳ Processing ${ev.total} command(s)...`;
+              break;
+
+            case 'pending':
+              if (statusEl) statusEl.innerHTML = `⏳ [${ev.index}/${ev.total}] Generating: <code>${escHtml(ev.command)}</code>`;
+              appendGenLog(logEl, 'pending', `⏳ [${ev.index}/${ev.total}] ${ev.command} — calling LLM...`);
+              break;
+
+            case 'success':
+              created++;
+              appendGenLog(logEl, 'success', `✓ [${ev.index}/${ev.total}] ${ev.command} — rule #${ev.rule_id} (${(ev.confidence * 100).toFixed(0)}% confidence)`);
+              break;
+
+            case 'skipped':
+              skipped++;
+              appendGenLog(logEl, 'skipped', `— [${ev.index}/${ev.total}] ${ev.command} — ${ev.message}`);
+              break;
+
+            case 'failed':
+              failed++;
+              appendGenLog(logEl, 'failed', `✕ [${ev.index}/${ev.total}] ${ev.command} — ${ev.error}`);
+              break;
+
+            case 'done':
+              if (statusEl) statusEl.innerHTML = `✅ ${ev.message}`;
+              Toast.success(ev.message);
+              showGenerateResults(created, failed, skipped, ev.total);
+              break;
+          }
+        } catch (parseErr) {
+          // ignore parse errors from incomplete SSE lines
+        }
+      }
+    }
+  } catch (e) {
+    Toast.error('Batch generate failed: ' + e.message);
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger)">✕ ${escHtml(e.message)}</span>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '⚡ Generate Rules'; }
+  }
+}
+
+function appendGenLog(logEl, type, text) {
+  if (!logEl) return;
+  const line = document.createElement('div');
+  line.className = 'gen-log-line ' + type;
+  line.textContent = text;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function showGenerateResults(created, failed, skipped, total) {
+  const el = document.getElementById('generate-results');
+  if (!el) return;
+  el.style.display = '';
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px">
+      <div class="info-item"><div class="label">Total</div><div class="value">${total}</div></div>
+      <div class="info-item"><div class="label">Created</div><div class="value" style="color:var(--success)">${created}</div></div>
+      <div class="info-item"><div class="label">Failed</div><div class="value" style="color:var(--danger)">${failed}</div></div>
+      <div class="info-item"><div class="label">Skipped</div><div class="value" style="color:var(--text-muted)">${skipped}</div></div>
+    </div>
+    ${created > 0 ? '<div style="margin-top:16px;text-align:center"><a href="/rules" class="btn btn-primary">📋 View Created Rules →</a></div>' : ''}
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Phase 2 — Manual Add Command
+// ══════════════════════════════════════════════════════════════════════════
+
+function toggleManualAdd() {
+  const body = document.getElementById('manual-add-body');
+  const toggle = document.getElementById('manual-add-toggle');
+  if (!body || !toggle) return;
+  if (body.style.display === 'none') {
+    body.style.display = '';
+    toggle.style.display = 'none';
+  } else {
+    body.style.display = 'none';
+    toggle.style.display = '';
+  }
+}
+
+async function manualAddCommand() {
+  const vendor = document.getElementById('manual-vendor')?.value || '';
+  const command = document.getElementById('manual-command')?.value || '';
+  const output = document.getElementById('manual-output')?.value || '';
+  const resultEl = document.getElementById('manual-add-result');
+  const btn = document.getElementById('btn-manual-add');
+
+  if (!vendor) { Toast.warning('Select a vendor'); return; }
+  if (!command.trim()) { Toast.warning('Enter a command'); return; }
+  if (!output.trim()) { Toast.warning('Paste command output (required for rule generation)'); return; }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Adding...'; }
+
+  try {
+    const resp = await fetch('/api/import/manual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vendor, command: command.trim(), output }),
+    });
+    const data = await resp.json();
+    if (data.error) { Toast.error(data.error); if (resultEl) resultEl.innerHTML = `<span style="color:var(--danger)">✕ ${escHtml(data.error)}</span>`; return; }
+
+    if (data.status === 'exists') {
+      Toast.warning(data.message);
+      if (resultEl) resultEl.innerHTML = `<span style="color:var(--warning)">⚠ ${escHtml(data.message)} — <a href="/rule/${data.rule_id}">View Rule →</a></span>`;
+    } else {
+      Toast.success(data.message);
+      if (resultEl) resultEl.innerHTML = `<span style="color:var(--success)">✓ Pattern: <code>${escHtml(data.pattern)}</code> — <a href="/unknown">View in Unknown Outputs →</a></span>`;
+      // Clear inputs
+      document.getElementById('manual-command').value = '';
+      document.getElementById('manual-output').value = '';
+      updateUnknownBadge(1);
+    }
+  } catch (e) {
+    Toast.error('Manual add failed: ' + e.message);
+    if (resultEl) resultEl.innerHTML = `<span style="color:var(--danger)">✕ ${escHtml(e.message)}</span>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '➕ Add to Unknown Outputs'; }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Phase 2 — Unknown Page Batch Select + Generate
+// ══════════════════════════════════════════════════════════════════════════
+
+function toggleUnknownSelect(id) {
+  const cb = document.getElementById('unknown-cb-' + id);
+  if (cb) cb.checked = !cb.checked;
+  updateUnknownBatchCount();
+}
+
+function selectAllUnknown(masterCb) {
+  const checked = masterCb.checked;
+  document.querySelectorAll('.unknown-row-cb').forEach(cb => cb.checked = checked);
+  updateUnknownBatchCount();
+}
+
+function updateUnknownBatchCount() {
+  const count = document.querySelectorAll('.unknown-row-cb:checked').length;
+  const el = document.getElementById('unknown-batch-count');
+  if (el) el.textContent = `${count} selected`;
+  const btn = document.getElementById('btn-unknown-batch');
+  if (btn) btn.disabled = count === 0;
+}
+
+async function batchGenerateUnknown() {
+  const checked = document.querySelectorAll('.unknown-row-cb:checked');
+  if (checked.length === 0) { Toast.warning('Select at least one command'); return; }
+
+  const ids = [];
+  checked.forEach(cb => ids.push(parseInt(cb.dataset.id)));
+
+  const btn = document.getElementById('btn-unknown-batch');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating...'; }
+
+  try {
+    const resp = await fetch('/api/unknown/batch-generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({ error: resp.statusText }));
+      throw new Error(errData.error || resp.statusText);
+    }
+
+    // SSE stream
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let created = 0, failed = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const ev = JSON.parse(line.slice(6));
+          const row = document.getElementById('unknown-' + ev.unknown_id);
+
+          switch (ev.type) {
+            case 'start':
+              Toast.info(`Batch generating ${ev.total} rules...`);
+              break;
+            case 'pending':
+              if (row) row.style.background = 'var(--accent-bg)';
+              break;
+            case 'success':
+              created++;
+              if (row) {
+                row.style.background = 'var(--success-bg)';
+                const actions = row.querySelector('td:last-child');
+                if (actions) actions.innerHTML = `<span style="color:var(--success)">✓ Rule #${ev.rule_id}</span> <a href="/rule/${ev.rule_id}" class="btn btn-primary btn-sm">View →</a>`;
+              }
+              updateUnknownBadge(-1);
+              break;
+            case 'skipped':
+              if (row) {
+                row.style.background = 'var(--warning-bg)';
+                const actions = row.querySelector('td:last-child');
+                if (actions) actions.innerHTML = `<span style="color:var(--warning)">— ${escHtml(ev.message)}</span>`;
+              }
+              break;
+            case 'failed':
+              failed++;
+              if (row) {
+                row.style.background = 'var(--danger-bg)';
+                const actions = row.querySelector('td:last-child');
+                if (actions) actions.innerHTML = `<span style="color:var(--danger)">✕ ${escHtml(ev.error)}</span>`;
+              }
+              break;
+            case 'done':
+              Toast.success(ev.message);
+              break;
+          }
+        } catch (parseErr) { /* ignore incomplete SSE lines */ }
+      }
+    }
+  } catch (e) {
+    Toast.error('Batch generate failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '⚡ Batch Generate Selected'; }
+    updateUnknownBatchCount();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Phase 2 — Pattern Editor (inline editing in command review list)
+// ══════════════════════════════════════════════════════════════════════════
+
+function editPattern(index) {
+  if (!batchAnalysis || !batchAnalysis.commands) return;
+  const cmd = batchAnalysis.commands[index];
+  const rows = document.querySelectorAll('.cmd-row');
+  const row = rows[index];
+  if (!row) return;
+
+  // Find the pattern cell (second column content)
+  const patternCell = row.children[1];
+  if (!patternCell) return;
+
+  const currentPattern = cmd.pattern;
+  patternCell.innerHTML = `
+    <div style="display:flex;align-items:center;gap:4px">
+      <input type="text" class="pattern-edit-input" value="${escHtml(currentPattern)}"
+        style="flex:1;font-family:var(--font-mono);font-size:0.82rem;padding:4px 8px;margin:0"
+        onkeydown="if(event.key==='Enter'){savePattern(${index},this.value);event.preventDefault()}"
+        onblur="savePattern(${index},this.value)"
+        placeholder="e.g. display bgp peer {ip}">
+      <span style="font-size:0.7rem;color:var(--text-muted)" title="Placeholders: {name} {ip} {id} {interface}">?</span>
+    </div>
+    <div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px">Placeholders: {name} {ip} {id} {interface} · Enter to save</div>
+  `;
+  patternCell.querySelector('input').focus();
+  patternCell.querySelector('input').select();
+}
+
+function savePattern(index, newPattern) {
+  if (!batchAnalysis || !batchAnalysis.commands) return;
+  const trimmed = newPattern.trim();
+  if (!trimmed) return; // don't save empty
+
+  const cmd = batchAnalysis.commands[index];
+  const oldPattern = cmd.pattern;
+  cmd.pattern = trimmed;
+
+  // Re-render the row (not the whole list to avoid losing state)
+  const rows = document.querySelectorAll('.cmd-row');
+  const row = rows[index];
+  if (!row) return;
+
+  const patternCell = row.children[1];
+  if (!patternCell) return;
+
+  const edited = trimmed !== oldPattern;
+  patternCell.innerHTML = `
+    <code style="font-weight:600${edited ? ';color:var(--warning)' : ''}">${escHtml(trimmed)}</code>
+    ${edited ? '<span class="tag" style="font-size:0.65rem;color:var(--warning);margin-left:4px">edited</span>' : ''}
+    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">${escHtml(cmd.raw)}</div>
+  `;
+
+  if (edited) Toast.info(`Pattern updated: ${trimmed}`);
+}
+
 // Init
 document.addEventListener('DOMContentLoaded', function() {
   connectWS();
@@ -1196,4 +1744,139 @@ document.addEventListener('DOMContentLoaded', function() {
     codeTextarea.id = codeTextarea.id || 'code-editor';
     upgradeToMonaco(codeTextarea.id, 'go');
   }
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// Coverage Boost — one-click rule generation for uncovered commands
+// ══════════════════════════════════════════════════════════════════════════
+
+async function coverageBoostAll(deviceID, vendor) {
+  const btn = document.getElementById('btn-cov-boost');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 生成中...'; }
+
+  const progressEl = document.getElementById('cov-boost-progress');
+  const statusEl = document.getElementById('cov-boost-status');
+  const logEl = document.getElementById('cov-boost-log');
+  if (progressEl) progressEl.style.display = '';
+  if (logEl) logEl.innerHTML = '';
+
+  try {
+    const formData = new URLSearchParams();
+    formData.append('device_id', deviceID);
+
+    const resp = await fetch('/api/coverage/boost', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({ error: resp.statusText }));
+      throw new Error(errData.error || resp.statusText);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const ev = JSON.parse(line.slice(6));
+          switch (ev.type) {
+            case 'start':
+              if (statusEl) statusEl.innerHTML = `⏳ 正在处理 ${ev.total} 条未覆盖命令...`;
+              break;
+            case 'pending':
+              if (statusEl) statusEl.innerHTML = `⏳ [${ev.index}/${ev.total}] 生成中: <code>${escHtml(ev.command)}</code>`;
+              appendCovBoostLog(logEl, 'pending', `⏳ [${ev.index}/${ev.total}] ${ev.command} — 调用 LLM...`);
+              break;
+            case 'success':
+              appendCovBoostLog(logEl, 'success', `✓ [${ev.index}/${ev.total}] ${ev.command} — 规则 #${ev.rule_id} (${(ev.confidence * 100).toFixed(0)}%)`);
+              break;
+            case 'skipped':
+              appendCovBoostLog(logEl, 'skipped', `— [${ev.index}/${ev.total}] ${ev.command} — ${ev.message}`);
+              break;
+            case 'failed':
+              appendCovBoostLog(logEl, 'failed', `✕ [${ev.index}/${ev.total}] ${ev.command} — ${ev.error}`);
+              break;
+            case 'done':
+              if (statusEl) statusEl.innerHTML = `✅ ${ev.message}`;
+              Toast.success(ev.message);
+              break;
+          }
+        } catch (parseErr) { /* ignore incomplete SSE lines */ }
+      }
+    }
+  } catch (e) {
+    Toast.error('Coverage boost failed: ' + e.message);
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger)">✕ ${escHtml(e.message)}</span>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '⚡ 一键提高覆盖率'; }
+  }
+}
+
+function appendCovBoostLog(logEl, cls, html) {
+  if (!logEl) return;
+  const div = document.createElement('div');
+  div.className = 'cov-boost-log-entry ' + cls;
+  div.innerHTML = html;
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// Single command: navigate to Unknown page filtered by this command
+function coverageGenOne(btn, command) {
+  // Navigate to Unknown outputs page — the user can generate from there
+  window.location.href = '/unknown?q=' + encodeURIComponent(command);
+}
+
+// ── Pattern Matching (4D) ────────────────────────────────────────────────
+
+// Save model_pattern and os_pattern for a pending rule.
+async function savePatterns(ruleId) {
+  const modelPattern = document.getElementById('model-pattern')?.value || '.*';
+  const osPattern = document.getElementById('os-pattern')?.value || '.*';
+  const modelHint = document.getElementById('model-pattern-hint');
+  const osHint = document.getElementById('os-pattern-hint');
+
+  // Client-side regex validation
+  try { new RegExp(modelPattern); if (modelHint) modelHint.textContent = ''; }
+  catch(e) { if (modelHint) { modelHint.textContent = '⚠ Invalid regex: ' + e.message; modelHint.style.color = 'var(--danger)'; } return; }
+  try { new RegExp(osPattern); if (osHint) osHint.textContent = ''; }
+  catch(e) { if (osHint) { osHint.textContent = '⚠ Invalid regex: ' + e.message; osHint.style.color = 'var(--danger)'; } return; }
+
+  try {
+    const result = await apiPost(`/api/rule/${ruleId}/save-patterns`, {
+      model_pattern: modelPattern,
+      os_pattern: osPattern,
+    });
+    if (result.error) { Toast.error(result.error); return; }
+    Toast.success('Patterns saved');
+  } catch(e) { Toast.error('Save failed: ' + e.message); }
+}
+
+// Live regex validation for pattern inputs
+document.addEventListener('DOMContentLoaded', function() {
+  ['model-pattern', 'os-pattern'].forEach(function(id) {
+    const input = document.getElementById(id);
+    const hint = document.getElementById(id + '-hint');
+    if (!input || !hint) return;
+    input.addEventListener('input', function() {
+      try {
+        new RegExp(input.value || '.*');
+        hint.textContent = '';
+      } catch(e) {
+        hint.textContent = '⚠ ' + e.message;
+        hint.style.color = 'var(--danger)';
+      }
+    });
+  });
 });

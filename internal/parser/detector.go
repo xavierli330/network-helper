@@ -3,7 +3,9 @@ package parser
 import (
 	"regexp"
 	"strings"
+
 	"github.com/xavierli/nethelper/internal/model"
+	"github.com/xavierli/nethelper/internal/store"
 )
 
 var (
@@ -28,6 +30,31 @@ func DetectVendor(line string) (vendor, hostname string) {
 	if m := juniperPrompt.FindStringSubmatch(trimmed); m != nil { return "juniper", m[1] }
 	if m := ciscoPrompt.FindStringSubmatch(trimmed); m != nil { return "cisco", m[1] }
 	return "", ""
+}
+
+// DetectVendorWithHints implements three-layer vendor detection:
+//   1. Hostname keyword match from VendorHintCache (highest priority)
+//   2. Prompt regex match via DetectVendor (fallback)
+//   3. Returns empty if neither matches
+//
+// This allows operators to configure hostname keywords (e.g. "H9850" → h3c,
+// "NE40" → huawei) so that devices with ambiguous prompts (both Huawei and
+// H3C use <hostname>) are correctly identified.
+func DetectVendorWithHints(line string, hints *store.VendorHintCache) (vendor, hostname string) {
+	// First, detect hostname via regex (always needed for hostname extraction)
+	vendor, hostname = DetectVendor(line)
+	if hostname == "" {
+		return "", ""
+	}
+
+	// If we have a hint cache, check hostname keywords for vendor override
+	if hints != nil {
+		if hintVendor, ok := hints.Lookup(hostname); ok {
+			return hintVendor, hostname
+		}
+	}
+
+	return vendor, hostname
 }
 
 func ClassifyHuaweiCommand(cmd string) model.CommandType {

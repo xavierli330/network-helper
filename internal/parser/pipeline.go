@@ -114,6 +114,7 @@ func (p *Pipeline) processBlocks(sourceFile string, blocks []CommandBlock, resul
 			ID:       deviceID,
 			Hostname: db.hostname,
 			Vendor:   db.vendor,
+			Model:    ExtractModel(db.hostname, db.vendor),
 			LastSeen: time.Now(),
 		}
 
@@ -357,6 +358,29 @@ func (p *Pipeline) storeResult(deviceID string, snapID int, pr model.ParseResult
 			rp.SnapshotID = snapID
 			if _, err := p.db.InsertRoutePolicy(rp); err != nil {
 				slog.Warn("store route policy failed", "device", deviceID, "policy", rp.PolicyName, "error", err)
+			}
+		}
+
+		// Auto-trigger coverage check when config is ingested.
+		if p.registry != nil {
+			report := CheckCoverage(vendor, pr.ConfigText, p.registry)
+			if report != nil {
+				report.DeviceID = deviceID
+				itemsJSON, _ := json.Marshal(report.Items)
+				p.db.InsertCoverageCheck(store.CoverageCheck{
+					DeviceID:     deviceID,
+					Vendor:       vendor,
+					TotalCount:   report.TotalCount,
+					CoveredCount: report.CoveredCount,
+					CoveragePct:  report.CoveragePct,
+					ItemsJSON:    string(itemsJSON),
+					CheckedAt:    report.CheckedAt,
+				})
+				slog.Info("coverage check completed",
+					"device", deviceID,
+					"covered", report.CoveredCount,
+					"total", report.TotalCount,
+					"pct", report.CoveragePct)
 			}
 		}
 	}

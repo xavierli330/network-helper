@@ -20,6 +20,12 @@ func classifyGenerated(cmd string) model.CommandType {
 		return model.CommandType("generated:huawei:route_policy") // ParseHuaweiRoutePolicy
 	case strings.HasPrefix(cmd, "display route-policy {name} no-more"):
 		return model.CommandType("generated:huawei:route_policy_no_more") // ParseHuaweiRoutePolicyNoMore
+	case strings.HasPrefix(cmd, "display acl {id}"):
+		return model.CommandType("generated:huawei:acl") // ParseHuaweiAcl
+	case strings.HasPrefix(cmd, "display acl all"):
+		return model.CommandType("generated:huawei:acl_all") // ParseHuaweiAclAll
+	case strings.HasPrefix(cmd, "display bgp network ipv4"):
+		return model.CommandType("generated:huawei:bgp_network_ipv4") // ParseHuaweiBgpNetworkIpv4
 	// GENERATED CASES — do not edit this comment
 	}
 	return model.CmdUnknown
@@ -37,6 +43,12 @@ func parseGenerated(cmdType model.CommandType, raw string) (model.ParseResult, e
 		return ParseHuaweiRoutePolicy(raw)
 	case model.CommandType("generated:huawei:route_policy_no_more"):
 		return ParseHuaweiRoutePolicyNoMore(raw)
+	case model.CommandType("generated:huawei:acl"):
+		return ParseHuaweiAcl(raw)
+	case model.CommandType("generated:huawei:acl_all"):
+		return ParseHuaweiAclAll(raw)
+	case model.CommandType("generated:huawei:bgp_network_ipv4"):
+		return ParseHuaweiBgpNetworkIpv4(raw)
 	// GENERATED PARSE CASES — do not edit this comment
 	}
 	return model.ParseResult{Type: cmdType, RawText: raw}, nil
@@ -49,6 +61,9 @@ func generatedCmdTypes() []model.CommandType {
 		model.CommandType("generated:huawei:ip_inter_brief"),
 		model.CommandType("generated:huawei:route_policy"),
 		model.CommandType("generated:huawei:route_policy_no_more"),
+		model.CommandType("generated:huawei:acl"),
+		model.CommandType("generated:huawei:acl_all"),
+		model.CommandType("generated:huawei:bgp_network_ipv4"),
 		// GENERATED CMDTYPES — do not edit this comment
 	}
 }
@@ -63,6 +78,12 @@ func generatedFieldSchema(cmdType model.CommandType) []model.FieldDef {
 	case model.CommandType("generated:huawei:route_policy"):
 		return nil
 	case model.CommandType("generated:huawei:route_policy_no_more"):
+		return nil
+	case model.CommandType("generated:huawei:acl"):
+		return nil
+	case model.CommandType("generated:huawei:acl_all"):
+		return nil
+	case model.CommandType("generated:huawei:bgp_network_ipv4"):
 		return nil
 	// GENERATED FIELD CASES — do not edit this comment
 	}

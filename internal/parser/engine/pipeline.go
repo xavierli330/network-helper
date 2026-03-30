@@ -156,17 +156,27 @@ func ExecPipeline(dsl string, raw string) (PipelineResult, error) {
 		}
 	}
 
-	// Single-section: detect mode as before
-	mode := "record"
+	// Single-section: detect mode
+	// Priority: SPLIT → table mode, FILTER+REGEX → regex table mode, else → record mode
+	hasSplit := false
+	hasFilter := false
+	hasRegex := false
 	for _, inst := range instructions {
-		if inst.verb == "SPLIT" {
-			mode = "table"
-			break
+		switch inst.verb {
+		case "SPLIT":
+			hasSplit = true
+		case "FILTER":
+			hasFilter = true
+		case "REGEX":
+			hasRegex = true
 		}
 	}
 
-	if mode == "table" {
+	if hasSplit {
 		return execTableMode(instructions, raw)
+	}
+	if hasFilter && hasRegex {
+		return execRegexTableMode(instructions, raw)
 	}
 	return execRecordMode(instructions, raw)
 }

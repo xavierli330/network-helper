@@ -25,6 +25,8 @@ type PendingRule struct {
 	ID              int
 	Vendor          string
 	CommandPattern  string
+	ModelPattern    string // regex for device model, default ".*"
+	OSPattern       string // regex for OS version, default ".*"
 	OutputType      string
 	SchemaYAML      string
 	GoCodeDraft     string
@@ -119,11 +121,17 @@ func (db *DB) GetUnknownOutputByID(id int) (UnknownOutput, error) {
 
 // CreatePendingRule inserts a new rule and returns its ID.
 func (db *DB) CreatePendingRule(r PendingRule) (int, error) {
+	if r.ModelPattern == "" {
+		r.ModelPattern = ".*"
+	}
+	if r.OSPattern == "" {
+		r.OSPattern = ".*"
+	}
 	res, err := db.Exec(`
-		INSERT INTO pending_rules (vendor, command_pattern, output_type, schema_yaml, go_code_draft,
+		INSERT INTO pending_rules (vendor, command_pattern, model_pattern, os_pattern, output_type, schema_yaml, go_code_draft,
 			sample_inputs, expected_outputs, confidence, occurrence_count, status)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.Vendor, r.CommandPattern, r.OutputType, r.SchemaYAML, r.GoCodeDraft,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.Vendor, r.CommandPattern, r.ModelPattern, r.OSPattern, r.OutputType, r.SchemaYAML, r.GoCodeDraft,
 		r.SampleInputs, r.ExpectedOutputs, r.Confidence, r.OccurrenceCount, r.Status)
 	if err != nil {
 		return 0, err
@@ -136,14 +144,14 @@ func (db *DB) CreatePendingRule(r PendingRule) (int, error) {
 func (db *DB) GetPendingRule(id int) (PendingRule, error) {
 	var r PendingRule
 	err := db.QueryRow(`
-		SELECT id, vendor, command_pattern, output_type,
+		SELECT id, vendor, command_pattern, COALESCE(model_pattern,'.*'), COALESCE(os_pattern,'.*'), output_type,
 			COALESCE(schema_yaml,''), COALESCE(go_code_draft,''),
 			sample_inputs, COALESCE(expected_outputs,''), COALESCE(confidence,0),
 			COALESCE(occurrence_count,0), status, COALESCE(approved_by,''), approved_at,
 			COALESCE(pr_url,''), merged_at, COALESCE(go_file_path,''),
 			created_at, updated_at
 		FROM pending_rules WHERE id = ?`, id).Scan(
-		&r.ID, &r.Vendor, &r.CommandPattern, &r.OutputType,
+		&r.ID, &r.Vendor, &r.CommandPattern, &r.ModelPattern, &r.OSPattern, &r.OutputType,
 		&r.SchemaYAML, &r.GoCodeDraft, &r.SampleInputs, &r.ExpectedOutputs, &r.Confidence,
 		&r.OccurrenceCount, &r.Status, &r.ApprovedBy, &r.ApprovedAt, &r.PRURL, &r.MergedAt, &r.GoFilePath,
 		&r.CreatedAt, &r.UpdatedAt)
@@ -152,7 +160,8 @@ func (db *DB) GetPendingRule(id int) (PendingRule, error) {
 
 // ListPendingRules returns rules filtered by status, sorted by occurrence_count DESC.
 func (db *DB) ListPendingRules(status string, limit int) ([]PendingRule, error) {
-	q := `SELECT id, vendor, command_pattern, output_type, COALESCE(confidence,0),
+	q := `SELECT id, vendor, command_pattern, COALESCE(model_pattern,'.*'), COALESCE(os_pattern,'.*'),
+		output_type, COALESCE(confidence,0),
 		COALESCE(occurrence_count,0), status, created_at
           FROM pending_rules WHERE 1=1`
 	var args []any
@@ -171,8 +180,8 @@ func (db *DB) ListPendingRules(status string, limit int) ([]PendingRule, error) 
 	var out []PendingRule
 	for rows.Next() {
 		var r PendingRule
-		if err := rows.Scan(&r.ID, &r.Vendor, &r.CommandPattern, &r.OutputType,
-			&r.Confidence, &r.OccurrenceCount, &r.Status, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.Vendor, &r.CommandPattern, &r.ModelPattern, &r.OSPattern,
+			&r.OutputType, &r.Confidence, &r.OccurrenceCount, &r.Status, &r.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -289,7 +298,8 @@ func (db *DB) DeletePendingRulesByStatus(status string) (int, error) {
 
 // SearchPendingRules searches rules by command pattern, vendor, or status.
 func (db *DB) SearchPendingRules(query, vendor, status string, limit int) ([]PendingRule, error) {
-	q := `SELECT id, vendor, command_pattern, output_type, COALESCE(confidence,0),
+	q := `SELECT id, vendor, command_pattern, COALESCE(model_pattern,'.*'), COALESCE(os_pattern,'.*'),
+		output_type, COALESCE(confidence,0),
 		COALESCE(occurrence_count,0), status, created_at
           FROM pending_rules WHERE 1=1`
 	var args []any
@@ -316,8 +326,8 @@ func (db *DB) SearchPendingRules(query, vendor, status string, limit int) ([]Pen
 	var out []PendingRule
 	for rows.Next() {
 		var r PendingRule
-		if err := rows.Scan(&r.ID, &r.Vendor, &r.CommandPattern, &r.OutputType,
-			&r.Confidence, &r.OccurrenceCount, &r.Status, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.Vendor, &r.CommandPattern, &r.ModelPattern, &r.OSPattern,
+			&r.OutputType, &r.Confidence, &r.OccurrenceCount, &r.Status, &r.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -338,4 +348,60 @@ func (db *DB) GetPendingRuleByCommandNorm(vendor, commandNorm string) (PendingRu
 		return r, sql.ErrNoRows
 	}
 	return r, err
+}
+
+// ── Import History ───────────────────────────────────────────────────────
+
+// ImportHistory represents a row in the import_history table.
+type ImportHistory struct {
+	ID               int
+	Filename         string
+	Vendor           string
+	SourceType       string // "file", "paste", "manual"
+	TotalCommands    int
+	SelectedCommands int
+	CreatedCount     int
+	FailedCount      int
+	SkippedCount     int
+	ImportedAt       time.Time
+}
+
+// CreateImportHistory inserts a new import history record and returns its ID.
+func (db *DB) CreateImportHistory(h ImportHistory) (int, error) {
+	res, err := db.Exec(`
+		INSERT INTO import_history (filename, vendor, source_type, total_commands, selected_commands,
+			created_count, failed_count, skipped_count)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		h.Filename, h.Vendor, h.SourceType, h.TotalCommands, h.SelectedCommands,
+		h.CreatedCount, h.FailedCount, h.SkippedCount)
+	if err != nil {
+		return 0, err
+	}
+	id, _ := res.LastInsertId()
+	return int(id), nil
+}
+
+// ListImportHistory returns the most recent import history records.
+func (db *DB) ListImportHistory(limit int) ([]ImportHistory, error) {
+	rows, err := db.Query(`
+		SELECT id, filename, vendor, source_type, total_commands, selected_commands,
+			created_count, failed_count, skipped_count, imported_at
+		FROM import_history
+		ORDER BY imported_at DESC
+		LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ImportHistory
+	for rows.Next() {
+		var h ImportHistory
+		if err := rows.Scan(&h.ID, &h.Filename, &h.Vendor, &h.SourceType,
+			&h.TotalCommands, &h.SelectedCommands, &h.CreatedCount,
+			&h.FailedCount, &h.SkippedCount, &h.ImportedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, h)
+	}
+	return out, rows.Err()
 }

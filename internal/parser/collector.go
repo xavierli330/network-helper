@@ -40,7 +40,7 @@ func (c *Collector) Collect(block CommandBlock) error {
 	// ── Filter 2: Control / navigation commands ──────────────────────
 	// These are device shell navigation commands that never produce
 	// parseable structured data.
-	if isControlCommand(block.Vendor, block.Command) {
+	if IsControlCommand(block.Vendor, block.Command) {
 		slog.Debug("collector: skipping control command", "cmd", block.Command)
 		return nil
 	}
@@ -50,7 +50,7 @@ func (c *Collector) Collect(block CommandBlock) error {
 	// help menu listing available keywords / parameters.  These are
 	// useless for rule generation.  Detect by content rather than
 	// command suffix, because the command itself may not end with '?'.
-	if isHelpEcho(trimmedOutput) {
+	if IsHelpEcho(trimmedOutput) {
 		slog.Debug("collector: skipping help echo output", "cmd", block.Command)
 		return nil
 	}
@@ -58,19 +58,19 @@ func (c *Collector) Collect(block CommandBlock) error {
 	// ── Filter 5: Error output ──────────────────────────────────
 	// CLI error messages (% Invalid input, Error: ..., ^ pointer)
 	// are not useful for rule generation.
-	if isErrorOutput(trimmedOutput) {
+	if IsErrorOutput(trimmedOutput) {
 		slog.Debug("collector: skipping error output", "cmd", block.Command)
 		return nil
 	}
 
-	norm := normaliseCommand(block.Vendor, block.Command)
+	norm := NormaliseCommand(block.Vendor, block.Command)
 
 	// ── Filter 4: Separate args from pattern ─────────────────────────
 	// Strip trailing instance arguments (interface names, IDs, IPs) so
 	// "display link-aggregation verbose bridge-aggregation 1" and
 	// "display link-aggregation verbose bridge-aggregation 2" share the
 	// same command_norm = "display link-aggregation verbose bridge-aggregation {id}".
-	pattern := stripArgs(norm)
+	pattern := StripArgs(norm)
 
 	hash := hashContent(block.Output)
 	entry := store.UnknownOutput{
@@ -123,9 +123,28 @@ var helpEchoSignatures = []string{
 // tabular output that happens to have wide column gaps.
 var helpEchoLineRe = regexp.MustCompile(`^\s*\S+\s{2,}\S`)
 
-// isHelpEcho returns true if the output text looks like CLI help/completion
-// output rather than real command output.
-func isHelpEcho(output string) bool {
+// dataIndicatorRe matches lines that contain structured network data rather
+// than CLI help descriptions. These indicators disambiguate tabular command
+// output (which happens to have wide column gaps) from help-echo text.
+//
+// Matches: IP addresses, community values (1:1), CIDR prefixes (/24),
+// MAC addresses, interface identifiers with numbers, etc.
+var dataIndicatorRe = regexp.MustCompile(
+	`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}` + // IPv4 address
+		`|` + `\d+:\d+` + // community value or time format (e.g. 1:1, 1:65100)
+		`|` + `/\d{1,3}\b` + // CIDR mask (e.g. /24, /32)
+		`|` + `[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}` + // MAC address (Huawei format)
+		`|` + `[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}`, // MAC address (Cisco format)
+)
+
+// helpDescriptionRe matches the "description" portion of a help line — it should
+// be predominantly alphabetic words (a natural-language description), NOT numeric
+// data. True help lines look like: "  keyword     Some description text here"
+var helpDescriptionRe = regexp.MustCompile(`^\s*[a-zA-Z<|>][\w<>-]*\s{2,}[A-Z]`)
+
+// IsHelpEcho returns true if the output text looks like CLI help/completion
+// output rather than real command output. Exported for use by log_analyzer.
+func IsHelpEcho(output string) bool {
 	// Fast path: check known fixed signatures first.
 	for _, sig := range helpEchoSignatures {
 		if strings.Contains(output, sig) {
@@ -133,10 +152,12 @@ func isHelpEcho(output string) bool {
 		}
 	}
 
-	// Heuristic: if ≥60% of non-blank lines match the "keyword  description"
-	// pattern and there are at least 3 such lines, it's a help menu.
+	// Heuristic: if ≥80% of non-blank lines match the "keyword  description"
+	// pattern and there are at least 3 such lines, it MIGHT be a help menu.
+	// But first, check for data indicators — structured data with IPs,
+	// community values, CIDR masks etc. is never help output.
 	lines := strings.Split(output, "\n")
-	total, matched := 0, 0
+	total, matched, dataLines, descLines := 0, 0, 0, 0
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
@@ -146,8 +167,29 @@ func isHelpEcho(output string) bool {
 		if helpEchoLineRe.MatchString(line) {
 			matched++
 		}
+		if dataIndicatorRe.MatchString(line) {
+			dataLines++
+		}
+		if helpDescriptionRe.MatchString(line) {
+			descLines++
+		}
 	}
-	return total >= 3 && matched > 0 && float64(matched)/float64(total) >= 0.6
+
+	// If any line contains structured data indicators (IPs, communities, etc.),
+	// this is command output, not a help menu.
+	if dataLines > 0 {
+		return false
+	}
+
+	// Require both: high percentage of "keyword  description" lines AND
+	// a significant portion must look like actual help descriptions
+	// (starting with an alphabetic keyword followed by a capitalized description).
+	if total >= 3 && float64(matched)/float64(total) >= 0.8 {
+		// Additional check: at least half the matching lines should look like
+		// genuine help descriptions (keyword + English description)
+		return descLines >= 2 || float64(descLines)/float64(total) >= 0.4
+	}
+	return false
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -158,9 +200,9 @@ func isHelpEcho(output string) bool {
 // which is used by CLI error messages to indicate the error position.
 var errorPointerRe = regexp.MustCompile(`^\s+\^\s*$`)
 
-// isErrorOutput returns true if the output looks like a CLI error message
+// IsErrorOutput returns true if the output looks like a CLI error message
 // (e.g. "% Invalid input", "Error: ...", or an error pointer "^").
-func isErrorOutput(output string) bool {
+func IsErrorOutput(output string) bool {
 	for _, line := range strings.Split(output, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "^" || errorPointerRe.MatchString(line) {
@@ -228,9 +270,9 @@ var controlCommands = []string{
 	"set cli",
 }
 
-// isControlCommand returns true if cmd is a device navigation / management
+// IsControlCommand returns true if cmd is a device navigation / management
 // command that should not be collected as an unknown output.
-func isControlCommand(vendor, cmd string) bool {
+func IsControlCommand(vendor, cmd string) bool {
 	lower := strings.ToLower(strings.TrimSpace(cmd))
 	// Expand verb abbreviation first, same as normaliseCommand
 	switch vendor {
@@ -312,7 +354,7 @@ var interiorAbbrevs = map[string]string{
 	"desc":  "descriptions",      // show interfaces desc
 }
 
-// normaliseCommand expands the leading verb abbreviation, expands common
+// NormaliseCommand expands the leading verb abbreviation, expands common
 // interior abbreviations, lowercases and collapses whitespace.
 //
 // Examples:
@@ -320,7 +362,7 @@ var interiorAbbrevs = map[string]string{
 //	"dis link-agg ver"    → "display link-aggregation verbose"  (huawei/h3c)
 //	"sh int brief"        → "show interface brief"              (cisco)
 //	"display int Vlanif100" → "display interface vlanif100"
-func normaliseCommand(vendor, cmd string) string {
+func NormaliseCommand(vendor, cmd string) string {
 	lower := strings.ToLower(strings.TrimSpace(cmd))
 	// Step 1: Expand leading verb
 	switch vendor {
@@ -449,7 +491,7 @@ var pureNumberRe = regexp.MustCompile(`^\d+$`)
 //	  → "display vlan {id}"
 //	"display ospf 100 peer brief"
 //	  → "display ospf {id} peer brief"
-func stripArgs(norm string) string {
+func StripArgs(norm string) string {
 	words := strings.Fields(norm)
 	if len(words) <= 1 {
 		return norm

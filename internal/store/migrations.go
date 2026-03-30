@@ -415,7 +415,7 @@ var migrations = []string{
     created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`,
-	`INSERT OR IGNORE INTO pending_rules_v2 SELECT * FROM pending_rules`,
+	`INSERT OR IGNORE INTO pending_rules_v2 SELECT id, vendor, command_pattern, output_type, schema_yaml, go_code_draft, sample_inputs, expected_outputs, confidence, occurrence_count, status, approved_by, approved_at, pr_url, merged_at, go_file_path, created_at, updated_at FROM pending_rules`,
 	`DROP TABLE IF EXISTS pending_rules`,
 	`ALTER TABLE pending_rules_v2 RENAME TO pending_rules`,
 	`CREATE TRIGGER IF NOT EXISTS pending_rules_updated_at
@@ -423,4 +423,102 @@ var migrations = []string{
  BEGIN
      UPDATE pending_rules SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
  END`,
+
+	// Phase 2: Import history tracking
+	`CREATE TABLE IF NOT EXISTS import_history (
+		id               INTEGER PRIMARY KEY AUTOINCREMENT,
+		filename         TEXT NOT NULL DEFAULT '',
+		vendor           TEXT NOT NULL DEFAULT '',
+		source_type      TEXT NOT NULL DEFAULT 'file',
+		total_commands   INTEGER NOT NULL DEFAULT 0,
+		selected_commands INTEGER NOT NULL DEFAULT 0,
+		created_count    INTEGER NOT NULL DEFAULT 0,
+		failed_count     INTEGER NOT NULL DEFAULT 0,
+		skipped_count    INTEGER NOT NULL DEFAULT 0,
+		imported_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+
+	// ── Phase 3A: Vendor Hostname Hints ──────────────────────────────────
+	// Maps hostname keywords to vendor names for device auto-detection.
+	// Priority: hostname keyword match > user hint > DetectVendor fallback.
+	`CREATE TABLE IF NOT EXISTS vendor_hostname_hints (
+		id       INTEGER PRIMARY KEY AUTOINCREMENT,
+		keyword  TEXT NOT NULL UNIQUE,
+		vendor   TEXT NOT NULL,
+		note     TEXT NOT NULL DEFAULT ''
+	)`,
+
+	// ── Phase 3C: Classification Patterns ────────────────────────────────
+	// Replaces hardcoded prefix→cmdType switch statements. DB is source of truth.
+	`CREATE TABLE IF NOT EXISTS classification_patterns (
+		id       INTEGER PRIMARY KEY AUTOINCREMENT,
+		vendor   TEXT NOT NULL,
+		prefix   TEXT NOT NULL,
+		cmd_type TEXT NOT NULL,
+		priority INTEGER NOT NULL DEFAULT 0
+	)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_cp_vendor_prefix ON classification_patterns(vendor, prefix)`,
+	`CREATE INDEX IF NOT EXISTS idx_cp_vendor ON classification_patterns(vendor)`,
+
+	// ── Phase 3D: Field Schemas ──────────────────────────────────────────
+	// Editable field metadata extracted from DSL named groups (?P<name>...).
+	`CREATE TABLE IF NOT EXISTS field_schemas (
+		id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		vendor      TEXT NOT NULL,
+		cmd_type    TEXT NOT NULL,
+		field_name  TEXT NOT NULL,
+		field_type  TEXT NOT NULL DEFAULT 'string',
+		description TEXT NOT NULL DEFAULT '',
+		example     TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_fs_vendor_cmd_field ON field_schemas(vendor, cmd_type, field_name)`,
+
+	// ── Phase 3B: Runtime Rules ──────────────────────────────────────────
+	// Stores approved DSL rules for runtime interpretation (no go build needed).
+	`CREATE TABLE IF NOT EXISTS runtime_rules (
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		vendor          TEXT NOT NULL,
+		command_pattern TEXT NOT NULL,
+		cmd_type        TEXT NOT NULL DEFAULT 'unknown',
+		output_type     TEXT NOT NULL CHECK(output_type IN ('table','hierarchical','raw','pipeline')),
+		dsl_text        TEXT NOT NULL,
+		enabled         INTEGER NOT NULL DEFAULT 1,
+		source_rule_id  INTEGER,
+		created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_rr_vendor_cmd ON runtime_rules(vendor, command_pattern)`,
+	`CREATE INDEX IF NOT EXISTS idx_rr_vendor ON runtime_rules(vendor)`,
+	`CREATE TRIGGER IF NOT EXISTS runtime_rules_updated_at
+ AFTER UPDATE ON runtime_rules
+ BEGIN
+     UPDATE runtime_rules SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+ END`,
+
+	// ── Self-Check Engine: Coverage Checks ──────────────────────────────
+	// Stores the latest coverage check result per device. One row per device
+	// (UNIQUE on device_id), replaced on every re-check.
+	`CREATE TABLE IF NOT EXISTS coverage_checks (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		device_id     TEXT NOT NULL UNIQUE,
+		vendor        TEXT NOT NULL,
+		total_count   INTEGER NOT NULL DEFAULT 0,
+		covered_count INTEGER NOT NULL DEFAULT 0,
+		coverage_pct  REAL NOT NULL DEFAULT 0,
+		items_json    TEXT NOT NULL DEFAULT '[]',
+		checked_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_coverage_device ON coverage_checks(device_id)`,
+
+	// ── 4D Rule Matching: add model_pattern + os_pattern ─────────────────
+	// Add model_pattern and os_pattern columns to runtime_rules.
+	`ALTER TABLE runtime_rules ADD COLUMN model_pattern TEXT NOT NULL DEFAULT '.*'`,
+	`ALTER TABLE runtime_rules ADD COLUMN os_pattern TEXT NOT NULL DEFAULT '.*'`,
+	// Drop old 2D unique index and rebuild as 4D.
+	`DROP INDEX IF EXISTS idx_rr_vendor_cmd`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_rr_vendor_model_os_cmd ON runtime_rules(vendor, model_pattern, os_pattern, command_pattern)`,
+
+	// Add model_pattern and os_pattern columns to pending_rules.
+	`ALTER TABLE pending_rules ADD COLUMN model_pattern TEXT NOT NULL DEFAULT '.*'`,
+	`ALTER TABLE pending_rules ADD COLUMN os_pattern TEXT NOT NULL DEFAULT '.*'`,
 }
